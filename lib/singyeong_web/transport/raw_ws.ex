@@ -57,6 +57,8 @@ defmodule SingyeongWeb.Transport.RawWs do
         {:reply, frames, state}
       {frames, state} when is_list(frames) ->
         {:reply, frames, state}
+      {{op, data}, state} ->
+        {:reply, {op, data}, state}
       {op, data} ->
         {:reply, {op, data}, state}
       {op, data, state} ->

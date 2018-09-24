@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway do
+  alias Singyeong.Gateway.Payload
+
   @heartbeat_interval 45_000
 
   @opcodes_name %{
@@ -34,18 +36,33 @@ defmodule Singyeong.Gateway do
     6 => :heartbeat_ack,
   }
 
-  def heartbeat_interval, do: @heartbeat_interval
+  defmodule GatewayResponse do
+    # The empty map for response is effectively just a noop
+    # If the assigns map isn't empty, everything in it will be assigned to the socket`
+    defstruct response: [],
+      assigns: %{}
+  end
 
-  def handle_payload(payload) when is_binary(payload) do
+  def heartbeat_interval, do: @heartbeat_interval
+  def opcodes_name, do: @opcodes_name
+  def opcodes_id, do: @opcodes_id
+
+  defp craft_response(response, assigns \\ %{})
+    when (is_tuple(response) or is_list(response)) and is_map(assigns)
+    do
+    %GatewayResponse{response: response, assigns: assigns}
+  end
+
+  def handle_payload(socket, payload) when is_binary(payload) do
     {status, msg} = Poison.decode payload
     case status do
       :ok ->
-        handle_payload msg
+        handle_payload socket, msg
       _ ->
-        close_with_payload(:invalid, %{"error" => "cannot decode payload"})
+        Payload.close_with_payload(:invalid, %{"error" => "cannot decode payload"})
     end
   end
-  def handle_payload(payload) when is_map(payload) do
+  def handle_payload(socket, payload) when is_map(payload) do
     op = payload["op"]
     if not is_nil(op) and is_integer(op) do
       named = @opcodes_id[op]
@@ -53,7 +70,7 @@ defmodule Singyeong.Gateway do
         :identify ->
           # TODO: When a socket IDENTIFYs, we need to assign something to it
           # How to do this?
-          handle_identify payload
+          handle_identify socket, payload
         :dispatch ->
           # TODO: Real dispatch routing etc
           ""
@@ -62,25 +79,28 @@ defmodule Singyeong.Gateway do
           # cowboy server will automatically disconnect after some period if
           # no messages come over the socket, so the client is responsible
           # for keeping itself alive.
-          handle_heartbeat payload
+          handle_heartbeat socket, payload
         _ ->
-          handle_invalid_op op
+          handle_invalid_op socket, op
       end
     else
-      close_with_payload :invalid, %{"error" => "payload has bad opcode"}
+      Payload.close_with_payload(:invalid, %{"error" => "payload has bad opcode"})
+      |> craft_response
     end
   end
-  def handle_payload(_payload) do
-    close_with_payload :invalid, %{"error" => "bad payload"}
+  def handle_payload(_socket, _payload) do
+    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
+    |> craft_response
   end
 
-  defp handle_identify(msg) when is_map(msg) do
+  defp handle_identify(socket, msg) when is_map(msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
         # TODO: Actually do checking of client IDs and shit to ensure validity
-        {:text, create_payload(:ready, %{"client_id" => client_id})}
+        Payload.create_payload(:ready, %{"client_id" => client_id})
+        |> craft_response(%{client_id: client_id})
       else
         handle_missing_data()
       end
@@ -88,16 +108,17 @@ defmodule Singyeong.Gateway do
       handle_missing_data()
     end
   end
-  defp handle_dispatch(msg) do
+  defp handle_dispatch(socket, msg) do
     # TODO: Figure out queueing and shit
   end
-  defp handle_heartbeat(msg) do
+  defp handle_heartbeat(socket, msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
         # TODO: Update client latency
-        {:text, create_payload(:heartbeat_ack, %{"client_id" => client_id})}
+        Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
+        |> craft_response
       else
         handle_missing_data()
       end
@@ -106,34 +127,12 @@ defmodule Singyeong.Gateway do
     end
   end
   defp handle_missing_data do
-    close_with_payload :invalid, %{"error" => "payload has no data"}
+    Payload.close_with_payload(:invalid, %{"error" => "payload has no data"})
+    |> craft_response
   end
-  defp handle_invalid_op(op) do
-    close_with_payload :invalid, %{"error" => "invalid client op #{inspect op}"}
-  end
-
-  def create_payload(op, data) when is_atom(op) and is_map(data) do
-    create_payload @opcodes_name[op], data
-  end
-  def create_payload(op, data) when is_integer(op) and is_map(data) do
-    Poison.encode!(%{
-      "op"  => op,
-      "d"   => data,
-      "ts"  => :os.system_time(:millisecond)
-    })
-  end
-  def create_payload(op, data) do
-    op_atom = is_atom op
-    op_int = is_integer op
-    d_map = is_map data
-    raise ArgumentError, "bad payload (op_atom = #{op_atom}, op_int = #{op_int}, d_map = #{d_map})"
-  end
-
-  def close_with_payload(op, data) do
-    [
-      {:text, create_payload(op, data)},
-      :close
-    ]
+  defp handle_invalid_op(_socket, op) do
+    Payload.close_with_payload(:invalid, %{"error" => "invalid client op #{inspect op}"})
+    |> craft_response
   end
 
   # This is here because we need to be able to send it immediately from

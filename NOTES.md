@@ -68,6 +68,68 @@ Some notes to myself so I don't forget
 | 5      | heartbeat     | send | Send a heartbeat to the gateway |
 | 6      | heartbeat_ack | recv | Gateway acknowledging the last heartbeat you sent |
 
+## 신경 events, the right way
+
+Beyond the structure described a feww sections above this, the structure of the
+inner payload of 신경 events is quite important. The correct structure for 
+these is described below:
+
+### hello
+
+The initial payload you receive after connecting to 신경.
+```Javascript
+{
+  // Send a heartbeat every `heartbeat_interval` milliseconds. 
+  // This value may change at any time, so don't hard-code it.
+  "heartbeat_interval": 45000
+}
+```
+
+### identify
+
+The payload you send to tell the gateway who you are ~~before it disconnects 
+you~~.
+```Javascript
+{
+  // A unique client ID. If there is already a *healthy* client with this 
+  // client id, your connection will be terminated with op 3.
+  "client_id": "19274eyuholdis3vhynurtlofkbhndvhvqkl34wjgyhnew.ri"
+}
+```
+
+### ready
+
+The payload that the gateway sends you after you correctly identify.
+```Javascript
+{
+  "client_id": "The same client id you sent in :identify"
+}
+```
+
+### dispatch
+
+The payload you send the gateway OR the gateway sends you for sending events
+for updating metadata, sending requests to other nodes, etc. This is somewhat
+complicated, and gets its own section(s) below.
+
+### heartbeat
+
+The payload you send the gateway to keep your connection alive. 
+```Javascript
+{
+  "client_id": "the same client id you sent in :identify"
+}
+```
+
+### heartbeat_ack
+
+The payload the gateway sends you when it receives your heartbeat.
+```Javascript
+{
+  "client_id": "the same client id you sent in :identify"
+}
+```
+
 ## 신경 websocket dispatch
 
 Dispatch packets are the most complicated packets that your client can send or
@@ -139,3 +201,29 @@ construct the `d` field correctly. Overall, it's structured like this:
   }
 }
 ```
+
+## 신경 message queueing
+
+When 신경 receives a dispatch packet from a client, it does not immediately 
+query for a target and send the message. Rather, the dispatch is queued up to
+be sent at a later time. This is mainly done so that ex. in the case of a 
+mistake causing all clients to connect to a single 신경 node, it won't
+(necessarily) overload the single node with trying to recv. *and* send all
+dispatch packets at the same time, handle all dispatch queries, etc. 
+
+신경 currently does message queueing with Mnesia, but this may change at some 
+point in the future. 
+
+## 신경 metadata store
+
+신경 stores metadata in Mnesia. By storing metadata in 신경, you're able to 
+take advantage of target queries for message routing. 
+
+When connnecting to the 신경 websocket gateway, you need to specify the 
+metadata keys _**and types**_ that you will be registering in your `identify`
+packet. This allows 신경 to create a nice Mnesia table out of it. On subsequent
+`identify`s, 신경 will (try to) be smart and update the Mnesia tables to match
+the new type definitions you give it.
+
+**Note: Redefining keys to have different types will likely cause explosions 
+until / unless all nodes are sending consistent metadata.**

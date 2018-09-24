@@ -1,6 +1,8 @@
 defmodule SingyeongWeb.UserSocket do
   use Phoenix.Socket
   alias Singyeong.Gateway
+  alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.GatewayResponse
   require Logger
 
   transport :websocket, SingyeongWeb.Transport.RawWs
@@ -17,7 +19,7 @@ defmodule SingyeongWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket) do
-    send self(), {:text, Gateway.create_payload(:hello, Gateway.hello)}
+    send self(), Payload.create_payload(:hello, Gateway.hello)
     {:ok, socket}
   end
 
@@ -33,12 +35,21 @@ defmodule SingyeongWeb.UserSocket do
   # Returning `nil` makes this socket anonymous.
   def id(_socket), do: nil
 
-  def handle(:text, payload, _state) do
-    Gateway.handle_payload payload
+  def handle(:text, payload, state) do
+    %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_payload state[:socket], payload
+    {response, %{state | socket: bulk_assign(state[:socket], assigns)}}
   end
 
   def handle(:closed, {code, reason}, state) do
     Logger.info "Socket closed with code #{inspect code}: #{inspect reason}"
     {:ok, state}
+  end
+
+  defp bulk_assign(socket, assigns) do
+    assigns
+    |> Map.keys
+    |> Enum.reduce(socket, fn(x, acc) ->
+        assign(acc, x, assigns[x])
+      end)
   end
 end
