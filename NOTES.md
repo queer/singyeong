@@ -93,7 +93,14 @@ you~~.
 {
   // A unique client ID. If there is already a *healthy* client with this 
   // client id, your connection will be terminated with op 3.
-  "client_id": "19274eyuholdis3vhynurtlofkbhndvhvqkl34wjgyhnew.ri"
+  // If you don't know what to use for this, you should use something like a
+  // UUID or snowflake.
+  // This value may *not* contain spaces.
+  "client_id": "19274eyuholdis3vhynurtlofkbhndvhvqkl34wjgyhnewri",
+  // The name of the client application. This field is required, as it's the 
+  // main thing used for routing queries. 
+  // This value may *not* contain spaces.
+  "application_name": "my-cool-application"
 }
 ```
 
@@ -211,19 +218,14 @@ mistake causing all clients to connect to a single 신경 node, it won't
 (necessarily) overload the single node with trying to recv. *and* send all
 dispatch packets at the same time, handle all dispatch queries, etc. 
 
-신경 currently does message queueing with Mnesia, but this may change at some 
+신경 currently does message queueing with Redis, but this may change at some 
 point in the future. 
 
 ## 신경 metadata store
 
-신경 stores metadata in Mnesia. By storing metadata in 신경, you're able to 
+신경 stores metadata in Redis. By storing metadata in 신경, you're able to 
 take advantage of target queries for message routing. 
 
-When connnecting to the 신경 websocket gateway, you need to specify the 
-metadata keys _**and types**_ that you will be registering in your `identify`
-packet. This allows 신경 to create a nice Mnesia table out of it. On subsequent
-`identify`s, 신경 will (try to) be smart and update the Mnesia tables to match
-the new type definitions you give it.
-
-**Note: Redefining keys to have different types will likely cause explosions 
-until / unless all nodes are sending consistent metadata.**
+When connecting to the 신경 websocket gateway, the identify payload that your
+client sends should include a `application_name` field; this field is a 
+requirement as it's the main key used for the majority of routing queries. 
