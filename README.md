@@ -10,3 +10,7 @@ figured that 신경 would be easier for people who don't know Korean to pronounc
 ## How do I write my own client for it?
 
 Check out NOTES.md.
+
+## How do I run the tests?
+
+`mix test --no-start`

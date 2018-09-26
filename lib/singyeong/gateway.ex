@@ -97,7 +97,9 @@ defmodule Singyeong.Gateway do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
-      if not is_nil(client_id) and is_binary(client_id) do
+      app_id = d["application_id"]
+      if not is_nil(client_id) and is_binary(client_id)
+        and not is_nil(app_id) and is_binary(app_id) do
         # TODO: Actually do checking of client IDs and shit to ensure validity
         Payload.create_payload(:ready, %{"client_id" => client_id})
         |> craft_response(%{client_id: client_id})

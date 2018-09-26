@@ -16,18 +16,23 @@ Some notes to myself so I don't forget
     ```
     Your client should start sending a heartbeat packet every 
     `heartbeat_interval` milliseconds (more on this later). 
-2.  Send the gateway a packet like this:
+2.  Send the gateway a packet like this to identify:
     ```Javascript
     {
       "op": 1,
       "d": {
         "client_id": "e6a1d8b2-54ff-4e0c-a301-0ff862539c2c",
+        "application_id": "my-cool-application",
       }
     }
     ```
     Your `client_id` should be unique among all clients that you connect to 
     신경. If you don't know how to do this nicely, look into UUID or snowflake
     libraries for your language of choice. 
+    
+    Your `application_id` can - and should be - shared among many clients. This
+    is because the `application_id` is what's used for actually doing by-app 
+    routing queries within 신경. 
 3.  The gateway will respond with a packet like this:
     ```Javascript
     {
