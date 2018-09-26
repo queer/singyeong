@@ -66,22 +66,26 @@ defmodule Singyeong.Gateway do
     op = payload["op"]
     if not is_nil(op) and is_integer(op) do
       named = @opcodes_id[op]
-      case named do
-        :identify ->
-          # TODO: When a socket IDENTIFYs, we need to assign something to it
-          # How to do this?
-          handle_identify socket, payload
-        :dispatch ->
-          # TODO: Real dispatch routing etc
-          ""
-        :heartbeat ->
-          # We only really do heartbeats to keep clients alive.
-          # cowboy server will automatically disconnect after some period if
-          # no messages come over the socket, so the client is responsible
-          # for keeping itself alive.
-          handle_heartbeat socket, payload
-        _ ->
-          handle_invalid_op socket, op
+      if named != :identify and is_nil socket.assigns["client_id"] do
+        Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
+        |> craft_response
+      else
+        case named do
+          :identify ->
+            # TODO: When a socket IDENTIFYs, we need to assign something to it
+            # How to do this?
+            handle_identify socket, payload
+          :dispatch ->
+            handle_dispatch socket, payload
+          :heartbeat ->
+            # We only really do heartbeats to keep clients alive.
+            # cowboy server will automatically disconnect after some period if
+            # no messages come over the socket, so the client is responsible
+            # for keeping itself alive.
+            handle_heartbeat socket, payload
+          _ ->
+            handle_invalid_op socket, op
+        end
       end
     else
       Payload.close_with_payload(:invalid, %{"error" => "payload has bad opcode"})
@@ -93,7 +97,7 @@ defmodule Singyeong.Gateway do
     |> craft_response
   end
 
-  defp handle_identify(socket, msg) when is_map(msg) do
+  defp handle_identify(_socket, msg) when is_map(msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
@@ -110,7 +114,7 @@ defmodule Singyeong.Gateway do
       handle_missing_data()
     end
   end
-  defp handle_dispatch(socket, msg) do
+  defp handle_dispatch(_socket, _msg) do
     # TODO: Figure out queueing and shit
   end
   defp handle_heartbeat(socket, msg) do
