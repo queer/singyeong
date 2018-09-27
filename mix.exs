@@ -38,6 +38,7 @@ defmodule Singyeong.Mixfile do
       {:cowboy, "~> 1.0"},
       {:redix, ">= 0.0.0"},
       {:ex_doc, "~> 0.11", only: :dev},
+      {:nimble_parsec, "~> 0.4.0"},
     ]
   end
 end
