@@ -35,6 +35,8 @@ defmodule Singyeong.Metadata.Store do
   elements (read: because set elements can be removed directly).
   """
 
+  alias Singyeong.Metadata.Types
+
   @pool_size 5
 
   def pool_spec(dsn) do
@@ -57,18 +59,43 @@ defmodule Singyeong.Metadata.Store do
   @doc """
   Add a client to the known clients for an app id.
   """
-  def add_to_store(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
+  def add_client_to_store(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
     command ["SADD", format_key("application", app_id), client_id]
   end
 
-  #def update_metadata(client_id, key, value) when is_binary(client_id) and is_binary(key) do
-  #  command ["HSET", client_id, key, value]
-  #end
+  @doc """
+  Check if a client exists for a given app id.
+  """
+  def store_has_client?(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
+    command ["SISMEMBER", format_key("application", app_id), client_id]
+  end
+
+  def remove_client(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
+    command ["SREM", format_key("application", app_id), client_id]
+    # Clean up associated metadata
+    command ["DEL", format_key("client:metadata", client_id)]
+  end
+
+  @doc """
+  Given a mapping of metadata typings, validate that the metadata is actually
+  valid data for the associated types.
+  """
+  def validate_metadata?(data) when is_map(data) do
+    data
+    |> Map.keys
+    |> Enum.reduce([], fn(x, acc) ->
+      d = data[x]
+      v = d["value"]
+      type = Types.types()[d["type"]]
+      acc ++ [type.validation_function.(v)]
+    end)
+    |> Enum.all?
+  end
 
   @doc """
   Bulk-update the metadata for a client.
   """
-  def update_metadata(client_id, data) when is_map(data) do
+  def update_metadata(data, client_id) when is_map(data) and is_binary(client_id) do
     # Reduce metadata map into a list of commands and pipeline it
     data
     |> Map.keys
@@ -79,20 +106,20 @@ defmodule Singyeong.Metadata.Store do
           else
             x
           end
-        acc ++ [["HSET", format_key("client", client_id), key, data[x]]]
+        acc ++ [["HSET", format_key("client:metadata", client_id), key, data[x]]]
       end)
     |> pipeline
   end
 
-  defp format_key(type, key) when is_binary(type) and is_binary(key) do
+  def format_key(type, key) when is_binary(type) and is_binary(key) do
     "singyeong:metadata:#{type}:#{key}"
   end
 
-  defp pipeline(commands) when is_list(commands) do
+  def pipeline(commands) when is_list(commands) do
     Redix.pipeline :"redix_#{random_index()}", commands
   end
 
-  defp command(command) do
+  def command(command) do
     Redix.command :"redix_#{random_index()}", command
   end
 

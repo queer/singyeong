@@ -1,5 +1,7 @@
 defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Dispatch
+  alias Singyeong.Metadata.Store
 
   @heartbeat_interval 45_000
 
@@ -43,6 +45,8 @@ defmodule Singyeong.Gateway do
       assigns: %{}
   end
 
+  ## HELPERS ##
+
   def heartbeat_interval, do: @heartbeat_interval
   def opcodes_name, do: @opcodes_name
   def opcodes_id, do: @opcodes_id
@@ -52,6 +56,8 @@ defmodule Singyeong.Gateway do
     do
     %GatewayResponse{response: response, assigns: assigns}
   end
+
+  ## INCOMING PAYLOAD ##
 
   def handle_payload(socket, payload) when is_binary(payload) do
     {status, msg} = Poison.decode payload
@@ -72,8 +78,6 @@ defmodule Singyeong.Gateway do
       else
         case named do
           :identify ->
-            # TODO: When a socket IDENTIFYs, we need to assign something to it
-            # How to do this?
             handle_identify socket, payload
           :dispatch ->
             handle_dispatch socket, payload
@@ -97,6 +101,14 @@ defmodule Singyeong.Gateway do
     |> craft_response
   end
 
+  ## SOCKET CLOSED ##
+
+  def handle_close(socket) do
+    Store.remove_client socket.assigns[:app_id], socket.assigns[:client_id]
+  end
+
+  ## OP HANDLING ##
+
   defp handle_identify(_socket, msg) when is_map(msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
@@ -104,9 +116,17 @@ defmodule Singyeong.Gateway do
       app_id = d["application_id"]
       if not is_nil(client_id) and is_binary(client_id)
         and not is_nil(app_id) and is_binary(app_id) do
-        # TODO: Actually do checking of client IDs and shit to ensure validity
-        Payload.create_payload(:ready, %{"client_id" => client_id})
-        |> craft_response(%{client_id: client_id})
+        # Check app/client IDs to ensure validity
+        {status, check} = Store.store_has_client?(app_id, client_id)
+        if status == :error or check != 1 do
+          # If we already have a client, reject outright
+          Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+          |> craft_response
+        else
+          # Client doesn't exist, add to store and okay it
+          Payload.create_payload(:ready, %{"client_id" => client_id})
+          |> craft_response(%{client_id: client_id, app_id: app_id})
+        end
       else
         handle_missing_data()
       end
@@ -114,15 +134,21 @@ defmodule Singyeong.Gateway do
       handle_missing_data()
     end
   end
-  defp handle_dispatch(_socket, _msg) do
-    # TODO: Figure out queueing and shit
+
+  defp handle_dispatch(socket, msg) do
+    error = Dispatch.handle_dispatch socket, msg
+    if error do
+      Payload.close_with_payload(:invalid, %{"error" => error})
+    else
+      nil
+    end
   end
+
   defp handle_heartbeat(socket, msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
-        # TODO: Update client latency
         Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
         |> craft_response
       else
@@ -132,10 +158,12 @@ defmodule Singyeong.Gateway do
       handle_missing_data()
     end
   end
+
   defp handle_missing_data do
     Payload.close_with_payload(:invalid, %{"error" => "payload has no data"})
     |> craft_response
   end
+
   defp handle_invalid_op(_socket, op) do
     Payload.close_with_payload(:invalid, %{"error" => "invalid client op #{inspect op}"})
     |> craft_response
@@ -145,7 +173,7 @@ defmodule Singyeong.Gateway do
   # user_socket.ex
   def hello do
     %{
-      "heartbeat_interval" => Singyeong.Gateway.heartbeat_interval()
+      "heartbeat_interval" => @heartbeat_interval
     }
   end
 end

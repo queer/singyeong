@@ -57,21 +57,23 @@ Some notes to myself so I don't forget
   },
   // Timestamp of the packet when it was sent on the server. Can be used for 
   // ex. latency calculations
-  "ts": 0
+  "ts": 0,
+  // Type of the event. This only sent for `dispatch` events
+  "t": "EVENT_TYPE"
 }
 ```
 
 ## 신경 websocket opcodes
 
-| opcode | name          | mode | description |
-|--------|---------------|------|-------------|
-| 0      | hello         | recv | Sent on initial connection to the gateway |
-| 1      | identify      | send | Tell the gateway who you are |
-| 2      | ready         | recv | The gateway has accepted you, and will send you packets |
-| 3      | invalid       | recv | The gateway doesn't like you for some reason, and wants you to go away (more info will be included in the `error` field of `d`) |
-| 4      | dispatch      | both | The gateway is sending you an event, or you are sending the gateway an event |
-| 5      | heartbeat     | send | Send a heartbeat to the gateway |
-| 6      | heartbeat_ack | recv | Gateway acknowledging the last heartbeat you sent |
+| opcode | name            | mode | description |
+|--------|-----------------|------|-------------|
+| 0      | `hello`         | recv | Sent on initial connection to the gateway |
+| 1      | `identify`      | send | Tell the gateway who you are |
+| 2      | `ready`         | recv | The gateway has accepted you, and will send you packets |
+| 3      | `invalid`       | recv | The gateway doesn't like you for some reason, and wants you to go away (more info will be included in the `error` field of `d`) |
+| 4      | `dispatch`      | both | The gateway is sending you an event, or you are sending the gateway an event |
+| 5      | `heartbeat`     | send | Send a heartbeat to the gateway |
+| 6      | `heartbeat_ack` | recv | Gateway acknowledging the last heartbeat you sent |
 
 ## 신경 events, the right way
 
@@ -149,70 +151,64 @@ recv., so it gets a special section documenting it. Specifically, a dispatch
 packet will have a very specific `d` field structure, which any compliant 
 clients must follow. 
 
-Dispatch send structure
+### 신경 dispatch events
+
+| name              | description |
+|-------------------|-------------|
+| `UPDATE_METADATA` | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
+| `SEND`            | Send a payload to a single client that matches the routing query |
+| `BROADCAST`       | Send a payload to all clients that match the routing query |
+
+The inner payloads for these events are as follows:
+
+#### `UPDATE_METADATA`
+
 ```Javascript
 {
-  "op": 4, // 4 is dispatch
-  "ts": 0,
-  "d": {
-    "t": "EVENT_TYPE",
-    "sender": "client's ID here. Used for req-res type messages",
-    "nonce": "some unique nonce value. Used for req-res type messages",
-    "target": "TODO",
-    "payload": {
-      // Your request payload goes here
-    }
+  "key": {
+    "type": "string",
+    "value": "value"
   }
+  "key2": {
+    "type": "integer",
+    "value": 123
+  }
+  // ...
 }
 ```
-Dispatch recv. structure
+
+### `SEND` / `BROADCAST`
+
+When sending:
 ```Javascript
 {
-  "op": 4, // 4 is dispatch
-  "ts": 0,
-  "d": {
-    "t": "EVENT_TYPE",
-    "sender": "client's ID here. Used for req-res type messages",
-    "nonce": "some unique nonce value. Used for req-res type messages",
-    "payload": {
-      // Your request payload goes here
-    }
-  }
-}
-```
-The main different between send and recv. is the `target` field, but the
-distinction is important enough that it deserves to be specifically shown like
-this. To summarize, the important part (beyond setting correct opcode) is to 
-construct the `d` field correctly. Overall, it's structured like this:
-```Javascript
-{
-  // The type of the event. Always sent. Used for both controlling the client's
-  // 신경 data as well as for clients receiving events from 신경. To make this
-  // distinction clearer, 신경 events will be prefixed with 
-  // TODO: Come up with a consistent prefix
-  // This field is optional for custom packets
-  // This field is required for 신경 packets
-  "t": "EVENT_TYPE",
-  // The ID of the client sending this packet. Used for request-response-style
-  // queries. 
-  // This field is required
-  "sender": "client id",
-  // A 신경 query to determine how to route this packet. Uses client metadata
-  // to determine routing. 
-  // More info on 신경 querying to come later
-  // This field is required
-  "target": "TODO",
-  // A unique nonce value, used for request-response-style queries. This field
-  // is optional, and will only be used on clients
+  // Client ID sending the payload
+  "sender": "your client id goes here",
+  // Routing query for finding receiving nodes
+  "target": "routing query goes here",
+  // Optional nonce, used by clients for req-res queries
   "nonce": "unique nonce",
-  // The actual data of the request. 신경 will not introspect this field at
-  // all. Used only by clients
-  // This field is required
-  "payload": {
-    // Request payload goes here
+  "payload: {
+    // Whatever data you want to pass goes here
   }
 }
 ```
+
+When receiving:
+```Javascript
+{
+  // Client ID sending the payload
+  "sender": "your client id goes here",
+  // Optional nonce, used by clients for req-res queries
+  "nonce": "unique nonce",
+  "payload: {
+    // Whatever data you want to pass goes here
+  }
+}
+```
+
+The main difference is the presence of the `target` field in the payload when
+sending a dispatch event. 
 
 ## 신경 message queueing
 

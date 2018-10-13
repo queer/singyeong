@@ -42,6 +42,7 @@ defmodule SingyeongWeb.UserSocket do
 
   def handle(:closed, {code, reason}, state) do
     Logger.info "Socket closed with code #{inspect code}: #{inspect reason}"
+    Gateway.handle_close state[:socket]
     {:ok, state}
   end
 

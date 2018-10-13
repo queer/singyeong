@@ -14,3 +14,11 @@ Check out NOTES.md.
 ## How do I run the tests?
 
 `mix test --no-start`
+
+## TODO
+
+- query language
+- client impls
+- routing
+- queueing
+- restricted mode
