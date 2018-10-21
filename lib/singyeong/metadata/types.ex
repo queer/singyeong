@@ -12,6 +12,7 @@ defmodule Singyeong.Metadata.Types do
     integer: %Type{typename: :integer, validation_function: &is_integer/1},
     float: %Type{typename: :float, validation_function: &is_float/1},
     version: %Type{typename: :version, validation_function: &Types.validate_version/1},
+    list: %Type{typename: :list, validation_function: &Types.validate_list/1},
   }
 
   def types, do: @types
@@ -20,5 +21,18 @@ defmodule Singyeong.Metadata.Types do
 
   def validate_version(x) do
     is_binary(x) and Version.parse(x) != :error
+  end
+
+  def validate_list(x) do
+    if is_binary(x) do
+      case Poison.decode(x) do
+        {:ok, l} ->
+          is_list(l)
+        _ ->
+          false
+      end
+    else
+      false
+    end
   end
 end

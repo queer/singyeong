@@ -12,10 +12,10 @@ defmodule Singyeong.Gateway.Dispatch do
       if Store.validate_metadata?(data) do
         # Reduce metadata and update
         data
-        |> Map.keys
-        |> Enum.reduce(%{}, fn(x, acc) ->
-          Map.put(acc, x, data[x]["value"])
-        end)
+        #|> Map.keys
+        #|> Enum.reduce(%{}, fn(x, acc) ->
+        #  Map.put(acc, x, data[x]["value"])
+        #end)
         |> Store.update_metadata(socket.assigns[:client_id])
         {:ok, []}
       else

@@ -74,13 +74,6 @@ defmodule Singyeong.Metadata.Store do
     command ["SMEMBERS", format_key("application", app_id)]
   end
 
-  @doc """
-  Filter out all clients who haven't heartbeated for a while
-  """
-  def filter_old_clients(app_id) when is_binary(app_id) do
-    {:ok, clients} = get_all_clients app_id
-  end
-
   def remove_client(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
     command ["SREM", format_key("application", app_id), client_id]
     # Clean up associated metadata
@@ -117,7 +110,7 @@ defmodule Singyeong.Metadata.Store do
           else
             x
           end
-        acc ++ [["HSET", format_key("client", client_id), key, data[x]]]
+        acc ++ [["HSET", format_key("client", client_id), key, Poison.encode!(data[x])]]
       end)
     |> pipeline
   end
@@ -128,6 +121,7 @@ defmodule Singyeong.Metadata.Store do
     |> Enum.chunk_every(2)
     |> Enum.reduce(%{}, fn(x, acc) ->
       [a, b] = x
+      b = Poison.decode!(b)
       Map.put(acc, a, b)
     end)
   end

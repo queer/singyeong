@@ -16,10 +16,23 @@ defmodule Singyeong.Metadata.Query do
     for client <- clients do
       # Super lazy deletion filter
       metadata = Store.get_metadata client
-      if Map.has_key?(metadata, :last_heartbeat_time) do
-        if metadata[:last_heartbeat_time] + (Singyeong.Gateway.heartbeat_interval * 1.5) < :os.system_time(:millisecond) do
-          # TODO: Delete
+      unless is_nil(metadata) or metadata == %{} do
+        if Map.has_key?(metadata, "last_heartbeat_time") do
+          last =
+            if is_map(metadata["last_heartbeat_time"]) do
+              metadata["last_heartbeat_time"]["value"]
+            else
+              nil
+            end
+          unless is_nil(last) do
+            now = :os.system_time :millisecond
+            if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
+              Store.remove_client application, client
+            end
+          end
         end
+      else
+        Store.remove_client application, client
       end
     end
     {:ok, clients} = Store.get_all_clients application
@@ -36,7 +49,7 @@ defmodule Singyeong.Metadata.Query do
       |> Map.keys
       |> Enum.map(fn(x) ->
         data = q[x]
-        run_query(client_id, metadata, x, data)
+        run_query(metadata, x, data)
       end)
       |> Enum.map(fn(x) ->
         # x = [{:ok, true}, {:error, false}, ...]
@@ -54,14 +67,18 @@ defmodule Singyeong.Metadata.Query do
     {client_id, out}
   end
 
-  defp run_query(_client_id, metadata, key, q) when is_map(metadata) and is_map(q) do
+  defp run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
     Map.keys(q)
     |> Enum.map(fn(x) ->
       atom = operator_to_function(x)
       f = fn(z) -> apply(Singyeong.Metadata.Query, atom, z) end
       {x, f}
     end)
-    |> Enum.map(fn({x, f}) -> f.([metadata, key, q[x]]) end)
+    |> Enum.map(fn({x, f}) ->
+      field = metadata[key]
+      value = field["value"]
+      f.([value, q[x]])
+    end)
   end
 
   defp operator_to_function(op) when is_binary(op) do
@@ -76,34 +93,34 @@ defmodule Singyeong.Metadata.Query do
 
   ## QUERY OPERATORS ##
 
-  def op_eq(data, field, value) do
-    {:ok, data[field] == value}
+  def op_eq(metadata, value) do
+    {:ok, metadata == value}
   end
-  def op_ne(data, field, value) do
-    {:ok, data[field] != value}
+  def op_ne(metadata, value) do
+    {:ok, metadata != value}
   end
-  def op_gt(data, field, value) do
-    {:ok, data[field] > value}
+  def op_gt(metadata, value) do
+    {:ok, metadata > value}
   end
-  def op_gte(data, field, value) do
-    {:ok, data[field] >= value}
+  def op_gte(metadata, value) do
+    {:ok, metadata>= value}
   end
-  def op_lt(data, field, value) do
-    {:ok, data[field] < value}
+  def op_lt(metadata, value) do
+    {:ok, metadata < value}
   end
-  def op_lte(data, field, value) do
-    {:ok, data[field] <= value}
+  def op_lte(metadata, value) do
+    {:ok, metadata<= value}
   end
-  def op_in(data, field, value) do
+  def op_in(metadata, value) do
     if is_list(value) do
-      {:ok, data[field] in value}
+      {:ok, metadata in value}
     else
       {:error, "value not a list"}
     end
   end
-  def op_nin(data, field, value) do
+  def op_nin(metadata, value) do
     if is_list(value) do
-      {:ok, data[field] not in value}
+      {:ok, metadata not in value}
     else
       {:error, "value not a list"}
     end

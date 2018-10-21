@@ -76,8 +76,14 @@ defmodule Singyeong.Gateway do
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
         metadata = Store.get_metadata(socket.assigns[:client_id])
-        if Map.has_key?(metadata, :last_heartbeat_time) do
-          metadata[:last_heartbeat_time] + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
+        if Map.has_key?(metadata, "last_heartbeat_time") do
+          last_pair = metadata["last_heartbeat_time"]
+          if is_map(last_pair) do
+            last = last_pair["value"]
+            if is_integer(last) do
+              last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
+            end
+          end
         else
           false
         end
@@ -193,7 +199,7 @@ defmodule Singyeong.Gateway do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
         # When we ack the heartbeat, update last heartbeat time
-        Store.update_metadata(%{last_heartbeat_time: :os.system_time(:millisecond)}, socket.assigns[:client_id])
+        Store.update_metadata(%{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id])
         Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
         |> craft_response
       else
