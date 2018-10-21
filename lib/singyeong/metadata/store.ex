@@ -70,10 +70,21 @@ defmodule Singyeong.Metadata.Store do
     command ["SISMEMBER", format_key("application", app_id), client_id]
   end
 
+  def get_all_clients(app_id) when is_binary(app_id) do
+    command ["SMEMBERS", format_key("application", app_id)]
+  end
+
+  @doc """
+  Filter out all clients who haven't heartbeated for a while
+  """
+  def filter_old_clients(app_id) when is_binary(app_id) do
+    {:ok, clients} = get_all_clients app_id
+  end
+
   def remove_client(app_id, client_id) when is_binary(app_id) and is_binary(client_id) do
     command ["SREM", format_key("application", app_id), client_id]
     # Clean up associated metadata
-    command ["DEL", format_key("client:metadata", client_id)]
+    command ["DEL", format_key("client", client_id)]
   end
 
   @doc """
@@ -86,7 +97,7 @@ defmodule Singyeong.Metadata.Store do
     |> Enum.reduce([], fn(x, acc) ->
       d = data[x]
       v = d["value"]
-      type = Types.types()[d["type"]]
+      type = Types.types()[String.to_atom(d["type"])]
       acc ++ [type.validation_function.(v)]
     end)
     |> Enum.all?
@@ -106,9 +117,19 @@ defmodule Singyeong.Metadata.Store do
           else
             x
           end
-        acc ++ [["HSET", format_key("client:metadata", client_id), key, data[x]]]
+        acc ++ [["HSET", format_key("client", client_id), key, data[x]]]
       end)
     |> pipeline
+  end
+
+  def get_metadata(client_id) when is_binary(client_id) do
+    {:ok, data} = command ["HGETALL", format_key("client", client_id)]
+    data
+    |> Enum.chunk_every(2)
+    |> Enum.reduce(%{}, fn(x, acc) ->
+      [a, b] = x
+      Map.put(acc, a, b)
+    end)
   end
 
   def format_key(type, key) when is_binary(type) and is_binary(key) do

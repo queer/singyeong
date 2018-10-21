@@ -107,7 +107,7 @@ you~~.
   // The name of the client application. This field is required, as it's the 
   // main thing used for routing queries. 
   // This value may *not* contain spaces.
-  "application_name": "my-cool-application"
+  "application_id": "my-cool-application"
 }
 ```
 
@@ -158,6 +158,7 @@ clients must follow.
 | `UPDATE_METADATA` | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
 | `SEND`            | Send a payload to a single client that matches the routing query |
 | `BROADCAST`       | Send a payload to all clients that match the routing query |
+| `QUERY_NODES`     | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
 
 The inner payloads for these events are as follows:
 
@@ -210,6 +211,72 @@ When receiving:
 The main difference is the presence of the `target` field in the payload when
 sending a dispatch event. 
 
+### `QUERY_NODES`
+
+The inner payload is a node query as described below.
+
+## 신경 node queries
+
+신경 implements a subset of the MongoDB query language. Specifically, 신경 only
+supports the following query selectors:
+
+Comparison:
+- `$eq`
+- `$ne`
+- `$gt`
+- `$gte`
+- `$lt`
+- `$lte`
+- `$in`
+- `$nin`
+
+Logical:
+- `$and`
+- `$or`
+- `$nor`
+- `$not`
+
+Element "operators" are not supported mainly because 신경 will enforce types 
+and value existence automatically, and return errors if your query is invalid.
+
+Basically, you should be interpreting this section as "It works sorta kinda 
+like the MongoDB query language if you squint a little and look at it sideways,
+but expect some weird things."
+
+For more about MongoDB, see the following: 
+
+- https://docs.mongodb.com/manual/tutorial/query-documents/
+- https://docs.mongodb.com/manual/reference/operator/query/
+
+### Query formatting
+
+Queries are effectively just JSON objects. At some point there may be a "nice"
+higher-level query language, but that can come later. A valid query is a JSON
+object like the following:
+
+```Javascript
+{
+  "application": "application id here",
+  "ops": {
+    "key": {
+      "$eq": "value"
+    },
+    "key2": {
+      "$lte": 1234
+    },
+    "key3": {
+      "$and": [
+        {"$gt": 10"},
+        {"$lt": 20}
+      ]
+    },
+    "key4": {
+      "$in": ["123", "456"]
+    }
+  }
+}
+```
+
 ## 신경 message queueing
 
 When 신경 receives a dispatch packet from a client, it does not immediately 
@@ -219,13 +286,13 @@ mistake causing all clients to connect to a single 신경 node, it won't
 (necessarily) overload the single node with trying to recv. *and* send all
 dispatch packets at the same time, handle all dispatch queries, etc. 
 
-신경 currently does message queueing with Redis, but this may change at some 
+신경 currently does message queueing with Redis, but thttps://is.cute.gg/HoFNVK.pngy change at some 
 point in the future. 
 
 ## 신경 metadata store
 
-신경 stores metadata in Redis. By storing metadata in 신경, you're able to 
-take advantage of target queries for message routing. 
+신경 stores metadata in Redis. By storing metadata in https://is.cute.gg/HoFNVK.pngyou're able to 
+take advantage of target queries for message routing. https://is.cute.gg/HoFNVK.png
 
 When connecting to the 신경 websocket gateway, the identify payload that your
 client sends should include a `application_name` field; this field is a 

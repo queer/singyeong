@@ -91,11 +91,13 @@ defmodule SingyeongWeb.Transport.CowboyWebsocket do
   end
 
   def websocket_terminate({:error, :closed}, _req, {handler, state}) do
-    handler.ws_close(state)
+    # TODO: What's the right close code here?
+    handler.ws_close(1011, state)
     :ok
   end
   def websocket_terminate({:remote, :closed}, _req, {handler, state}) do
-    handler.ws_close(state)
+    # TODO: What's the right close code here?
+    handler.ws_close(1011, state)
     :ok
   end
   def websocket_terminate({:remote, code, _}, _req, {handler, state})

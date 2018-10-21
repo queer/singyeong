@@ -3,6 +3,8 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Metadata.Store
 
+  require Logger
+
   @heartbeat_interval 45_000
 
   @opcodes_name %{
@@ -66,16 +68,49 @@ defmodule Singyeong.Gateway do
         handle_payload socket, msg
       _ ->
         Payload.close_with_payload(:invalid, %{"error" => "cannot decode payload"})
+        |> craft_response
     end
   end
   def handle_payload(socket, payload) when is_map(payload) do
-    op = payload["op"]
-    if not is_nil(op) and is_integer(op) do
-      named = @opcodes_id[op]
-      if named != :identify and is_nil socket.assigns["client_id"] do
-        Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
-        |> craft_response
+    should_disconnect =
+      unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
+        # If both are NOT nil, then we need to check last heartbeat
+        metadata = Store.get_metadata(socket.assigns[:client_id])
+        if Map.has_key?(metadata, :last_heartbeat_time) do
+          metadata[:last_heartbeat_time] + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
+        else
+          false
+        end
       else
+        false
+      end
+
+    if should_disconnect do
+      Payload.close_with_payload(:invalid, %{"error" => "heartbeat took too long"})
+      |> craft_response
+    else
+      op = payload["op"]
+      if not is_nil(op) and is_integer(op) do
+        try_handle_event socket, payload
+      else
+        Payload.close_with_payload(:invalid, %{"error" => "payload has bad opcode"})
+        |> craft_response
+      end
+    end
+  end
+  def handle_payload(_socket, _payload) do
+    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
+    |> craft_response
+  end
+
+  defp try_handle_event(socket, payload) do
+    op = payload["op"]
+    named = @opcodes_id[op]
+    if named != :identify and is_nil socket.assigns[:client_id] do
+      Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
+      |> craft_response
+    else
+      try do
         case named do
           :identify ->
             handle_identify socket, payload
@@ -90,21 +125,22 @@ defmodule Singyeong.Gateway do
           _ ->
             handle_invalid_op socket, op
         end
+      rescue
+        e ->
+          Exception.format(:error, e, __STACKTRACE__)
+          |> Logger.error
+          Payload.close_with_payload(:invalid, %{"error" => "internal server error"})
+          |> craft_response
       end
-    else
-      Payload.close_with_payload(:invalid, %{"error" => "payload has bad opcode"})
-      |> craft_response
     end
-  end
-  def handle_payload(_socket, _payload) do
-    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
-    |> craft_response
   end
 
   ## SOCKET CLOSED ##
 
   def handle_close(socket) do
-    Store.remove_client socket.assigns[:app_id], socket.assigns[:client_id]
+    unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
+      Store.remove_client socket.assigns[:app_id], socket.assigns[:client_id]
+    end
   end
 
   ## OP HANDLING ##
@@ -117,15 +153,19 @@ defmodule Singyeong.Gateway do
       if not is_nil(client_id) and is_binary(client_id)
         and not is_nil(app_id) and is_binary(app_id) do
         # Check app/client IDs to ensure validity
-        {status, check} = Store.store_has_client?(app_id, client_id)
-        if status == :error or check != 1 do
-          # If we already have a client, reject outright
-          Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
-          |> craft_response
-        else
-          # Client doesn't exist, add to store and okay it
-          Payload.create_payload(:ready, %{"client_id" => client_id})
-          |> craft_response(%{client_id: client_id, app_id: app_id})
+        case Store.store_has_client?(app_id, client_id) do
+          {:ok, 0} ->
+            # Client doesn't exist, add to store and okay it
+            Store.add_client_to_store(app_id, client_id)
+            Payload.create_payload(:ready, %{"client_id" => client_id})
+            |> craft_response(%{client_id: client_id, app_id: app_id})
+          {:ok, _} ->
+            # If we already have a client, reject outright
+            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+            |> craft_response
+          {:error, e} ->
+            Payload.close_with_payload(:invalid, %{"error" => "#{inspect e, pretty: true}"})
+            |> craft_response
         end
       else
         handle_missing_data()
@@ -136,11 +176,14 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_dispatch(socket, msg) do
-    error = Dispatch.handle_dispatch socket, msg
-    if error do
-      Payload.close_with_payload(:invalid, %{"error" => error})
-    else
-      nil
+    res = Dispatch.handle_dispatch socket, msg
+    case res do
+      {:ok, frames} ->
+        frames
+        |> craft_response
+      {:error, error} ->
+        error
+        |> craft_response
     end
   end
 
@@ -149,6 +192,8 @@ defmodule Singyeong.Gateway do
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
+        # When we ack the heartbeat, update last heartbeat time
+        Store.update_metadata(%{last_heartbeat_time: :os.system_time(:millisecond)}, socket.assigns[:client_id])
         Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
         |> craft_response
       else
