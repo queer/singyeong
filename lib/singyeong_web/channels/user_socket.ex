@@ -33,7 +33,7 @@ defmodule SingyeongWeb.UserSocket do
   #     SingyeongWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
-  def id(socket), do: nil
+  def id(_socket), do: nil
 
   def handle(:text, payload, state) do
     %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_payload state[:socket], payload

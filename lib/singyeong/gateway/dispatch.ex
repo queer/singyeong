@@ -2,6 +2,7 @@ defmodule Singyeong.Gateway.Dispatch do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Store
   alias Singyeong.Metadata.Query
+  alias Singyeong.Pubsub
 
   ## DISPATCH EVENTS ##
 
@@ -30,14 +31,41 @@ defmodule Singyeong.Gateway.Dispatch do
   def handle_dispatch(_socket, %{"t" => "QUERY_NODES", "d" => data} = _payload) do
     {:ok, [Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data)})]}
   end
-  def handle_dispatch(socket, %{"t" => "SEND", "d" => data} = _payload) do
-    # TODO: Query and route
-    {:ok, []}
+  def handle_dispatch(_socket, %{"t" => "SEND", "d" => data} = _payload) do
+    # Query and route
+    %{"sender" => sender, "target" => target, "payload" => payload} = data
+    nodes = Query.run_query target
+    unless length(nodes) == 0 do
+      client = Enum.random nodes
+      out = %{
+        "sender" => sender,
+        "payload" => payload,
+        "nonce" => data["nonce"]
+      }
+      Pubsub.send_message [client], out
+      {:ok, []}
+    else
+      # No nodes matched, warn the client
+      {:error, [Payload.create_payload(:invalid, %{"error" => "no nodes match query"})]}
+    end
   end
-  def handle_dispatch(socket, %{"t" => "BROADCAST", "d" => data} = _payload) do
+  def handle_dispatch(_socket, %{"t" => "BROADCAST", "d" => data} = _payload) do
     # This is really just a special case of SEND
-    # TODO: Query and route
-    {:ok, []}
+    # Query and route
+    %{"sender" => sender, "target" => target, "payload" => payload} = data
+    nodes = Query.run_query target
+    unless length(nodes) == 0 do
+      out = %{
+        "sender" => sender,
+        "payload" => payload,
+        "nonce" => data["nonce"]
+      }
+      Pubsub.send_message nodes, out
+      {:ok, []}
+    else
+      # No nodes matched, warn the client
+      {:error, [Payload.create_payload(:invalid, %{"error" => "no nodes match query"})]}
+    end
   end
   def handle_dispatch(_socket, _payload) do
     {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid payload"})}

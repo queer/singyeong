@@ -37,6 +37,7 @@ defmodule Singyeong.Mixfile do
       {:plug_cowboy, "~> 1.0"},
       {:gettext, "~> 0.11"},
       {:redix, ">= 0.0.0"},
+      {:redix_pubsub, ">= 0.0.0"},
       {:ex_doc, "~> 0.11", only: :dev},
     ]
   end

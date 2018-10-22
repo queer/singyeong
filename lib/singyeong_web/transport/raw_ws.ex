@@ -70,6 +70,10 @@ defmodule SingyeongWeb.Transport.RawWs do
     end
   end
 
+  def ws_info({:socket_push, frames}, state) when is_list(frames) do
+    {:reply, frames, state}
+  end
+
   def ws_info({_op, _data} = tuple, state) do
     {:reply, tuple, state}
   end

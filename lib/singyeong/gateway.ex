@@ -2,6 +2,7 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Metadata.Store
+  alias Singyeong.Pubsub
 
   require Logger
 
@@ -54,8 +55,8 @@ defmodule Singyeong.Gateway do
   def opcodes_id, do: @opcodes_id
 
   defp craft_response(response, assigns \\ %{})
-    when (is_tuple(response) or is_list(response)) and is_map(assigns)
-    do
+      when (is_tuple(response) or is_list(response)) and is_map(assigns)
+      do
     %GatewayResponse{response: response, assigns: assigns}
   end
 
@@ -144,6 +145,9 @@ defmodule Singyeong.Gateway do
   ## SOCKET CLOSED ##
 
   def handle_close(socket) do
+    unless is_nil(is_nil(socket.assigns[:client_id])) do
+      Pubsub.unregister_socket is_nil(socket.assigns[:client_id])
+    end
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
       Store.remove_client socket.assigns[:app_id], socket.assigns[:client_id]
     end
@@ -151,7 +155,7 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  defp handle_identify(_socket, msg) when is_map(msg) do
+  defp handle_identify(socket, msg) when is_map(msg) do
     d = msg["d"]
     if not is_nil(d) and is_map(d) do
       client_id = d["client_id"]
@@ -162,7 +166,8 @@ defmodule Singyeong.Gateway do
         case Store.store_has_client?(app_id, client_id) do
           {:ok, 0} ->
             # Client doesn't exist, add to store and okay it
-            Store.add_client_to_store(app_id, client_id)
+            Store.add_client_to_store app_id, client_id
+            Pubsub.register_socket client_id, socket
             Payload.create_payload(:ready, %{"client_id" => client_id})
             |> craft_response(%{client_id: client_id, app_id: app_id})
           {:ok, _} ->
@@ -199,7 +204,7 @@ defmodule Singyeong.Gateway do
       client_id = d["client_id"]
       if not is_nil(client_id) and is_binary(client_id) do
         # When we ack the heartbeat, update last heartbeat time
-        Store.update_metadata(%{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id])
+        Store.update_metadata %{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id]
         Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
         |> craft_response
       else
