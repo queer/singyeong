@@ -42,14 +42,17 @@ defmodule Singyeong.Metadata.Query do
     |> Enum.map(fn({client, _}) -> client end)
   end
 
-  defp reduce_query(client_id, q) when is_map(q) do
+  defp reduce_query(client_id, q) when is_binary(client_id) and is_map(q) do
     metadata = Store.get_metadata client_id
+    do_reduce_query client_id, metadata, q
+  end
+  defp do_reduce_query(client_id, metadata, q) when is_map(metadata) and is_map(q) do
     out =
       q
       |> Map.keys
       |> Enum.map(fn(x) ->
         data = q[x]
-        run_query(metadata, x, data)
+        run_query(client_id, metadata, x, data)
       end)
       |> Enum.map(fn(x) ->
         # x = [{:ok, true}, {:error, false}, ...]
@@ -58,6 +61,7 @@ defmodule Singyeong.Metadata.Query do
               {:ok, res} ->
                 res
               {:error, _} ->
+                # TODO: Figure out how to warn the initiating client about errors
                 false
               _ ->
                 false
@@ -67,7 +71,7 @@ defmodule Singyeong.Metadata.Query do
     {client_id, out}
   end
 
-  defp run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
+  defp run_query(client_id, metadata, key, q) when is_map(metadata) and is_map(q) do
     Map.keys(q)
     |> Enum.map(fn(x) ->
       atom = operator_to_function(x)
@@ -77,7 +81,7 @@ defmodule Singyeong.Metadata.Query do
     |> Enum.map(fn({x, f}) ->
       field = metadata[key]
       value = field["value"]
-      f.([value, q[x]])
+      f.([client_id, value, q[x]])
     end)
   end
 
@@ -93,38 +97,92 @@ defmodule Singyeong.Metadata.Query do
 
   ## QUERY OPERATORS ##
 
-  def op_eq(metadata, value) do
+  def op_eq(_client_id, metadata, value) do
     {:ok, metadata == value}
   end
-  def op_ne(metadata, value) do
+  def op_ne(_client_id, metadata, value) do
     {:ok, metadata != value}
   end
-  def op_gt(metadata, value) do
+  def op_gt(_client_id, metadata, value) do
     {:ok, metadata > value}
   end
-  def op_gte(metadata, value) do
+  def op_gte(_client_id, metadata, value) do
     {:ok, metadata>= value}
   end
-  def op_lt(metadata, value) do
+  def op_lt(_client_id, metadata, value) do
     {:ok, metadata < value}
   end
-  def op_lte(metadata, value) do
+  def op_lte(_client_id, metadata, value) do
     {:ok, metadata<= value}
   end
-  def op_in(metadata, value) do
+  def op_in(_client_id, metadata, value) do
     if is_list(value) do
       {:ok, metadata in value}
     else
       {:error, "value not a list"}
     end
   end
-  def op_nin(metadata, value) do
+  def op_nin(_client_id, metadata, value) do
     if is_list(value) do
       {:ok, metadata not in value}
     else
       {:error, "value not a list"}
     end
   end
+  def op_contains(_client_id, metadata, value) do
+    if is_list(metadata) do
+      {:ok, value in metadata}
+    else
+      {:error, "metadata not a list"}
+    end
+  end
+  def op_ncontains(_client_id, metadata, value) do
+    if is_list(metadata) do
+      {:ok, value not in metadata}
+    else
+      {:error, "metadata not a list"}
+    end
+  end
 
-  # TODO: Logical operators
+  # Logical operators
+
+  def op_and(client_id, metadata, value) do
+    if is_map(value) do
+      res =
+        do_reduce_query(client_id, metadata, value)
+        |> Enum.all?
+      {:ok, res}
+    else
+      {:error, "$and query not a map"}
+    end
+  end
+
+  def op_or(client_id, metadata, value) do
+    if is_map(value) do
+      res =
+        do_reduce_query(client_id, metadata, value)
+        |> Enum.any?
+      {:ok, res}
+    else
+      {:error, "$or query not a map"}
+    end
+  end
+
+  def op_nor(client_id, metadata, value) do
+    case op_or(client_id, metadata, value) do
+      {:ok, res} ->
+        {:ok, not res}
+      {:error, err} ->
+        {:error, err}
+      _ ->
+        {:error, "$or unknown error"}
+    end
+  end
+
+  # The problem with $not is that it would return a LIST of values, but all the
+  # other operators would return a SINGLE VALUE.
+  # TODO: Come up with a better solution...
+  def op_not(client_id, metadata, value) do
+    {:error, "$not isn't implemented"}
+  end
 end

@@ -217,8 +217,8 @@ The inner payload is a node query as described below.
 
 ## 신경 node queries
 
-신경 implements a subset of the MongoDB query language. Specifically, 신경 only
-supports the following query selectors:
+신경 implements a MongoDB-inspured query language. Specifically, 신경 supports 
+the following query selectors:
 
 Comparison:
 - `$eq`
@@ -227,14 +227,16 @@ Comparison:
 - `$gte`
 - `$lt`
 - `$lte`
-- `$in`
-- `$nin`
+- `$in` - list query values only
+- `$nin` - list query values only
+- `$contains` - list metadata values only
+- `$ncontains` - list metadata values only
 
 Logical:
 - `$and`
 - `$or`
 - `$nor`
-- `$not`
+- `$not` - NOT YET IMPLEMENTED
 
 Element "operators" are not supported mainly because 신경 will enforce types 
 and value existence automatically, and return errors if your query is invalid.
@@ -286,14 +288,29 @@ mistake causing all clients to connect to a single 신경 node, it won't
 (necessarily) overload the single node with trying to recv. *and* send all
 dispatch packets at the same time, handle all dispatch queries, etc. 
 
-신경 currently does message queueing with Redis, but thttps://is.cute.gg/HoFNVK.pngy change at some 
+신경 currently does message queueing with Redis, but this may change at some 
 point in the future. 
 
 ## 신경 metadata store
 
-신경 stores metadata in Redis. By storing metadata in https://is.cute.gg/HoFNVK.pngyou're able to 
-take advantage of target queries for message routing. https://is.cute.gg/HoFNVK.png
+신경 stores metadata in Redis. By storing metadata in 신경 you're able to 
+take advantage of target queries for message routing. 
 
 When connecting to the 신경 websocket gateway, the identify payload that your
 client sends should include a `application_name` field; this field is a 
 requirement as it's the main key used for the majority of routing queries. 
+
+### Important things to consider
+
+There is a fairly specific case in which a client may remain in the metadata 
+store despite not being connected. Specifically, if:
+- the client connects to the server
+- the server stops
+- the client stops
+- the server restarts
+in that exact order, then the client will not be immediately cleared from the
+store. However, this can be detected (to an extent...) by the server and 
+resolved. 신경 uses a lazy-detection strategy for this; specifically, every
+query for an application id will attempt to prune clients that have not sent
+heartbeats often enough, both from the store as well as from active 
+connections.
