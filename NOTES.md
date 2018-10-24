@@ -259,23 +259,34 @@ object like the following:
 ```Javascript
 {
   "application": "application id here",
-  "ops": {
-    "key": {
-      "$eq": "value"
+  "ops": [
+    {
+      "key": {
+        "$eq": "value"
+      }
     },
-    "key2": {
-      "$lte": 1234
+    {
+      "key2": {
+        "$lte": 1234
+      }
     },
-    "key3": {
-      "$and": [
-        {"$gt": 10"},
-        {"$lt": 20}
-      ]
+    {
+      "key3": {
+        "$and": [
+          {"$gt": "10"},
+          {"$lt": 20}
+        ]
+      }
     },
-    "key4": {
-      "$in": ["123", "456"]
+    {
+      "key4": {
+        "$in": [
+          "123",
+          "456"
+        ]
+      }
     }
-  }
+  ]
 }
 ```
 

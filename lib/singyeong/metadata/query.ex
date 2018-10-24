@@ -42,17 +42,18 @@ defmodule Singyeong.Metadata.Query do
     |> Enum.map(fn({client, _}) -> client end)
   end
 
-  defp reduce_query(client_id, q) when is_binary(client_id) and is_map(q) do
+  defp reduce_query(client_id, q) when is_binary(client_id) and is_list(q) do
     metadata = Store.get_metadata client_id
     do_reduce_query client_id, metadata, q
   end
-  defp do_reduce_query(client_id, metadata, q) when is_map(metadata) and is_map(q) do
+  defp do_reduce_query(client_id, metadata, q) when is_map(metadata) and is_list(q) do
     out =
       q
-      |> Map.keys
       |> Enum.map(fn(x) ->
-        data = q[x]
-        run_query(client_id, metadata, x, data)
+        # x = {key: {$eq: "value"}}
+        key = Map.keys(x) |> hd
+        query = x[key]
+        run_query(client_id, metadata, key, query)
       end)
       |> Enum.map(fn(x) ->
         # x = [{:ok, true}, {:error, false}, ...]
@@ -182,7 +183,7 @@ defmodule Singyeong.Metadata.Query do
   # The problem with $not is that it would return a LIST of values, but all the
   # other operators would return a SINGLE VALUE.
   # TODO: Come up with a better solution...
-  def op_not(client_id, metadata, value) do
+  def op_not(_client_id, _metadata, _value) do
     {:error, "$not isn't implemented"}
   end
 end

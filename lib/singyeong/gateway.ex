@@ -199,17 +199,12 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_heartbeat(socket, msg) do
-    d = msg["d"]
-    if not is_nil(d) and is_map(d) do
-      client_id = d["client_id"]
-      if not is_nil(client_id) and is_binary(client_id) do
-        # When we ack the heartbeat, update last heartbeat time
-        Store.update_metadata %{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id]
-        Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
-        |> craft_response
-      else
-        handle_missing_data()
-      end
+    client_id = socket.assigns[:client_id]
+    if not is_nil(client_id) and is_binary(client_id) do
+      # When we ack the heartbeat, update last heartbeat time
+      Store.update_metadata %{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id]
+      Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
+      |> craft_response
     else
       handle_missing_data()
     end
