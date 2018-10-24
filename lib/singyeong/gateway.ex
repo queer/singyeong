@@ -198,7 +198,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp handle_heartbeat(socket, msg) do
+  defp handle_heartbeat(socket, _msg) do
     client_id = socket.assigns[:client_id]
     if not is_nil(client_id) and is_binary(client_id) do
       # When we ack the heartbeat, update last heartbeat time

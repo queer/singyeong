@@ -37,23 +37,23 @@ defmodule Singyeong.Metadata.Query do
     end
     {:ok, clients} = Store.get_all_clients application
     clients
-    |> Enum.map(fn(x) -> reduce_query(x, ops) end)
+    |> Enum.map(fn(x) -> {x, reduce_query(x, ops)} end)
     |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
     |> Enum.map(fn({client, _}) -> client end)
   end
 
   defp reduce_query(client_id, q) when is_binary(client_id) and is_list(q) do
     metadata = Store.get_metadata client_id
-    do_reduce_query client_id, metadata, q
+    do_reduce_query metadata, q
   end
-  defp do_reduce_query(client_id, metadata, q) when is_map(metadata) and is_list(q) do
+  defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
     out =
       q
       |> Enum.map(fn(x) ->
         # x = {key: {$eq: "value"}}
         key = Map.keys(x) |> hd
         query = x[key]
-        run_query(client_id, metadata, key, query)
+        do_run_query(metadata, key, query)
       end)
       |> Enum.map(fn(x) ->
         # x = [{:ok, true}, {:error, false}, ...]
@@ -69,10 +69,10 @@ defmodule Singyeong.Metadata.Query do
             end
           end)
       end)
-    {client_id, out}
+    out
   end
 
-  defp run_query(client_id, metadata, key, q) when is_map(metadata) and is_map(q) do
+  defp do_run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
     Map.keys(q)
     |> Enum.map(fn(x) ->
       atom = operator_to_function(x)
@@ -82,7 +82,7 @@ defmodule Singyeong.Metadata.Query do
     |> Enum.map(fn({x, f}) ->
       field = metadata[key]
       value = field["value"]
-      f.([client_id, value, q[x]])
+      f.([key, metadata, value, q[x]])
     end)
   end
 
@@ -98,48 +98,48 @@ defmodule Singyeong.Metadata.Query do
 
   ## QUERY OPERATORS ##
 
-  def op_eq(_client_id, metadata, value) do
-    {:ok, metadata == value}
+  def op_eq(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value == value}
   end
-  def op_ne(_client_id, metadata, value) do
-    {:ok, metadata != value}
+  def op_ne(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value != value}
   end
-  def op_gt(_client_id, metadata, value) do
-    {:ok, metadata > value}
+  def op_gt(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value > value}
   end
-  def op_gte(_client_id, metadata, value) do
-    {:ok, metadata>= value}
+  def op_gte(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value >= value}
   end
-  def op_lt(_client_id, metadata, value) do
-    {:ok, metadata < value}
+  def op_lt(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value < value}
   end
-  def op_lte(_client_id, metadata, value) do
-    {:ok, metadata<= value}
+  def op_lte(_key, _client_metadata, metadata_value, value) do
+    {:ok, metadata_value <= value}
   end
-  def op_in(_client_id, metadata, value) do
+  def op_in(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
-      {:ok, metadata in value}
+      {:ok, metadata_value in value}
     else
       {:error, "value not a list"}
     end
   end
-  def op_nin(_client_id, metadata, value) do
+  def op_nin(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
-      {:ok, metadata not in value}
+      {:ok, metadata_value not in value}
     else
       {:error, "value not a list"}
     end
   end
-  def op_contains(_client_id, metadata, value) do
-    if is_list(metadata) do
-      {:ok, value in metadata}
+  def op_contains(_key, _client_metadata, metadata_value, value) do
+    if is_list(metadata_value) do
+      {:ok, value in metadata_value}
     else
       {:error, "metadata not a list"}
     end
   end
-  def op_ncontains(_client_id, metadata, value) do
-    if is_list(metadata) do
-      {:ok, value not in metadata}
+  def op_ncontains(_key, _client_metadata, metadata_value, value) do
+    if is_list(metadata_value) do
+      {:ok, value not in metadata_value}
     else
       {:error, "metadata not a list"}
     end
@@ -147,10 +147,14 @@ defmodule Singyeong.Metadata.Query do
 
   # Logical operators
 
-  def op_and(client_id, metadata, value) do
-    if is_map(value) do
+  def op_and(key, client_metadata, _metadata_value, value) do
+    if is_list(value) do
       res =
-        do_reduce_query(client_id, metadata, value)
+        value
+        |> Enum.map(fn(x) -> do_reduce_query(client_metadata, [%{key => x}]) end)
+        # We get back a list from the previous step, so we need to extract the
+        # first element of the list in order for this to be accurate
+        |> Enum.map(fn([x]) -> x end)
         |> Enum.all?
       {:ok, res}
     else
@@ -158,10 +162,10 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  def op_or(client_id, metadata, value) do
-    if is_map(value) do
+  def op_or(_key, client_metadata, _metadata_value, value) do
+    if is_list(value) do
       res =
-        do_reduce_query(client_id, metadata, value)
+        do_reduce_query(client_metadata, value)
         |> Enum.any?
       {:ok, res}
     else
@@ -169,8 +173,8 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  def op_nor(client_id, metadata, value) do
-    case op_or(client_id, metadata, value) do
+  def op_nor(key, client_metadata, metadata_value, value) do
+    case op_or(key, client_metadata, metadata_value, value) do
       {:ok, res} ->
         {:ok, not res}
       {:error, err} ->
@@ -183,7 +187,7 @@ defmodule Singyeong.Metadata.Query do
   # The problem with $not is that it would return a LIST of values, but all the
   # other operators would return a SINGLE VALUE.
   # TODO: Come up with a better solution...
-  def op_not(_client_id, _metadata, _value) do
+  def op_not(_key, _client_metadata, _metadata, _value) do
     {:error, "$not isn't implemented"}
   end
 end
