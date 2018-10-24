@@ -162,10 +162,14 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  def op_or(_key, client_metadata, _metadata_value, value) do
+  def op_or(key, client_metadata, _metadata_value, value) do
     if is_list(value) do
       res =
-        do_reduce_query(client_metadata, value)
+        value
+        |> Enum.map(fn(x) -> do_reduce_query(client_metadata, [%{key => x}]) end)
+        # We get back a list from the previous step, so we need to extract the
+        # first element of the list in order for this to be accurate
+        |> Enum.map(fn([x]) -> x end)
         |> Enum.any?
       {:ok, res}
     else
