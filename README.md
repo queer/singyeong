@@ -17,8 +17,4 @@ Check out NOTES.md.
 
 ## TODO
 
-- query language
-- client impls
-- routing
-- queueing
 - restricted mode
