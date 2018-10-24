@@ -290,6 +290,16 @@ object like the following:
 }
 ```
 
+For a more-compact example:
+
+{
+  "application": "application id here",
+  "ops": [
+    {"key": {"$eq": "value"}},
+    {"key2": {"$lte": 1234}},
+  ]
+}
+
 ## 신경 message queueing
 
 When 신경 receives a dispatch packet from a client, it does not immediately 
