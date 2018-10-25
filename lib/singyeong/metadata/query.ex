@@ -1,10 +1,5 @@
 defmodule Singyeong.Metadata.Query do
   alias Singyeong.Metadata.Store
-  # - `$and`
-  # - `$or`
-  # - `$nor`
-  # - `$not`
-
 
   @doc """
   Given a query, execute it and return a list of client IDs.
@@ -43,8 +38,12 @@ defmodule Singyeong.Metadata.Query do
   end
 
   defp reduce_query(client_id, q) when is_binary(client_id) and is_list(q) do
-    metadata = Store.get_metadata client_id
-    do_reduce_query metadata, q
+    if length(q) == 0 do
+      [true]
+    else
+      metadata = Store.get_metadata client_id
+      do_reduce_query metadata, q
+    end
   end
   defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
     out =
