@@ -292,6 +292,7 @@ object like the following:
 
 For a more-compact example:
 
+```Javascript
 {
   "application": "application id here",
   "ops": [
@@ -299,18 +300,7 @@ For a more-compact example:
     {"key2": {"$lte": 1234}},
   ]
 }
-
-## 신경 message queueing
-
-When 신경 receives a dispatch packet from a client, it does not immediately 
-query for a target and send the message. Rather, the dispatch is queued up to
-be sent at a later time. This is mainly done so that ex. in the case of a 
-mistake causing all clients to connect to a single 신경 node, it won't
-(necessarily) overload the single node with trying to recv. *and* send all
-dispatch packets at the same time, handle all dispatch queries, etc. 
-
-신경 currently does message queueing with Redis, but this may change at some 
-point in the future. 
+```
 
 ## 신경 metadata store
 

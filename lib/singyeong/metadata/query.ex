@@ -46,29 +46,27 @@ defmodule Singyeong.Metadata.Query do
     end
   end
   defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
-    out =
-      q
-      |> Enum.map(fn(x) ->
-        # x = {key: {$eq: "value"}}
-        key = Map.keys(x) |> hd
-        query = x[key]
-        do_run_query(metadata, key, query)
-      end)
-      |> Enum.map(fn(x) ->
-        # x = [{:ok, true}, {:error, false}, ...]
-        x |> Enum.all?(fn(e) ->
-            case e do
-              {:ok, res} ->
-                res
-              {:error, _} ->
-                # TODO: Figure out how to warn the initiating client about errors
-                false
-              _ ->
-                false
-            end
-          end)
-      end)
-    out
+    q
+    |> Enum.map(fn(x) ->
+      # x = {key: {$eq: "value"}}
+      key = Map.keys(x) |> hd
+      query = x[key]
+      do_run_query(metadata, key, query)
+    end)
+    |> Enum.map(fn(x) ->
+      # x = [{:ok, true}, {:error, false}, ...]
+      x |> Enum.all?(fn(e) ->
+          case e do
+            {:ok, res} ->
+              res
+            {:error, _} ->
+              # TODO: Figure out how to warn the initiating client about errors
+              false
+            _ ->
+              false
+          end
+        end)
+    end)
   end
 
   defp do_run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
