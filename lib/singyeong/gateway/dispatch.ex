@@ -3,6 +3,7 @@ defmodule Singyeong.Gateway.Dispatch do
   alias Singyeong.Metadata.Store
   alias Singyeong.Metadata.Query
   alias Singyeong.Pubsub
+  require Logger
 
   ## DISPATCH EVENTS ##
 
@@ -20,11 +21,13 @@ defmodule Singyeong.Gateway.Dispatch do
         |> Store.update_metadata(socket.assigns[:client_id])
         {:ok, []}
       else
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
+        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
       end
     rescue
       # Ideally we won't reach this case, but clients can't be trusted :<
-      _ ->
+      e ->
+        Exception.format(:error, e, __STACKTRACE__)
+        |> Logger.error
         {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
     end
   end
