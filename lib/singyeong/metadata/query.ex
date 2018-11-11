@@ -5,6 +5,8 @@ defmodule Singyeong.Metadata.Query do
   Given a query, execute it and return a list of client IDs.
   """
   def run_query(q) when is_map(q) do
+    # TODO: This should cache client metadata for more efficient queries
+    # TODO: How to cache this in a non-race-conditions manner?
     application = q["application"]
     ops = q["ops"]
     {:ok, clients} = Store.get_all_clients application

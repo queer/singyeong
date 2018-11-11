@@ -189,7 +189,7 @@ When sending:
   "target": "routing query goes here",
   // Optional nonce, used by clients for req-res queries
   "nonce": "unique nonce",
-  "payload: {
+  "payload": {
     // Whatever data you want to pass goes here
   }
 }
@@ -202,7 +202,7 @@ When receiving:
   "sender": "your client id goes here",
   // Optional nonce, used by clients for req-res queries
   "nonce": "unique nonce",
-  "payload: {
+  "payload": {
     // Whatever data you want to pass goes here
   }
 }

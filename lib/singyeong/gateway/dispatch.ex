@@ -50,7 +50,14 @@ defmodule Singyeong.Gateway.Dispatch do
     else
       # No nodes matched, warn the client
       # Respond with the same nonce so that clients awaiting a response can fail over
-      {:error, [Payload.create_payload(:invalid, %{"error" => "no nodes match query", "d" => %{"nonce" => data["nonce"]}})]}
+      {:error, [
+          Payload.create_payload(:invalid, %{
+            "error" => "no nodes match query for query #{inspect target, pretty: true}",
+            "d" => %{
+              "nonce" => data["nonce"]
+            }
+          })
+        ]}
     end
   end
   def handle_dispatch(_socket, %{"t" => "BROADCAST", "d" => data} = _payload) do
@@ -69,7 +76,14 @@ defmodule Singyeong.Gateway.Dispatch do
     else
       # No nodes matched, warn the client
       # Respond with the same nonce so that clients awaiting a response can fail over
-      {:error, [Payload.create_payload(:invalid, %{"error" => "no nodes match query", "d" => %{"nonce" => data["nonce"]}})]}
+      {:error, [
+        Payload.create_payload(:invalid, %{
+          "error" => "no nodes match query for query #{inspect target, pretty: true}",
+          "d" => %{
+            "nonce" => data["nonce"]
+          }
+        })
+      ]}
     end
   end
   def handle_dispatch(_socket, _payload) do
