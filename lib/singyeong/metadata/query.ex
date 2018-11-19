@@ -33,10 +33,18 @@ defmodule Singyeong.Metadata.Query do
       end
     end
     {:ok, clients} = Store.get_all_clients application
-    clients
-    |> Enum.map(fn(x) -> {x, reduce_query(x, ops)} end)
-    |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
-    |> Enum.map(fn({client, _}) -> client end)
+    res =
+      clients
+      |> Enum.map(fn(x) -> {x, reduce_query(x, ops)} end)
+      |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
+      |> Enum.map(fn({client, _}) -> client end)
+    if length(res) == 0 and q["optional"] == true do
+      # If the query is optional, and the query returned no nodes, just return
+      # all nodes and let the dispatcher figure it out
+      clients
+    else
+      res
+    end
   end
 
   defp reduce_query(client_id, q) when is_binary(client_id) and is_list(q) do

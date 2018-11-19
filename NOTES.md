@@ -217,7 +217,7 @@ The inner payload is a node query as described below.
 
 ## 신경 node queries
 
-신경 implements a MongoDB-inspured query language. Specifically, 신경 supports 
+신경 implements a MongoDB-inspired query language. Specifically, 신경 supports 
 the following query selectors:
 
 Comparison:
@@ -295,6 +295,23 @@ For a more-compact example:
 ```Javascript
 {
   "application": "application id here",
+  "ops": [
+    {"key": {"$eq": "value"}},
+    {"key2": {"$lte": 1234}},
+  ]
+}
+```
+
+### Optional queries
+
+Sometimes, it is desirable to have a message be routed even if the query fails.
+To make a routing query optional, simply add the `optional` key and set its 
+value to `true`:
+
+```Javascript
+{
+  "application": "application id here",
+  "optional": true,
   "ops": [
     {"key": {"$eq": "value"}},
     {"key2": {"$lte": 1234}},
