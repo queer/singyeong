@@ -172,9 +172,18 @@ defmodule Singyeong.Gateway do
             Payload.create_payload(:ready, %{"client_id" => client_id})
             |> craft_response(%{client_id: client_id, app_id: app_id})
           {:ok, _} ->
-            # If we already have a client, reject outright
-            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
-            |> craft_response
+            if d["reconnect"] do
+              # Client does exist, but this is a reconnect, so add to store and okay it
+              Store.add_client_to_store app_id, client_id
+              Pubsub.register_socket client_id, socket
+              Logger.info "Got new socket for #{app_id}: #{client_id}"
+              Payload.create_payload(:ready, %{"client_id" => client_id})
+              |> craft_response(%{client_id: client_id, app_id: app_id})
+            else
+              # If we already have a client, reject outright
+              Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+              |> craft_response
+            end
           {:error, e} ->
             Payload.close_with_payload(:invalid, %{"error" => "#{inspect e, pretty: true}"})
             |> craft_response

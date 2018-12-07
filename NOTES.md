@@ -107,7 +107,11 @@ you~~.
   // The name of the client application. This field is required, as it's the 
   // main thing used for routing queries. 
   // This value may *not* contain spaces.
-  "application_id": "my-cool-application"
+  "application_id": "my-cool-application",
+  // Optional value. If you identify as a reconnect, 신경 will allow you to 
+  // reuse application id and metadata.
+  // This value must be true or false.
+  "reconnect": true
 }
 ```
 
