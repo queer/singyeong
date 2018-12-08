@@ -1,0 +1,9 @@
+version: 2
+jobs:
+  build:
+    machine: true
+    steps:
+    - checkout
+    - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - run: docker build -t mewna/singyeong:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM .
+    - run: docker push mewna/singyeong:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
