@@ -91,7 +91,7 @@ defmodule Singyeong.Metadata.Store do
       d = data[x]
       v = d["value"]
       type = Types.types()[String.to_atom(d["type"])]
-      acc ++ [type.validation_function.(v)]
+      [type.validation_function.(v) | acc]
     end)
     |> Enum.all?
   end
@@ -110,7 +110,7 @@ defmodule Singyeong.Metadata.Store do
           else
             x
           end
-        acc ++ [["HSET", format_key("client", client_id), key, Poison.encode!(data[x])]]
+        [["HSET", format_key("client", client_id), key, Poison.encode!(data[x])] | acc]
       end)
     |> pipeline
   end
