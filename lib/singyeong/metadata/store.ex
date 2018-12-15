@@ -37,11 +37,11 @@ defmodule Singyeong.Metadata.Store do
 
   alias Singyeong.Metadata.Types
 
-  @pool_size 5
+  def pool_size, do: (System.get_env("REDIS_POOL_SIZE") || "5") |> String.to_integer
 
   def pool_spec(dsn) do
     children =
-      for i <- 0..(@pool_size - 1) do
+      for i <- 0..(pool_size() - 1) do
         %{
           id: {Redix, i},
           start: {Redix, :start_link, [dsn, [name: :"redix_#{i}"]]},
@@ -139,6 +139,6 @@ defmodule Singyeong.Metadata.Store do
   end
 
   defp random_index() do
-    rem System.unique_integer([:positive]), 5
+    rem System.unique_integer([:positive]), pool_size()
   end
 end
