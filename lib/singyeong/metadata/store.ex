@@ -36,6 +36,7 @@ defmodule Singyeong.Metadata.Store do
   """
 
   alias Singyeong.Metadata.Types
+  alias Singyeong.Metadata.MnesiaStore
 
   def pool_size, do: (System.get_env("REDIS_POOL_SIZE") || "5") |> String.to_integer
 
@@ -55,6 +56,12 @@ defmodule Singyeong.Metadata.Store do
       start: {Supervisor, :start_link, [children, [strategy: :one_for_one]]}
     }
   end
+
+  #def initialize_store do
+  #  :mnesia.create_schema []
+  #  :mnesia.start()
+  #  :mnesia.create_table :metadata, [attributes: [:composite_key, :value]]
+  #end
 
   @doc """
   Add a client to the known clients for an app id.

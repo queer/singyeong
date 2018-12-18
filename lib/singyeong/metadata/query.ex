@@ -105,24 +105,31 @@ defmodule Singyeong.Metadata.Query do
 
   ## QUERY OPERATORS ##
 
+  @spec op_eq(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_eq(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value == value}
   end
+  @spec op_ne(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_ne(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value != value}
   end
+  @spec op_gt(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_gt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value > value}
   end
+  @spec op_gte(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_gte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value >= value}
   end
+  @spec op_lt(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_lt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value < value}
   end
+  @spec op_lte(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_lte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value <= value}
   end
+  @spec op_in(binary(), map(), any(), list()) :: {:ok, boolean()} | {:error, binary()}
   def op_in(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
       {:ok, metadata_value in value}
@@ -130,6 +137,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
+  @spec op_nin(binary(), map(), any(), list()) :: {:ok, boolean()} | {:error, binary()}
   def op_nin(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
       {:ok, metadata_value not in value}
@@ -137,6 +145,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
+  @spec op_contains(binary(), map(), list(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_contains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
       {:ok, value in metadata_value}
@@ -144,6 +153,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "metadata not a list"}
     end
   end
+  @spec op_ncontains(binary(), map(), list(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_ncontains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
       {:ok, value not in metadata_value}
@@ -154,6 +164,7 @@ defmodule Singyeong.Metadata.Query do
 
   # Logical operators
 
+  @spec op_and(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_and(key, client_metadata, _metadata_value, value) do
     if is_list(value) do
       res =
@@ -169,6 +180,7 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
+  @spec op_or(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_or(key, client_metadata, _metadata_value, value) do
     if is_list(value) do
       res =
@@ -184,20 +196,20 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
+  @spec op_nor(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_nor(key, client_metadata, metadata_value, value) do
     case op_or(key, client_metadata, metadata_value, value) do
       {:ok, res} ->
         {:ok, not res}
       {:error, err} ->
         {:error, err}
-      _ ->
-        {:error, "$or unknown error"}
     end
   end
 
   # The problem with $not is that it would return a LIST of values, but all the
   # other operators would return a SINGLE VALUE.
   # TODO: Come up with a better solution...
+  @spec op_not(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
   def op_not(_key, _client_metadata, _metadata, _value) do
     {:error, "$not isn't implemented"}
   end

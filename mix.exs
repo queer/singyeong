@@ -9,7 +9,8 @@ defmodule Singyeong.Mixfile do
       elixirc_paths: elixirc_paths(Mix.env),
       compilers: [:phoenix, :gettext] ++ Mix.compilers,
       start_permanent: Mix.env == :prod,
-      deps: deps()
+      deps: deps(),
+      dialyzer: [plt_add_apps: [:mnesia]],
     ]
   end
 
@@ -38,8 +39,10 @@ defmodule Singyeong.Mixfile do
       {:gettext, "~> 0.11"},
       {:redix, ">= 0.0.0"},
       {:redix_pubsub, ">= 0.0.0"},
-      {:ex_doc, "~> 0.11", only: :dev},
       {:jason, "~> 1.1"},
+
+      {:ex_doc, "~> 0.11", only: :dev},
+      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false}
     ]
   end
 end
