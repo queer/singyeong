@@ -40,8 +40,8 @@ defmodule Singyeong.Mixfile do
       {:redix, ">= 0.0.0"},
       {:redix_pubsub, ">= 0.0.0"},
       {:jason, "~> 1.1"},
+      {:nimble_parsec, "~> 0.5.0"},
 
-      {:ex_doc, "~> 0.11", only: :dev},
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false}
     ]
   end

@@ -1,41 +1,25 @@
 defmodule Singyeong.Metadata.Query do
-  alias Singyeong.Metadata.Store
+  alias Singyeong.Metadata.MnesiaStore, as: Store
 
   @doc """
   Given a query, execute it and return a list of client IDs.
   """
   def run_query(q) when is_map(q) do
-    # TODO: This should cache client metadata for more efficient queries
-    # TODO: How to cache this in a non-race-conditions manner?
     application = q["application"]
     ops = q["ops"]
-    {:ok, clients} = Store.get_all_clients application
+    {:ok, clients} = Store.get_clients application
     for client <- clients do
       # Super lazy deletion filter
-      metadata = Store.get_metadata client
-      unless is_nil(metadata) or metadata == %{} do
-        if Map.has_key?(metadata, "last_heartbeat_time") do
-          last =
-            if is_map(metadata["last_heartbeat_time"]) do
-              metadata["last_heartbeat_time"]["value"]
-            else
-              nil
-            end
-          unless is_nil(last) do
-            now = :os.system_time :millisecond
-            if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
-              Store.remove_client application, client
-            end
-          end
-        end
-      else
-        Store.remove_client application, client
+      {:ok, last} = Store.get_metadata application, client, "last_heartbeat_time"
+      now = :os.system_time :millisecond
+      if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
+        Store.delete_client application, client
       end
     end
-    {:ok, clients} = Store.get_all_clients application
+    {:ok, clients} = Store.get_clients application
     res =
       clients
-      |> Enum.map(fn(x) -> {x, reduce_query(x, ops)} end)
+      |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
       |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
       |> Enum.map(fn({client, _}) -> client end)
     if length(res) == 0 and q["optional"] == true do
@@ -47,11 +31,11 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  defp reduce_query(client_id, q) when is_binary(client_id) and is_list(q) do
+  defp reduce_query(app_id, client_id, q) when is_binary(client_id) and is_list(q) do
     if length(q) == 0 do
       [true]
     else
-      metadata = Store.get_metadata client_id
+      {:ok, metadata} = Store.get_metadata app_id, client_id
       do_reduce_query metadata, q
     end
   end

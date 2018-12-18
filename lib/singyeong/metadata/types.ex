@@ -8,11 +8,11 @@ defmodule Singyeong.Metadata.Types do
   alias Singyeong.Metadata.Type
 
   @types %{
-    string: %Type{typename: :string, validation_function: &is_binary/1},
-    integer: %Type{typename: :integer, validation_function: &is_integer/1},
-    float: %Type{typename: :float, validation_function: &is_float/1},
-    version: %Type{typename: :version, validation_function: &Singyeong.Metadata.Types.validate_version/1},
-    list: %Type{typename: :list, validation_function: &Singyeong.Metadata.Types.validate_list/1},
+    "string"  => %Type{typename: :string, validation_function: &is_binary/1},
+    "integer" => %Type{typename: :integer, validation_function: &is_integer/1},
+    "float"   => %Type{typename: :float, validation_function: &is_float/1},
+    "version" => %Type{typename: :version, validation_function: &Singyeong.Metadata.Types.validate_version/1},
+    "list"    => %Type{typename: :list, validation_function: &Singyeong.Metadata.Types.validate_list/1},
   }
 
   def types, do: @types

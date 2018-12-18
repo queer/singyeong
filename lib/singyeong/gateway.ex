@@ -1,7 +1,7 @@
 defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
-  alias Singyeong.Metadata.Store
+  alias Singyeong.Metadata.MnesiaStore, as: Store
   alias Singyeong.Pubsub
 
   require Logger
@@ -76,18 +76,8 @@ defmodule Singyeong.Gateway do
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
-        metadata = Store.get_metadata(socket.assigns[:client_id])
-        if Map.has_key?(metadata, "last_heartbeat_time") do
-          last_pair = metadata["last_heartbeat_time"]
-          if is_map(last_pair) do
-            last = last_pair["value"]
-            if is_integer(last) do
-              last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
-            end
-          end
-        else
-          false
-        end
+        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], "last_heartbeat_time"
+        last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
       end
@@ -152,7 +142,7 @@ defmodule Singyeong.Gateway do
       Pubsub.unregister_socket is_nil(socket.assigns[:client_id])
     end
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
-      Store.remove_client socket.assigns[:app_id], socket.assigns[:client_id]
+      Store.delete_client socket.assigns[:app_id], socket.assigns[:client_id]
     end
   end
 
@@ -166,30 +156,26 @@ defmodule Singyeong.Gateway do
       if not is_nil(client_id) and is_binary(client_id)
         and not is_nil(app_id) and is_binary(app_id) do
         # Check app/client IDs to ensure validity
-        case Store.store_has_client?(app_id, client_id) do
-          {:ok, 0} ->
-            # Client doesn't exist, add to store and okay it
-            Store.add_client_to_store app_id, client_id
+        unless Store.client_exists?(app_id, client_id) do
+          # Client doesn't exist, add to store and okay it
+          Store.add_client app_id, client_id
+          Pubsub.register_socket client_id, socket
+          Logger.info "Got new socket for #{app_id}: #{client_id}"
+          Payload.create_payload(:ready, %{"client_id" => client_id})
+          |> craft_response(%{client_id: client_id, app_id: app_id})
+        else
+          if d["reconnect"] do
+            # Client does exist, but this is a reconnect, so add to store and okay it
+            Store.add_client app_id, client_id
             Pubsub.register_socket client_id, socket
             Logger.info "Got new socket for #{app_id}: #{client_id}"
             Payload.create_payload(:ready, %{"client_id" => client_id})
             |> craft_response(%{client_id: client_id, app_id: app_id})
-          {:ok, _} ->
-            if d["reconnect"] do
-              # Client does exist, but this is a reconnect, so add to store and okay it
-              Store.add_client_to_store app_id, client_id
-              Pubsub.register_socket client_id, socket
-              Logger.info "Got new socket for #{app_id}: #{client_id}"
-              Payload.create_payload(:ready, %{"client_id" => client_id})
-              |> craft_response(%{client_id: client_id, app_id: app_id})
-            else
-              # If we already have a client, reject outright
-              Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
-              |> craft_response
-            end
-          {:error, e} ->
-            Payload.close_with_payload(:invalid, %{"error" => "#{inspect e, pretty: true}"})
+          else
+            # If we already have a client, reject outright
+            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
             |> craft_response
+          end
         end
       else
         handle_missing_data()
@@ -212,10 +198,11 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_heartbeat(socket, _msg) do
+    app_id = socket.assigns[:app_id]
     client_id = socket.assigns[:client_id]
     if not is_nil(client_id) and is_binary(client_id) do
       # When we ack the heartbeat, update last heartbeat time
-      Store.update_metadata %{"last_heartbeat_time" => %{"type" => "integer", "value" => :os.system_time(:millisecond)}}, socket.assigns[:client_id]
+      Store.update_metadata app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond)
       Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
       |> craft_response
     else

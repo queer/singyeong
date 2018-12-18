@@ -26,8 +26,9 @@ Check out NOTES.md.
 
 ## How do I run the tests?
 
-`mix test --no-start`. Of course, there are no tests because I forgot to write
-them. Oops.
+`mix test --no-start`. ~~Of course, there are no tests because I forgot to write
+them. Oops.~~ I finally added tests. ~~Please clap~~ More will likely be added
+over time. 
 
 ## TODO
 

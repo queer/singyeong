@@ -36,6 +36,27 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     assert MapSet.member?(clients2, "client-2")
   end
 
+  test "checking that a client exists works" do
+    MnesiaStore.add_client "test-app-1", "client-1"
+    assert MnesiaStore.client_exists? "test-app-1", "client-1"
+  end
+
+  test "adding an existing client fails" do
+    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
+    assert 0 == MapSet.size(clients)
+
+    add_res = MnesiaStore.add_client "test-app-1", "client-1"
+    assert :ok == add_res
+
+    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
+    assert 1 == MapSet.size(clients)
+    assert MapSet.member?(clients, "client-1")
+
+    add_res = MnesiaStore.add_client "test-app-1", "client-1"
+    {status, _msg} = add_res
+    assert :error == status
+  end
+
   test "deleting clients works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
@@ -55,9 +76,6 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     assert 0 == MapSet.size(clients)
 
     MnesiaStore.add_client "test-app-1", "client-1"
-    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
-    assert 1 == MapSet.size(clients)
-    assert MapSet.member?(clients, "client-1")
 
     metadata_update_res = MnesiaStore.update_metadata "test-app-1", "client-1", "key", "value"
     assert :ok == metadata_update_res
@@ -70,9 +88,6 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     assert 0 == MapSet.size(clients)
 
     MnesiaStore.add_client "test-app-1", "client-1"
-    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
-    assert 1 == MapSet.size(clients)
-    assert MapSet.member?(clients, "client-1")
 
     metadata_update_res = MnesiaStore.update_metadata "test-app-1", "client-1", "key", "value"
     assert :ok == metadata_update_res
@@ -90,9 +105,6 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     assert 0 == MapSet.size(clients)
 
     MnesiaStore.add_client "test-app-1", "client-1"
-    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
-    assert 1 == MapSet.size(clients)
-    assert MapSet.member?(clients, "client-1")
 
     metadata_update_res = MnesiaStore.update_metadata "test-app-1", "client-1", %{
       "key" => "value",
@@ -111,9 +123,6 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     assert 0 == MapSet.size(clients)
 
     MnesiaStore.add_client "test-app-1", "client-1"
-    {:ok, clients} = MnesiaStore.get_clients "test-app-1"
-    assert 1 == MapSet.size(clients)
-    assert MapSet.member?(clients, "client-1")
 
     metadata_update_res = MnesiaStore.update_metadata "test-app-1", "client-1", %{
       "key" => "value",
@@ -124,5 +133,24 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     {:ok, data} = MnesiaStore.get_metadata "test-app-1", "client-1"
     assert "value" == data["key"]
     assert "value 2" == data["key-2"]
+  end
+
+  test "metadata validation works" do
+    MnesiaStore.add_client "test-app-1", "client-1"
+    metadata = %{
+      "a" => %{
+        "type" => "string",
+        "value" => "a",
+      },
+      "b" => %{
+        "type" => "integer",
+        "value" => 123
+      }
+    }
+    {status, data} = MnesiaStore.validate_metadata metadata
+    assert :ok == status
+
+    {status, _data} = MnesiaStore.validate_metadata data
+    assert :error == status
   end
 end

@@ -1,6 +1,6 @@
 defmodule Singyeong.Gateway.Dispatch do
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Metadata.Store
+  alias Singyeong.Metadata.MnesiaStore, as: Store
   alias Singyeong.Metadata.Query
   alias Singyeong.Pubsub
   require Logger
@@ -11,17 +11,13 @@ defmodule Singyeong.Gateway.Dispatch do
 
   def handle_dispatch(socket, %{"t" => "UPDATE_METADATA", "d" => data} = _payload) do
     try do
-      if Store.validate_metadata?(data) do
-        # Reduce metadata and update
-        data
-        #|> Map.keys
-        #|> Enum.reduce(%{}, fn(x, acc) ->
-        #  Map.put(acc, x, data[x]["value"])
-        #end)
-        |> Store.update_metadata(socket.assigns[:client_id])
-        {:ok, []}
-      else
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
+      {status, res} = Store.validate_metadata data
+      case status do
+        :ok ->
+          Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
+          {:ok, []}
+        :error ->
+          {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
       end
     rescue
       # Ideally we won't reach this case, but clients can't be trusted :<
