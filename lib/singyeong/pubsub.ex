@@ -41,7 +41,7 @@ defmodule Singyeong.Pubsub do
     spawn fn ->
         case channel do
           @send_queue ->
-            message = Poison.decode! message
+            message = Jason.decode! message
             %{"clients" => clients, "payload" => publish_payload} = message
             clients
             |> Enum.filter(fn(x) -> Map.has_key?(state[:sockets], x) end)
@@ -62,7 +62,7 @@ defmodule Singyeong.Pubsub do
   end
 
   def handle_cast({:send_message, clients, msg}, state) when is_list(clients) and is_map(msg) do
-    Redix.command! state[:client], ["PUBLISH", @send_queue, Poison.encode!(%{clients: clients, payload: msg})]
+    Redix.command! state[:client], ["PUBLISH", @send_queue, Jason.encode!(%{clients: clients, payload: msg})]
     {:noreply, state}
   end
 

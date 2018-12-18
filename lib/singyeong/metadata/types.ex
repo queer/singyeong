@@ -25,7 +25,7 @@ defmodule Singyeong.Metadata.Types do
 
   def validate_list(x) do
     if is_binary(x) do
-      case Poison.decode(x) do
+      case Jason.decode(x) do
         {:ok, l} ->
           is_list(l)
         _ ->

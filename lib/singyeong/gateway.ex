@@ -63,7 +63,7 @@ defmodule Singyeong.Gateway do
   ## INCOMING PAYLOAD ##
 
   def handle_payload(socket, payload) when is_binary(payload) do
-    {status, msg} = Poison.decode payload
+    {status, msg} = Jason.decode payload
     case status do
       :ok ->
         handle_payload socket, msg
@@ -96,6 +96,9 @@ defmodule Singyeong.Gateway do
       Payload.close_with_payload(:invalid, %{"error" => "heartbeat took too long"})
       |> craft_response
     else
+      #spawn fn ->
+      #  send socket.transport_pid, {:text, Jason.encode!(%{"test" => "test"})}
+      #end
       op = payload["op"]
       if not is_nil(op) and is_integer(op) do
         try_handle_event socket, payload

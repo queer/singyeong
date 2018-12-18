@@ -110,7 +110,7 @@ defmodule Singyeong.Metadata.Store do
           else
             x
           end
-        [["HSET", format_key("client", client_id), key, Poison.encode!(data[x])] | acc]
+        [["HSET", format_key("client", client_id), key, Jason.encode!(data[x])] | acc]
       end)
     |> pipeline
   end
@@ -121,7 +121,7 @@ defmodule Singyeong.Metadata.Store do
     |> Enum.chunk_every(2)
     |> Enum.reduce(%{}, fn(x, acc) ->
       [a, b] = x
-      b = Poison.decode!(b)
+      b = Jason.decode!(b)
       Map.put(acc, a, b)
     end)
   end

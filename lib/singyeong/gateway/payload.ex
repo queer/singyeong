@@ -5,7 +5,7 @@ defmodule Singyeong.Gateway.Payload do
     create_payload Gateway.opcodes_name()[op], data
   end
   def create_payload(op, data) when is_integer(op) and is_map(data) do
-    txt = Poison.encode!(%{
+    txt = Jason.encode!(%{
       "op"  => op,
       "d"   => data,
       "ts"  => :os.system_time(:millisecond)

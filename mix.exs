@@ -39,6 +39,7 @@ defmodule Singyeong.Mixfile do
       {:redix, ">= 0.0.0"},
       {:redix_pubsub, ">= 0.0.0"},
       {:ex_doc, "~> 0.11", only: :dev},
+      {:jason, "~> 1.1"},
     ]
   end
 end
