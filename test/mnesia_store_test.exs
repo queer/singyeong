@@ -153,4 +153,17 @@ defmodule Singyeong.Metadata.MnesiaStoreTest do
     {status, _data} = MnesiaStore.validate_metadata data
     assert :error == status
   end
+
+  test "handling pids works" do
+    pid = spawn fn -> "" end
+    MnesiaStore.add_socket "test-app-1", "client-1", pid
+    {:ok, out} = MnesiaStore.get_socket "test-app-1", "client-1"
+    assert pid == out
+
+    del_res = MnesiaStore.remove_socket "test-app-1", "client-1"
+    assert :ok == del_res
+
+    {:ok, out} = MnesiaStore.get_socket "test-app=1", "client-1"
+    assert nil == out
+  end
 end

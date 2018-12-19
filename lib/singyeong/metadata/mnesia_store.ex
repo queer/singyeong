@@ -3,6 +3,7 @@ defmodule Singyeong.Metadata.MnesiaStore do
 
   @clients :clients
   @metadata :metadata
+  @sockets :sockets
 
   @doc """
   Initialize the Mnesia-backed metadata store. Creates the schema, starts
@@ -14,6 +15,7 @@ defmodule Singyeong.Metadata.MnesiaStore do
     :mnesia.start()
     :mnesia.create_table @metadata, [attributes: [:composite_key, :value]]
     :mnesia.create_table @clients, [attributes: [:app_id, :client_ids]]
+    :mnesia.create_table @sockets, [attributes: [:composite_key, :socket_pid]]
     :ok
   end
 
@@ -98,6 +100,13 @@ defmodule Singyeong.Metadata.MnesiaStore do
         [data] ->
           {@clients, ^app_id, clients} = data
           :mnesia.write {@clients, app_id, MapSet.delete(clients, client_id)}
+          # Delete all the metadata
+          {:ok, metadata} = get_metadata(app_id, client_id)
+          metadata
+          |> Map.keys
+          |> Enum.each(fn key ->
+            :mnesia.delete {@metadata, {app_id, client_id, key}}
+          end)
         _ ->
           ""
       end
@@ -224,7 +233,7 @@ defmodule Singyeong.Metadata.MnesiaStore do
   def get_metadata(app_id, client_id, key) do
     res =
       :mnesia.transaction(fn ->
-        :mnesia.match_object {@metadata, {app_id, client_id, key}, :_}
+        :mnesia.read {@metadata, {app_id, client_id, key}}
       end)
     case res do
       {:atomic, [out]} ->
@@ -235,5 +244,47 @@ defmodule Singyeong.Metadata.MnesiaStore do
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
+  end
+
+  @doc """
+  Add a socket to the store. Used for actually sending websocket payloads.
+  """
+  @spec add_socket(binary(), binary(), pid()) :: :ok
+  def add_socket(app_id, client_id, pid) do
+    :mnesia.transaction(fn ->
+      :mnesia.write {@sockets, {app_id, client_id}, pid}
+    end)
+    :ok
+  end
+
+  @doc """
+  Return the socket pid with the given composite id, or `nil` if there is none.
+  """
+  @spec get_socket(binary(), binary()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  def get_socket(app_id, client_id) do
+    res =
+      :mnesia.transaction(fn ->
+        :mnesia.read {@sockets, {app_id, client_id}}
+      end)
+    case res do
+      {:atomic, [out]} ->
+        {@sockets, {^app_id, ^client_id}, pid} = out
+        {:ok, pid}
+      {:atomic, []} ->
+        {:ok, nil}
+      {:aborted, reason} ->
+        {:error, {"mnesia transaction aborted", reason}}
+    end
+  end
+
+  @doc """
+  Remove the socket with the given composite id from the store.
+  """
+  @spec remove_socket(binary(), binary()) :: :ok
+  def remove_socket(app_id, client_id) do
+    :mnesia.transaction(fn ->
+      :mnesia.delete {@sockets, {app_id, client_id}}
+    end)
+    :ok
   end
 end

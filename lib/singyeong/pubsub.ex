@@ -6,6 +6,26 @@ defmodule Singyeong.Pubsub do
   @send_queue "singyeong:dispatch:queue:send"
   # @broadcast_queue "singyeong:dispatch:queue:broadcast"
 
+
+  def initialize do
+    #
+  end
+
+  def shutdown do
+    #
+  end
+
+  def register_socket(socket, client_id) do
+    #
+  end
+  def unregister_socket(client_id) do
+    #
+  end
+
+  def send_message(clients, msg) do
+    #
+  end
+
   def start_link(opts) do
     GenServer.start_link __MODULE__, opts, name: __MODULE__
   end
