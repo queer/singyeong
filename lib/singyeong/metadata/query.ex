@@ -71,8 +71,7 @@ defmodule Singyeong.Metadata.Query do
       {x, f}
     end)
     |> Enum.map(fn({x, f}) ->
-      field = metadata[key]
-      value = field["value"]
+      value = metadata[key]
       f.([key, metadata, value, q[x]])
     end)
   end

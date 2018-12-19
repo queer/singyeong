@@ -41,7 +41,7 @@ defmodule Singyeong.Gateway.Dispatch do
         "payload" => payload,
         "nonce" => data["nonce"]
       }
-      Pubsub.send_message [client], out
+      Pubsub.send_message target["application"], [client], out
       {:ok, []}
     else
       # No nodes matched, warn the client
@@ -67,7 +67,7 @@ defmodule Singyeong.Gateway.Dispatch do
         "payload" => payload,
         "nonce" => data["nonce"]
       }
-      Pubsub.send_message nodes, out
+      Pubsub.send_message target["application"], nodes, out
       {:ok, []}
     else
       # No nodes matched, warn the client

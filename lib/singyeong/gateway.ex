@@ -138,10 +138,8 @@ defmodule Singyeong.Gateway do
   ## SOCKET CLOSED ##
 
   def handle_close(socket) do
-    unless is_nil(socket.assigns[:client_id]) do
-      Pubsub.unregister_socket is_nil(socket.assigns[:client_id])
-    end
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
+      Pubsub.unregister_socket socket
       Store.delete_client socket.assigns[:app_id], socket.assigns[:client_id]
     end
   end
@@ -159,16 +157,18 @@ defmodule Singyeong.Gateway do
         unless Store.client_exists?(app_id, client_id) do
           # Client doesn't exist, add to store and okay it
           Store.add_client app_id, client_id
-          Pubsub.register_socket client_id, socket
+          Pubsub.register_socket app_id, client_id, socket
           Logger.info "Got new socket for #{app_id}: #{client_id}"
+          Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
           Payload.create_payload(:ready, %{"client_id" => client_id})
           |> craft_response(%{client_id: client_id, app_id: app_id})
         else
           if d["reconnect"] do
             # Client does exist, but this is a reconnect, so add to store and okay it
             Store.add_client app_id, client_id
-            Pubsub.register_socket client_id, socket
+            Pubsub.register_socket app_id, client_id, socket
             Logger.info "Got new socket for #{app_id}: #{client_id}"
+            Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
             Payload.create_payload(:ready, %{"client_id" => client_id})
             |> craft_response(%{client_id: client_id, app_id: app_id})
           else
