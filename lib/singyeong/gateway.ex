@@ -154,28 +154,17 @@ defmodule Singyeong.Gateway do
       if not is_nil(client_id) and is_binary(client_id)
         and not is_nil(app_id) and is_binary(app_id) do
         # Check app/client IDs to ensure validity
-        unless Store.client_exists?(app_id, client_id) do
-          # Client doesn't exist, add to store and okay it
-          Store.add_client app_id, client_id
-          Pubsub.register_socket app_id, client_id, socket
-          Logger.info "Got new socket for #{app_id}: #{client_id}"
-          Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
-          Payload.create_payload(:ready, %{"client_id" => client_id})
-          |> craft_response(%{client_id: client_id, app_id: app_id})
-        else
-          if d["reconnect"] do
+        cond do
+          not Store.client_exists?(app_id, client_id) ->
+            # Client doesn't exist, add to store and okay it
+            finish_identify app_id, client_id, socket
+          Store.client_exists?(app_id, client_id) and d["reconnect"] ->
             # Client does exist, but this is a reconnect, so add to store and okay it
-            Store.add_client app_id, client_id
-            Pubsub.register_socket app_id, client_id, socket
-            Logger.info "Got new socket for #{app_id}: #{client_id}"
-            Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
-            Payload.create_payload(:ready, %{"client_id" => client_id})
-            |> craft_response(%{client_id: client_id, app_id: app_id})
-          else
+            finish_identify app_id, client_id, socket
+          true ->
             # If we already have a client, reject outright
             Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
             |> craft_response
-          end
         end
       else
         handle_missing_data()
@@ -183,6 +172,15 @@ defmodule Singyeong.Gateway do
     else
       handle_missing_data()
     end
+  end
+
+  defp finish_identify(app_id, client_id, socket) do
+    Store.add_client app_id, client_id
+    Pubsub.register_socket app_id, client_id, socket
+    Logger.info "Got new socket for #{app_id}: #{client_id}"
+    Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
+    Payload.create_payload(:ready, %{"client_id" => client_id})
+    |> craft_response(%{client_id: client_id, app_id: app_id})
   end
 
   defp handle_dispatch(socket, msg) do
