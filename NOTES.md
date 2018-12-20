@@ -325,7 +325,7 @@ value to `true`:
 
 ## 신경 metadata store
 
-신경 stores metadata in Redis. By storing metadata in 신경 you're able to 
+신경 stores metadata in Mnesia. By storing metadata in 신경 you're able to 
 take advantage of target queries for message routing. 
 
 When connecting to the 신경 websocket gateway, the identify payload that your

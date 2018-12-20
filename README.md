@@ -10,9 +10,7 @@ figured that 신경 would be easier for people who don't know Korean to pronounc
 To be serious, 신경 is a Redis-backed message queue of sorts. Clients connect 
 over a websocket (protocol defined in NOTES.md), and can send messages that can
 be routed to clients based on the metadata that the clients store on the 
-server. Since 신경 is based on Redis on the backend, you can spawn as many 신경
-nodes as you want, as scaling 신경 is mainly limited by your Redis server's
-throughput. 
+server.
 
 A (somewhat-untested) reference client can be found here: 
 https://github.com/singyeong/java-client
@@ -26,9 +24,10 @@ Check out NOTES.md.
 
 ## How do I run the tests?
 
-`mix test --no-start`. ~~Of course, there are no tests because I forgot to write
-them. Oops.~~ I finally added tests. ~~Please clap~~ More will likely be added
-over time. 
+`mix test`. ~~Of course, there are no tests because I forgot to write
+them. Oops.~~
+
+I finally added tests. ~~Please clap~~ More will likely be added over time.
 
 ## TODO
 
