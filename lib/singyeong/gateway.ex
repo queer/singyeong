@@ -8,6 +8,8 @@ defmodule Singyeong.Gateway do
 
   @heartbeat_interval 45_000
 
+  @last_heartbeat_time "last_heartbeat_time"
+
   @opcodes_name %{
     # recv
     :hello          => 0,
@@ -72,11 +74,23 @@ defmodule Singyeong.Gateway do
         |> craft_response
     end
   end
-  def handle_payload(socket, payload) when is_map(payload) do
+  def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
+    handle_payload_internal socket, %{
+      "op" => op,
+      "d" => d,
+      "t" => payload["t"] || ""
+    }
+  end
+  def handle_payload(_socket, _payload) do
+    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
+    |> craft_response
+  end
+
+  defp handle_payload_internal(socket, %{"op" => op, "d" => d, "t" => t} = _payload) do
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
-        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], "last_heartbeat_time"
+        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], @last_heartbeat_time
         last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
@@ -86,27 +100,16 @@ defmodule Singyeong.Gateway do
       Payload.close_with_payload(:invalid, %{"error" => "heartbeat took too long"})
       |> craft_response
     else
-      #spawn fn ->
-      #  send socket.transport_pid, {:text, Jason.encode!(%{"test" => "test"})}
-      #end
-      op = payload["op"]
-      if not is_nil(op) and is_integer(op) do
-        try_handle_event socket, payload
-      else
-        Payload.close_with_payload(:invalid, %{"error" => "payload has bad opcode"})
-        |> craft_response
-      end
+      payload_obj = %Payload{op: op, d: d, t: t}
+      try_handle_event socket, payload_obj
     end
-  end
-  def handle_payload(_socket, _payload) do
-    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
-    |> craft_response
   end
 
   defp try_handle_event(socket, payload) do
-    op = payload["op"]
+    op = payload.op
     named = @opcodes_id[op]
-    if named != :identify and is_nil socket.assigns[:client_id] do
+    if named != :identify and socket.assigns[:client_id] == nil do
+      # Try to halt it as soon as possible so that we don't waste time on it
       Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
       |> craft_response
     else
@@ -146,28 +149,22 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  defp handle_identify(socket, msg) when is_map(msg) do
-    d = msg["d"]
-    if not is_nil(d) and is_map(d) do
-      client_id = d["client_id"]
-      app_id = d["application_id"]
-      if not is_nil(client_id) and is_binary(client_id)
-        and not is_nil(app_id) and is_binary(app_id) do
-        # Check app/client IDs to ensure validity
-        cond do
-          not Store.client_exists?(app_id, client_id) ->
-            # Client doesn't exist, add to store and okay it
-            finish_identify app_id, client_id, socket
-          Store.client_exists?(app_id, client_id) and d["reconnect"] ->
-            # Client does exist, but this is a reconnect, so add to store and okay it
-            finish_identify app_id, client_id, socket
-          true ->
-            # If we already have a client, reject outright
-            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
-            |> craft_response
-        end
-      else
-        handle_missing_data()
+  defp handle_identify(socket, payload) do
+    client_id = payload.d["client_id"]
+    app_id = payload.d["application_id"]
+    if is_binary(client_id) and is_binary(app_id) do
+      # Check app/client IDs to ensure validity
+      cond do
+        not Store.client_exists?(app_id, client_id) ->
+          # Client doesn't exist, add to store and okay it
+          finish_identify app_id, client_id, socket
+        Store.client_exists?(app_id, client_id) and payload.d["reconnect"] ->
+          # Client does exist, but this is a reconnect, so add to store and okay it
+          finish_identify app_id, client_id, socket
+        true ->
+          # If we already have a client, reject outright
+          Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+          |> craft_response
       end
     else
       handle_missing_data()
@@ -178,13 +175,13 @@ defmodule Singyeong.Gateway do
     Store.add_client app_id, client_id
     Pubsub.register_socket app_id, client_id, socket
     Logger.info "Got new socket for #{app_id}: #{client_id}"
-    Store.update_metadata(app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond))
+    Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
     Payload.create_payload(:ready, %{"client_id" => client_id})
     |> craft_response(%{client_id: client_id, app_id: app_id})
   end
 
-  defp handle_dispatch(socket, msg) do
-    res = Dispatch.handle_dispatch socket, msg
+  defp handle_dispatch(socket, payload) do
+    res = Dispatch.handle_dispatch socket, Payload.to_map(payload)
     case res do
       {:ok, frames} ->
         frames
@@ -195,12 +192,12 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp handle_heartbeat(socket, _msg) do
+  defp handle_heartbeat(socket, _payload) do
     app_id = socket.assigns[:app_id]
     client_id = socket.assigns[:client_id]
     if not is_nil(client_id) and is_binary(client_id) do
       # When we ack the heartbeat, update last heartbeat time
-      Store.update_metadata app_id, client_id, "last_heartbeat_time", :os.system_time(:millisecond)
+      Store.update_metadata app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond)
       Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
       |> craft_response
     else

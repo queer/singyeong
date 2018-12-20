@@ -1,6 +1,16 @@
 defmodule Singyeong.Gateway.Payload do
   alias Singyeong.Gateway
 
+  defstruct op: 0, d: %{}, t: nil
+
+  def to_map(payload) do
+    %{
+      "op" => payload.op,
+      "d" => payload.d,
+      "t" => payload.t
+    }
+  end
+
   def create_payload(op, data) when is_atom(op) and is_map(data) do
     create_payload Gateway.opcodes_name()[op], data
   end

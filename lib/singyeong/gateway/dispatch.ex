@@ -82,7 +82,7 @@ defmodule Singyeong.Gateway.Dispatch do
       ]}
     end
   end
-  def handle_dispatch(_socket, _payload) do
-    {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid payload"})}
+  def handle_dispatch(_socket, payload) do
+    {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
   end
 end
