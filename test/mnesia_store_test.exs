@@ -1,7 +1,7 @@
-defmodule Singyeong.Metadata.MnesiaStoreTest do
+defmodule Singyeong.MnesiaStoreTest do
   use ExUnit.Case
-  doctest Singyeong.Metadata.MnesiaStore
-  alias Singyeong.Metadata.MnesiaStore
+  doctest Singyeong.MnesiaStore
+  alias Singyeong.MnesiaStore
 
   setup do
     MnesiaStore.initialize()

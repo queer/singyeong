@@ -1,7 +1,7 @@
 defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
-  alias Singyeong.Metadata.MnesiaStore, as: Store
+  alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.Pubsub
 
   require Logger
@@ -64,6 +64,7 @@ defmodule Singyeong.Gateway do
 
   ## INCOMING PAYLOAD ##
 
+  # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
   def handle_payload(socket, payload) when is_binary(payload) do
     {status, msg} = Jason.decode payload
     case status do
@@ -74,6 +75,7 @@ defmodule Singyeong.Gateway do
         |> craft_response
     end
   end
+  # @spec handle_payload(Phoenix.Socket.t, %{binary() => any()}) :: GatewayResponse.t
   def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
     handle_payload_internal socket, %{
       "op" => op,
@@ -81,6 +83,7 @@ defmodule Singyeong.Gateway do
       "t" => payload["t"] || ""
     }
   end
+  # @spec handle_payload(Phoenix.Socket.t, any()) :: GatewayResponse.t
   def handle_payload(_socket, _payload) do
     Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
     |> craft_response
@@ -181,7 +184,7 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_dispatch(socket, payload) do
-    res = Dispatch.handle_dispatch socket, Payload.to_map(payload)
+    res = Dispatch.handle_dispatch socket, payload
     case res do
       {:ok, frames} ->
         frames

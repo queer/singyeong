@@ -1,9 +1,13 @@
-defmodule Singyeong.Metadata.MnesiaStore do
+defmodule Singyeong.MnesiaStore do
   alias Singyeong.Metadata.Types
 
   @clients :clients
   @metadata :metadata
   @sockets :sockets
+
+  ####################
+  ## INITIALIZATION ##
+  ####################
 
   @doc """
   Initialize the Mnesia-backed metadata store. Creates the schema, starts
@@ -32,6 +36,10 @@ defmodule Singyeong.Metadata.MnesiaStore do
     :mnesia.delete_schema []
     :ok
   end
+
+  #############
+  ## CLIENTS ##
+  #############
 
   @doc """
   Add a client with the given app id and client id
@@ -113,6 +121,10 @@ defmodule Singyeong.Metadata.MnesiaStore do
     end)
     :ok
   end
+
+  ##############
+  ## METADATA ##
+  ##############
 
   @doc """
   Validate that the incoming metadata update has valid types. Used when
@@ -245,6 +257,10 @@ defmodule Singyeong.Metadata.MnesiaStore do
         {:error, {"mnesia transaction aborted", reason}}
     end
   end
+
+  ####################
+  ## WEBSOCKET PIDS ##
+  ####################
 
   @doc """
   Add a socket to the store. Used for actually sending websocket payloads.

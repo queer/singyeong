@@ -1,5 +1,5 @@
 defmodule Singyeong.Metadata.Query do
-  alias Singyeong.Metadata.MnesiaStore, as: Store
+  alias Singyeong.MnesiaStore, as: Store
 
   @doc """
   Given a query, execute it and return a list of client IDs.

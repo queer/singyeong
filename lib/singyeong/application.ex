@@ -6,7 +6,7 @@ defmodule Singyeong.Application do
   def start(_type, _args) do
     import Supervisor.Spec
 
-    Singyeong.Metadata.MnesiaStore.initialize()
+    Singyeong.MnesiaStore.initialize()
 
     # Define workers and child supervisors to be supervised
     children = [

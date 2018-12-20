@@ -1,7 +1,7 @@
 defmodule Singyeong.Pubsub do
   require Logger
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Metadata.MnesiaStore
+  alias Singyeong.MnesiaStore
 
   def register_socket(app_id, client_id, socket) do
     MnesiaStore.add_socket app_id, client_id, socket.transport_pid
