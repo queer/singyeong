@@ -7,10 +7,9 @@ considered naming this something like 등뼈 (deungppyeo, "spine"/"backbone") or
 회로망 (hoelomang, "network") or even 별자리 (byeoljali, "constellation), but I 
 figured that 신경 would be easier for people who don't know Korean to pronounce.
 
-To be serious, 신경 is a Redis-backed message queue of sorts. Clients connect 
-over a websocket (protocol defined in NOTES.md), and can send messages that can
-be routed to clients based on the metadata that the clients store on the 
-server.
+To be serious, 신경 is a message bus of sorts. Clients connect over a websocket
+(protocol defined in NOTES.md), and can send messages that can be routed to
+clients based on the metadata that the clients store on the server.
 
 A (somewhat-untested) reference client can be found here: 
 https://github.com/singyeong/java-client
