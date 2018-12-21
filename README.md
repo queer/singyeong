@@ -28,6 +28,22 @@ them. Oops.~~
 
 I finally added tests. ~~Please clap~~ More will likely be added over time.
 
-## TODO
+## Configuration
 
-- restricted mode
+Configuration is done via environment variables.
+
+```Bash
+# The port to run the websocket gateway on
+PORT=4567
+# The password that clients must send in order to connect. Optional.
+AUTH="2d1e29fbe6895b3693112ff8d5061b3b584c64c0cf5fd638b7c552a8bf0b1e461904aff753c9924d32a5309c064408f797b68c2f78f7eab853165d4f7f097545"
+iex -S mix phx.server
+```
+
+## Authentication
+
+Note that **there is no ratelimit on authentication attempts**. This means that
+a malicious client can constantly open connections and attempt passwords until
+it gets the correct one. It is **highly** recommended that you use a very long,
+probably-very-complicated password in order to help protect against this sort
+of attack.

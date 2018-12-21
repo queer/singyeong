@@ -37,8 +37,6 @@ defmodule Singyeong.Mixfile do
       {:phoenix_pubsub, "~> 1.0"},
       {:plug_cowboy, "~> 1.0"},
       {:gettext, "~> 0.11"},
-      {:redix, ">= 0.0.0"},
-      {:redix_pubsub, ">= 0.0.0"},
       {:jason, "~> 1.1"},
       {:nimble_parsec, "~> 0.5.0"},
 

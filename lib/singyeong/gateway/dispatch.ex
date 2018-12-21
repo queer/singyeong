@@ -7,6 +7,19 @@ defmodule Singyeong.Gateway.Dispatch do
 
   ## DISPATCH EVENTS ##
 
+  def can_dispatch?(socket, event) do
+    if socket.assigns[:restricted] do
+      case event do
+        "UPDATE_METADATA" ->
+          true
+        _ ->
+          false
+      end
+    else
+      true
+    end
+  end
+
   # Note: Dispatch handlers will return a list of response frames
 
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do

@@ -56,6 +56,8 @@ defmodule Singyeong.Gateway do
   def opcodes_name, do: @opcodes_name
   def opcodes_id, do: @opcodes_id
 
+  def auth, do: System.get_env("AUTH")
+
   defp craft_response(response, assigns \\ %{})
       when (is_tuple(response) or is_list(response)) and is_map(assigns)
       do
@@ -157,13 +159,14 @@ defmodule Singyeong.Gateway do
     app_id = payload.d["application_id"]
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
+      restricted = auth() == payload.d["auth"]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, socket
+          finish_identify app_id, client_id, socket, restricted
         Store.client_exists?(app_id, client_id) and payload.d["reconnect"] ->
           # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, socket
+          finish_identify app_id, client_id, socket, restricted
         true ->
           # If we already have a client, reject outright
           Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
@@ -174,13 +177,13 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, socket) do
+  defp finish_identify(app_id, client_id, socket, restricted) do
     Store.add_client app_id, client_id
     Pubsub.register_socket app_id, client_id, socket
     Logger.info "Got new socket for #{app_id}: #{client_id}"
     Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
-    Payload.create_payload(:ready, %{"client_id" => client_id})
-    |> craft_response(%{client_id: client_id, app_id: app_id})
+    Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
+    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted})
   end
 
   defp handle_dispatch(socket, payload) do

@@ -111,7 +111,10 @@ you~~.
   // Optional value. If you identify as a reconnect, 신경 will allow you to 
   // reuse application id and metadata.
   // This value must be true or false.
-  "reconnect": true
+  "reconnect": true,
+  // Optional value. If you specify a password in the env. vars, you must send
+  // the same password here, otherwise you get placed into restricted mode.
+  "auth": "your long complicated password here"
 }
 ```
 
