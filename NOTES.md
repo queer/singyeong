@@ -77,7 +77,7 @@ Some notes to myself so I don't forget
 
 ## 신경 events, the right way
 
-Beyond the structure described a feww sections above this, the structure of the
+Beyond the structure described a few sections above this, the structure of the
 inner payload of 신경 events is quite important. The correct structure for 
 these is described below:
 
@@ -337,15 +337,7 @@ requirement as it's the main key used for the majority of routing queries.
 
 ### Important things to consider
 
-There is a fairly specific case in which a client may remain in the metadata 
-store despite not being connected. Specifically, if:
-- the client connects to the server
-- the server stops
-- the client stops
-- the server restarts
-in that exact order, then the client will not be immediately cleared from the
-store. However, this can be detected (to an extent...) by the server and 
-resolved. 신경 uses a lazy-detection strategy for this; specifically, every
-query for an application id will attempt to prune clients that have not sent
-heartbeats often enough, both from the store as well as from active 
-connections.
+**Client metadata is NOT persisted across server restarts!** Your client is 
+responsible for caching whatever metadata needs to be set so that it can be
+restored on reconnect, as a client's metadata is always cleared when it 
+disconnects.

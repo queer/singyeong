@@ -23,7 +23,6 @@ Configuration is done via environment variables.
 PORT=4567
 # The password that clients must send in order to connect. Optional.
 AUTH="2d1e29fbe6895b3693112ff"
-mix phx.server
 ```
 
 ## What exactly is it?
