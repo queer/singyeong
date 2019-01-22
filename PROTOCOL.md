@@ -74,7 +74,7 @@ Some notes to myself so I don't forget
 | 4      | `dispatch`      | both | The gateway is sending you an event, or you are sending the gateway an event |
 | 5      | `heartbeat`     | send | Send a heartbeat to the gateway |
 | 6      | `heartbeat_ack` | recv | Gateway acknowledging the last heartbeat you sent |
-| 7      | `goodbye`       | recv | Sent to tell you to go away and try reconnecting. Used for eg. load balancing. |
+| 7      | `goodbye`       | recv | Sent to tell you to heck off and try reconnecting. Used for eg. load balancing. |
 
 ## 신경 events, the right way
 
