@@ -25,6 +25,9 @@ defmodule Singyeong.Gateway do
     :heartbeat      => 5,
     # recv
     :heartbeat_ack  => 6,
+    # recv
+    # TODO: Build real clustering so that this actually does something :^(
+    :goodbye        => 7,
   }
   @opcodes_id %{
     # recv
@@ -41,6 +44,8 @@ defmodule Singyeong.Gateway do
     5 => :heartbeat,
     # recv
     6 => :heartbeat_ack,
+    # recv
+    7 => :goodbye,
   }
 
   defmodule GatewayResponse do
