@@ -114,7 +114,12 @@ you~~.
   "reconnect": true,
   // Optional value. If you specify a password in the env. vars, you must send
   // the same password here, otherwise you get placed into restricted mode.
-  "auth": "your long complicated password here"
+  "auth": "your long complicated password here",
+  // Optional value. Any tags passed here will be used for service discovery, 
+  // ie. allowing other services to discover your app id without needing to
+  // hardcode it. 
+  // Clients that are placed into restricted mode are NOT able to set tags.
+  "tags": ["thing", "cool", "webscale"]
 }
 ```
 

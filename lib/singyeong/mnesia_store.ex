@@ -4,6 +4,7 @@ defmodule Singyeong.MnesiaStore do
   @clients :clients
   @metadata :metadata
   @sockets :sockets
+  @tags :tags
 
   ####################
   ## INITIALIZATION ##
@@ -20,6 +21,10 @@ defmodule Singyeong.MnesiaStore do
     :mnesia.create_table @metadata, [attributes: [:composite_key, :value]]
     :mnesia.create_table @clients, [attributes: [:app_id, :client_ids]]
     :mnesia.create_table @sockets, [attributes: [:composite_key, :socket_pid]]
+    # The tags table is created as a bag so that we can have a less-painful
+    # time trying to fetch and read the client's tags in a way that allows us
+    # to do tag comparisons for eg. connects
+    :mnesia.create_table @tags, [attributes: [:composite_key, :tags], type: :bag]
     :ok
   end
 
@@ -32,6 +37,8 @@ defmodule Singyeong.MnesiaStore do
   def shutdown do
     :mnesia.delete_table @metadata
     :mnesia.delete_table @clients
+    :mnesia.delete_table @sockets
+    :mnesia.delete_table @tags
     :mnesia.stop()
     :mnesia.delete_schema []
     :ok
@@ -302,5 +309,152 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.delete {@sockets, {app_id, client_id}}
     end)
     :ok
+  end
+
+  ##########
+  ## TAGS ##
+  ##########
+
+  @doc """
+  Set the tags for the client with the given application id.
+  """
+  @spec set_tags(binary(), binary(), list()) :: :ok | {:error, {binary(), tuple()}}
+  def set_tags(app_id, client_id, tags) do
+    if client_exists?(app_id, client_id) do
+      res =
+        :mnesia.transaction(fn ->
+          tags |> Enum.each(fn tag ->
+            :mnesia.write {@tags, {app_id, client_id}, tag}
+          end)
+        end)
+      case res do
+        {:atomic, _} ->
+          :ok
+        {:aborted, reason} ->
+          {:error, {"mnesia transaction aborted", reason}}
+      end
+    else
+      {:error, {"client not valid for app id", {app_id, client_id}}}
+    end
+  end
+
+  @doc """
+  Get the tags for the client with the given composite id.
+
+  **NOTE**: This returns tags in the REVERSE order that they were registered
+  in! Use Enum.reverse/1 if you need them in the original order.
+  """
+  @spec get_tags(binary(), binary()) :: {:ok, list()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  def get_tags(app_id, client_id) do
+    if client_exists?(app_id, client_id) do
+      res =
+        :mnesia.transaction(fn ->
+          :mnesia.read {@tags, {app_id, client_id}}
+        end)
+      case res do
+        {:atomic, tags} when is_list(tags) and length(tags) > 0 ->
+          out =
+            tags
+            |> Enum.reduce([], fn(x, acc) ->
+              {@tags, {^app_id, ^client_id}, tag} = x
+              [tag | acc]
+            end)
+          {:ok, out}
+        {:atomic, []} ->
+          {:ok, nil}
+        {:aborted, reason} ->
+          {:error, {"mnesia transaction aborted", reason}}
+      end
+    else
+      {:error, {"client not valid for app id", {app_id, client_id}}}
+    end
+  end
+
+  @doc """
+  Deletes the tags for the client with the given composite id. Generally should
+  only be called when deleting the client from the store as we don't support
+  dynamically changing tags at runtime
+
+  TODO: Support dynamic tag updates?
+  """
+  @spec delete_tags(binary(), binary()) :: :ok
+  def delete_tags(app_id, client_id) do
+    # Doesn't really matter what we return here, because if it's not present it
+    # won't really make a difference.
+    :mnesia.transaction(fn ->
+      :mnesia.delete {@tags, {app_id, client_id}}
+    end)
+    :ok
+  end
+
+  @doc """
+  Returns a list of application ids that have clients with the given tags. Note
+  that this does NOT ensure that all clients for the application id have all
+  tags set on them, so you should try to ensure homogeneity by not letting
+  clients of the same application set different tags.
+  """
+  @spec get_applications_with_tags(list()) :: {:ok, list()} | {:error, {binary(), tuple()}}
+  def get_applications_with_tags(tags) do
+    if tags == [] do
+      # Don't even bother if there's no tags to search for
+      {:ok, []}
+    else
+      sorted_tags = Enum.sort tags
+      res =
+        :mnesia.transaction(fn ->
+          apps_with_tags =
+            tags
+            |> Enum.map(fn tag ->
+              # Fetch matching clients from Mnesia
+              out = :mnesia.match_object {@tags, {:_, :_}, tag}
+              # This turns the list of tags into a list of lists of matching app ids
+              out
+              |> Enum.map(fn object ->
+                {@tags, {app_id, _client_id}, tag} = object
+                {app_id, tag}
+              end)
+            end)
+            |> Enum.reduce(%{}, fn(matches, acc) ->
+              # Previous step returns a list of lists like
+              # [{app_id, tag}, {app_id, tag}, ...]
+              # We reduce the list into a map, then merge it into the accumulator
+              # map in this step
+              map =
+                matches
+                |> Enum.reduce(%{}, fn({app_id, tag}, inner_acc) ->
+                  if Map.has_key?(inner_acc, app_id) do
+                    Map.put inner_acc, app_id, [tag | inner_acc[app_id]]
+                  else
+                    Map.put inner_acc, app_id, [tag]
+                  end
+                end)
+              map
+              |> Map.keys
+              |> Enum.reduce(acc, fn(app_id, inner_acc) ->
+                tags = map[app_id]
+                if Map.has_key?(inner_acc, app_id) do
+                  # Merge lists
+                  # TODO: Can we make this more efficient?
+                  Map.put inner_acc, app_id, inner_acc[app_id] ++ tags
+                else
+                  Map.put inner_acc, app_id, tags
+                end
+              end)
+            end)
+          # Filter out only the app ids with the correct keys
+          apps_with_tags
+          |> Map.keys
+          |> Enum.filter(fn(app_id) ->
+            sorted_tags == Enum.sort(apps_with_tags[app_id])
+          end)
+        end)
+
+      case res do
+        {:atomic, matches} when is_list(matches) ->
+          {:ok, matches}
+        {:aborted, reason} ->
+          {:error, {"mnesia transaction aborted", reason}}
+      end
+    end
   end
 end

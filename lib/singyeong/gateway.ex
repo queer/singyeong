@@ -157,16 +157,17 @@ defmodule Singyeong.Gateway do
   defp handle_identify(socket, payload) do
     client_id = payload.d["client_id"]
     app_id = payload.d["application_id"]
+    tags = Map.get payload.d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
       restricted = auth() == payload.d["auth"]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, socket, restricted
+          finish_identify app_id, client_id, tags, socket, restricted
         Store.client_exists?(app_id, client_id) and payload.d["reconnect"] ->
           # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, socket, restricted
+          finish_identify app_id, client_id, tags, socket, restricted
         true ->
           # If we already have a client, reject outright
           Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
@@ -177,11 +178,18 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, socket, restricted) do
+  defp finish_identify(app_id, client_id, tags, socket, restricted) do
+    # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
+    unless restricted do
+      Store.set_tags app_id, client_id, tags
+    end
+    # Last heartbeat time is the current time to avoid incorrect disconnects
+    Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
+    # Register with pubsub
     Pubsub.register_socket app_id, client_id, socket
     Logger.info "Got new socket for #{app_id}: #{client_id}"
-    Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
+    # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
     |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted})
   end
