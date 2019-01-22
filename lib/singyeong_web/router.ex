@@ -10,7 +10,7 @@ defmodule SingyeongWeb.Router do
 
     scope "/v1" do
       scope "/discovery" do
-        get "tags", DiscoveryController, :by_tags
+        get "/tags", DiscoveryController, :by_tags
       end
     end
   end
