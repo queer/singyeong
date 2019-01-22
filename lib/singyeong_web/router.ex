@@ -1,5 +1,6 @@
 defmodule SingyeongWeb.Router do
   use SingyeongWeb, :router
+  alias Singyeong.Env
 
   pipeline :api do
     plug :accepts, ["json"]
@@ -24,8 +25,7 @@ defmodule SingyeongWeb.Router do
         _ ->
           nil
       end
-    configured_auth = System.get_env "AUTH"
-    if configured_auth != nil and auth != configured_auth do
+    if Env.auth() != nil and auth != Env.auth() do
       conn
       |> put_status(401)
       |> json(%{"status" => "error", "error" => "not authorized"})

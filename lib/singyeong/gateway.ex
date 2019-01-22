@@ -3,6 +3,7 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.MessageDispatcher
+  alias Singyeong.Env
 
   require Logger
 
@@ -61,7 +62,6 @@ defmodule Singyeong.Gateway do
   def opcodes_name, do: @opcodes_name
   def opcodes_id, do: @opcodes_id
 
-  def auth, do: System.get_env("AUTH")
 
   defp craft_response(response, assigns \\ %{})
       when (is_tuple(response) or is_list(response)) and is_map(assigns)
@@ -170,7 +170,7 @@ defmodule Singyeong.Gateway do
     tags = Map.get payload.d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
-      restricted = auth() != payload.d["auth"]
+      restricted = Env.auth() != payload.d["auth"]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
