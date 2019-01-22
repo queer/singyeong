@@ -72,7 +72,7 @@ defmodule Singyeong.Gateway.Dispatch do
         if broadcast do
           nodes
         else
-          hd nodes
+          [hd(nodes)]
         end
       out = %{
         "sender" => sender,

@@ -21,7 +21,7 @@ defmodule Singyeong.GatewayTest do
       response: response,
       assigns: assigns
     } =
-      Gateway.handle_identify(socket, %{
+      Gateway.handle_identify socket, %{
         op: Gateway.opcodes_name()[:identify],
         d: %{
           "client_id" => client_id,
@@ -31,7 +31,7 @@ defmodule Singyeong.GatewayTest do
           "tags" => ["test", "webscale"]
         },
         t: :os.system_time(:millisecond)
-      })
+      }
 
     assert %{client_id: client_id, app_id: app_id, restricted: false} == assigns
   end
