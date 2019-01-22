@@ -40,6 +40,7 @@ defmodule Singyeong.Mixfile do
       {:jason, "~> 1.1"},
       {:nimble_parsec, "~> 0.5.0"},
       {:fuse, "~> 2.4"},
+      {:httpoison, "~> 1.5"},
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false}
     ]

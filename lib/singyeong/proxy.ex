@@ -17,8 +17,33 @@ defmodule Singyeong.Proxy do
     "body": {
       // ...
     },
-    // Any headers that need to be sent.
+    // Any headers that need to be sent. Singyeong will set the X-Forwarded-For
+    // header for you.
+    "headers": {
+      "header": "value",
+      // ...
+    },
+    // The routing query used to send the request to a target service.
+    "query": {
+      // ...
+    }
   }
   ```
   """
+
+  defmodule ProxiedRequest do
+    defstruct [:method, :body, :headers, :query]
+  end
+  defmodule ProxiedResponse do
+    defstruct [:status, :body, :headers]
+  end
+
+  @spec proxy(binary(), ProxiedRequest.t) :: ProxiedResponse.t
+  def proxy(client_ip, request) do
+    # TODO: Implement
+  end
+
+  #def memes(conn) do
+  #  to_string(:inet_parse.ntoa(conn.remote_ip))
+  #end
 end
