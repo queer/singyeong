@@ -7,5 +7,11 @@ defmodule SingyeongWeb.Router do
 
   scope "/api", SingyeongWeb do
     pipe_through :api
+
+    scope "/v1" do
+      scope "/discovery" do
+        get "tags", DiscoveryController, :by_tags
+      end
+    end
   end
 end

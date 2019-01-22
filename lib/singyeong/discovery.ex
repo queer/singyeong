@@ -6,16 +6,18 @@ defmodule Singyeong.Discovery do
   interface for discovering services based on metadata.
   """
 
+  alias Singyeong.MnesiaStore
+
   @doc """
   Find a list of app ids based on the tags being searched for. This function
   will return a list of app ids where *each app id has clients that match the
   given tags*. Importantly, **this does not guarantee that every client of that
   app id has the same tags**.
   """
-  @spec discover_service(list()) :: list()
+  @spec discover_service(list()) :: {:ok, list()} | {:error, {binary(), tuple()}}
   def discover_service(tags) do
-    # Fetch services with matching tags from mnesia
-    # Return them here
-    []
+    # Don't you love it when the solution to a problem is so simple?
+    # ^^;
+    MnesiaStore.get_applications_with_tags tags
   end
 end
