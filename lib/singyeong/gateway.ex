@@ -66,6 +66,8 @@ defmodule Singyeong.Gateway do
 
   ## INCOMING PAYLOAD ##
 
+  # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
+
   # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
   def handle_payload(socket, payload) when is_binary(payload) do
     {status, msg} = Jason.decode payload
@@ -77,6 +79,7 @@ defmodule Singyeong.Gateway do
         |> craft_response
     end
   end
+
   # @spec handle_payload(Phoenix.Socket.t, %{binary() => any()}) :: GatewayResponse.t
   def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
     handle_payload_internal socket, %{
@@ -85,6 +88,7 @@ defmodule Singyeong.Gateway do
       "t" => payload["t"] || ""
     }
   end
+
   # @spec handle_payload(Phoenix.Socket.t, any()) :: GatewayResponse.t
   def handle_payload(_socket, _payload) do
     Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
@@ -154,13 +158,14 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  defp handle_identify(socket, payload) do
+  @spec handle_identify(Phoenix.Socket.t, Payload.t) :: GatewayResponse.t
+  def handle_identify(socket, payload) do
     client_id = payload.d["client_id"]
     app_id = payload.d["application_id"]
     tags = Map.get payload.d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
-      restricted = auth() == payload.d["auth"]
+      restricted = auth() != payload.d["auth"]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
@@ -194,7 +199,7 @@ defmodule Singyeong.Gateway do
     |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted})
   end
 
-  defp handle_dispatch(socket, payload) do
+  def handle_dispatch(socket, payload) do
     res = Dispatch.handle_dispatch socket, payload
     case res do
       {:ok, frames} ->
@@ -206,7 +211,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp handle_heartbeat(socket, _payload) do
+  def handle_heartbeat(socket, _payload) do
     app_id = socket.assigns[:app_id]
     client_id = socket.assigns[:client_id]
     if not is_nil(client_id) and is_binary(client_id) do
