@@ -2,7 +2,7 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.MnesiaStore, as: Store
-  alias Singyeong.Pubsub
+  alias Singyeong.MessageDispatcher
 
   require Logger
 
@@ -147,7 +147,7 @@ defmodule Singyeong.Gateway do
 
   def handle_close(socket) do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
-      Pubsub.unregister_socket socket
+      MessageDispatcher.unregister_socket socket
       Store.delete_client socket.assigns[:app_id], socket.assigns[:client_id]
     end
   end
@@ -187,7 +187,7 @@ defmodule Singyeong.Gateway do
     # Last heartbeat time is the current time to avoid incorrect disconnects
     Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
     # Register with pubsub
-    Pubsub.register_socket app_id, client_id, socket
+    MessageDispatcher.register_socket app_id, client_id, socket
     Logger.info "Got new socket for #{app_id}: #{client_id}"
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})

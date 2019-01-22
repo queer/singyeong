@@ -2,7 +2,7 @@ defmodule Singyeong.Gateway.Dispatch do
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.Metadata.Query
-  alias Singyeong.Pubsub
+  alias Singyeong.MessageDispatcher
   require Logger
 
   ## DISPATCH EVENTS ##
@@ -40,9 +40,11 @@ defmodule Singyeong.Gateway.Dispatch do
         {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
     end
   end
+
   def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
     {:ok, [Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data)})]}
   end
+
   def handle_dispatch(_socket, %Payload{t: "SEND", d: data} = _payload) do
     # Query and route
     %{"sender" => sender, "target" => target, "payload" => payload} = data
@@ -54,7 +56,7 @@ defmodule Singyeong.Gateway.Dispatch do
         "payload" => payload,
         "nonce" => data["nonce"]
       }
-      Pubsub.send_message target["application"], [client], out
+      MessageDispatcher.send_message target["application"], [client], out
       {:ok, []}
     else
       # No nodes matched, warn the client
@@ -69,6 +71,7 @@ defmodule Singyeong.Gateway.Dispatch do
         ]}
     end
   end
+
   def handle_dispatch(_socket, %Payload{t: "BROADCAST", d: data} = _payload) do
     # This is really just a special case of SEND
     # Query and route
@@ -80,7 +83,7 @@ defmodule Singyeong.Gateway.Dispatch do
         "payload" => payload,
         "nonce" => data["nonce"]
       }
-      Pubsub.send_message target["application"], nodes, out
+      MessageDispatcher.send_message target["application"], nodes, out
       {:ok, []}
     else
       # No nodes matched, warn the client
@@ -95,6 +98,7 @@ defmodule Singyeong.Gateway.Dispatch do
       ]}
     end
   end
+
   def handle_dispatch(_socket, payload) do
     {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
   end
