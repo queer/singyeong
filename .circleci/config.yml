@@ -5,5 +5,5 @@ jobs:
     steps:
     - checkout
     - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
-    - run: docker build -t queer/echo:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM .
-    - run: docker push queer/echo:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
+    - run: docker build -t queer/singyeong:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM .
+    - run: docker push queer/singyeong:$CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
