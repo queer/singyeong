@@ -90,6 +90,10 @@ them. Oops.~~
 
 I finally added tests. ~~Please clap~~ More will likely be added over time.
 
+Note that the HTTP proxying tests use an echo server I wrote (`echo.amy.gg`),
+rather than using a locally-hosted one. If you don't want to run these tests,
+set the `DISABLE_PROXY_TESTS` env var.
+
 ## Security
 
 Note that **there is no ratelimit on authentication attempts**. This means that

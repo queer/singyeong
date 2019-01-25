@@ -30,8 +30,8 @@ defmodule SingyeongWeb.Transport.RawWs do
       %{halted: false} = conn ->
         case Transport.connect(endpoint, handler, transport, __MODULE__, nil, conn.params) do
           {:ok, socket} ->
-            # TODO: Get client ip to set somewhere here
-            # Use Plug.Conn.get_peer_data/1 or remote_ip to get the client's IP address and add it as an assign and eventually a metadata
+            ip = Singyeong.Proxy.convert_ip conn
+            socket = Phoenix.Socket.assign socket, "ip", ip
             {:ok, conn, {__MODULE__, {socket, opts}}}
           :error ->
             send_resp conn, :forbidden, ""

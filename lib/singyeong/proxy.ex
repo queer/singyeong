@@ -56,8 +56,8 @@ defmodule Singyeong.Proxy do
   ]
 
   defmodule ProxiedRequest do
-    @type t :: %ProxiedRequest{method: binary(), body: any(), headers: map(), query: map()}
-    defstruct [:method, :body, :headers, :query]
+    @type t :: %ProxiedRequest{method: binary(), route: binary(), body: any(), headers: map(), query: map()}
+    defstruct [:method, :route, :body, :headers, :query]
   end
   defmodule ProxiedResponse do
     @type t :: %ProxiedResponse{status: integer(), body: any(), headers: map()}
@@ -81,7 +81,7 @@ defmodule Singyeong.Proxy do
 
   @spec supported_method?(binary()) :: boolean
   defp supported_method?(method) do
-    not method in @unsupported_methods
+    method not in @unsupported_methods
   end
 
   @spec proxy(binary(), ProxiedRequest.t) :: {:ok, ProxiedResponse.t} | {:error, binary()}
@@ -119,8 +119,25 @@ defmodule Singyeong.Proxy do
         # Potential concern: The post body is typed any(); serialization might be a meme?
         # Check raw_ws.ex for notes about handling client ip acquisition / storage
         # Though it raises questions about doing it in clustered mode.....
-        {:ok, nil}
+        method_atom =
+          request.method
+          |> String.downcase
+          |> String.to_atom
+        {status, response} = HTTPoison.request(method_atom, request.route, request.body, headers)
+        case status do
+          :ok ->
+            {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: headers_to_map(response.headers)}}
+          :error ->
+            {:error, Exception.message(response)}
+        end
     end
+  end
+
+  defp headers_to_map(headers) do
+    headers
+    |> Enum.reduce(%{}, fn({k, v}, acc) ->
+      Map.put acc, k, v
+    end)
   end
 
   @spec convert_ip(Phoenix.Conn.t) :: binary()
