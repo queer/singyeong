@@ -19,16 +19,19 @@ defmodule SingyeongWeb.Transport.RawWs do
   def init(%Plug.Conn{method: "GET"} = conn, {endpoint, handler, transport}) do
     {_, opts} = handler.__transport__(transport)
 
-    conn = conn
-    |> fetch_query_params
-    |> Transport.transport_log(opts[:transport_log])
-    |> Transport.force_ssl(handler, endpoint, opts)
-    |> Transport.check_origin(handler, endpoint, opts)
+    conn =
+      conn
+      |> fetch_query_params
+      |> Transport.transport_log(opts[:transport_log])
+      |> Transport.force_ssl(handler, endpoint, opts)
+      |> Transport.check_origin(handler, endpoint, opts)
 
     case conn do
       %{halted: false} = conn ->
         case Transport.connect(endpoint, handler, transport, __MODULE__, nil, conn.params) do
           {:ok, socket} ->
+            # TODO: Get client ip to set somewhere here
+            # Use Plug.Conn.get_peer_data/1 or remote_ip to get the client's IP address and add it as an assign and eventually a metadata
             {:ok, conn, {__MODULE__, {socket, opts}}}
           :error ->
             send_resp conn, :forbidden, ""
