@@ -10,6 +10,12 @@ https://github.com/singyeong/java-client
 Clients are stored under an org because I don't want them cluttering up my 
 repos page. 
 
+### Credit
+
+Singyeong was **heavily** inspired by the [Ayana](https://ayana.io/) developers
+who are implementing something similar with
+[Sekitsui](https://gitlab.com/sekitsui).
+
 ## WARNING
 
 신경 is **ALPHA-QUALITY** software. The core functionality works, but there's

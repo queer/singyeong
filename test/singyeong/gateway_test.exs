@@ -17,7 +17,7 @@ defmodule Singyeong.GatewayTest do
     client_id = "client-1"
     app_id = "test-app-1"
 
-    IO.inspect socket, pretty: true
+    # IO.inspect socket, pretty: true
 
     %GatewayResponse{
       response: response,

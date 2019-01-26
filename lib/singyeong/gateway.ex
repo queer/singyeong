@@ -1,6 +1,7 @@
 defmodule Singyeong.Gateway do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
+  alias Singyeong.Metadata
   alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.MessageDispatcher
   alias Singyeong.Env
@@ -8,8 +9,6 @@ defmodule Singyeong.Gateway do
   require Logger
 
   @heartbeat_interval 45_000
-
-  @last_heartbeat_time "last_heartbeat_time"
 
   @opcodes_name %{
     # recv
@@ -104,7 +103,7 @@ defmodule Singyeong.Gateway do
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
-        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], @last_heartbeat_time
+        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], Metadata.last_heartbeat_time()
         last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
@@ -195,7 +194,7 @@ defmodule Singyeong.Gateway do
       Store.set_tags app_id, client_id, tags
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
-    Store.update_metadata(app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond))
+    Store.update_metadata(app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond))
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     Logger.info "Got new socket for #{app_id}: #{client_id}"
@@ -221,7 +220,7 @@ defmodule Singyeong.Gateway do
     client_id = socket.assigns[:client_id]
     if not is_nil(client_id) and is_binary(client_id) do
       # When we ack the heartbeat, update last heartbeat time
-      Store.update_metadata app_id, client_id, @last_heartbeat_time, :os.system_time(:millisecond)
+      Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
       Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
       |> craft_response
     else
