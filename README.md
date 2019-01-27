@@ -14,7 +14,8 @@ repos page.
 
 Singyeong was **heavily** inspired by the [Ayana](https://ayana.io/) developers
 who are implementing something similar with
-[Sekitsui](https://gitlab.com/sekitsui).
+[Sekitsui](https://gitlab.com/sekitsui). Singyeong exists because it has 
+somewhat-different goals than Sekitsui. 
 
 ## WARNING
 
