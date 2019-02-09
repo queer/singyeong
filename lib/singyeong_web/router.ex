@@ -14,6 +14,7 @@ defmodule SingyeongWeb.Router do
       scope "/discovery" do
         get "/tags", DiscoveryController, :by_tags
       end
+      post "/proxy", ProxyController, :proxy
     end
   end
 

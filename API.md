@@ -1,7 +1,7 @@
 Some API docs, because using something Proper:tm: and Correct:tm: like Swagger
 turned out to be a nightmare I don't even wanna touch. /sob
 
-Current API version: 1
+Current API version: `1`
 
 All routes are prefixed with `/api/:version`
 
@@ -23,3 +23,9 @@ parameter `q`.
   "result": ["app-1" "app-2"]
 }
 ```
+
+## Request proxying
+
+### `POST /proxy`
+
+TODO: finish filling this out
