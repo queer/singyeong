@@ -157,6 +157,8 @@ defmodule Singyeong.Gateway do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
       MessageDispatcher.unregister_socket socket
       Store.delete_client socket.assigns[:app_id], socket.assigns[:client_id]
+      Store.remove_socket socket.assigns[:app_id], socket.assigns[:client_id]
+      Store.remove_socket_ip socket.assigns[:app_id], socket.assigns[:client_id]
     end
   end
 
@@ -170,13 +172,14 @@ defmodule Singyeong.Gateway do
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
       restricted = Env.auth() != payload.d["auth"]
+      ip = payload.d["ip"] || socket.assigns[:ip]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, tags, socket, restricted
+          finish_identify app_id, client_id, tags, socket, ip, restricted
         Store.client_exists?(app_id, client_id) and payload.d["reconnect"] ->
           # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, tags, socket, restricted
+          finish_identify app_id, client_id, tags, socket, ip, restricted
         true ->
           # If we already have a client, reject outright
           Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
@@ -187,31 +190,44 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, tags, socket, restricted) do
+  defp finish_identify(app_id, client_id, tags, socket, ip, restricted) do
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
+      # Update tags
       Store.set_tags app_id, client_id, tags
+      # Update ip
+      Store.add_socket_ip app_id, client_id, ip
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
     Store.update_metadata(app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond))
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
-    Logger.info "Got new socket for #{app_id}: #{client_id}"
+    if restricted do
+      Logger.info "Got new RESTRICTED socket for #{app_id}: #{client_id}"
+    else
+      Logger.info "Got new socket for #{app_id}: #{client_id}"
+    end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
     |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted})
   end
 
   def handle_dispatch(socket, payload) do
-    res = Dispatch.handle_dispatch socket, payload
-    case res do
-      {:ok, frames} ->
-        frames
-        |> craft_response
-      {:error, error} ->
-        error
-        |> craft_response
+    dispatch_type = payload.t
+    if Dispatch.can_dispatch?(socket, dispatch_type) do
+      res = Dispatch.handle_dispatch socket, payload
+      case res do
+        {:ok, frames} ->
+          frames
+          |> craft_response
+        {:error, error} ->
+          error
+          |> craft_response
+      end
+    else
+      Payload.create_payload(:invalid, %{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
+      |> craft_response
     end
   end
 

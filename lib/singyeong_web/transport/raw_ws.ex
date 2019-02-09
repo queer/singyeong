@@ -30,8 +30,8 @@ defmodule SingyeongWeb.Transport.RawWs do
       %{halted: false} = conn ->
         case Transport.connect(endpoint, handler, transport, __MODULE__, nil, conn.params) do
           {:ok, socket} ->
-            # ip = Singyeong.Proxy.convert_ip conn
-            # socket = Phoenix.Socket.assign socket, "ip", ip
+            ip = Singyeong.Proxy.convert_ip conn
+            socket = Phoenix.Socket.assign socket, :ip, ip
             {:ok, conn, {__MODULE__, {socket, opts}}}
           :error ->
             send_resp conn, :forbidden, ""

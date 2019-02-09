@@ -123,7 +123,8 @@ defmodule Singyeong.Proxy do
           request.method
           |> String.downcase
           |> String.to_atom
-        {status, response} = HTTPoison.request(method_atom, request.route, request.body, headers)
+        # TODO: Need to get target service IP address here
+        {status, response} = HTTPoison.request method_atom, request.route, request.body, headers
         case status do
           :ok ->
             {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: headers_to_map(response.headers)}}

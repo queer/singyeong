@@ -4,6 +4,7 @@ defmodule Singyeong.MnesiaStore do
   @clients :clients
   @metadata :metadata
   @sockets :sockets
+  @socket_ips :socket_ips
   @tags :tags
 
   ####################
@@ -21,6 +22,7 @@ defmodule Singyeong.MnesiaStore do
     :mnesia.create_table @metadata, [attributes: [:composite_key, :value]]
     :mnesia.create_table @clients, [attributes: [:app_id, :client_ids]]
     :mnesia.create_table @sockets, [attributes: [:composite_key, :socket_pid]]
+    :mnesia.create_table @socket_ips, [attributes: [:composite_key, :socket_pid]]
     # The tags table is created as a bag so that we can have a less-painful
     # time trying to fetch and read the client's tags in a way that allows us
     # to do tag comparisons for eg. connects
@@ -265,9 +267,11 @@ defmodule Singyeong.MnesiaStore do
     end
   end
 
-  ####################
-  ## WEBSOCKET PIDS ##
-  ####################
+  ############################
+  ## WEBSOCKET PIDS AND IPS ##
+  ############################
+
+  # Sockets
 
   @doc """
   Add a socket to the store. Used for actually sending websocket payloads.
@@ -305,6 +309,50 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec remove_socket(binary(), binary()) :: :ok
   def remove_socket(app_id, client_id) do
+    :mnesia.transaction(fn ->
+      :mnesia.delete {@sockets, {app_id, client_id}}
+    end)
+    :ok
+  end
+
+  # Socket IPs
+
+  @doc """
+  Add a socket ip to the store. Used for proxying HTTP requests.
+  """
+  @spec add_socket_ip(binary(), binary(), pid()) :: :ok
+  def add_socket_ip(app_id, client_id, pid) do
+    :mnesia.transaction(fn ->
+      :mnesia.write {@sockets, {app_id, client_id}, pid}
+    end)
+    :ok
+  end
+
+  @doc """
+  Return the socket ip with the given composite id, or `nil` if there is none.
+  """
+  @spec get_socket_ip(binary(), binary()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  def get_socket_ip(app_id, client_id) do
+    res =
+      :mnesia.transaction(fn ->
+        :mnesia.read {@sockets, {app_id, client_id}}
+      end)
+    case res do
+      {:atomic, [out]} ->
+        {@sockets, {^app_id, ^client_id}, pid} = out
+        {:ok, pid}
+      {:atomic, []} ->
+        {:ok, nil}
+      {:aborted, reason} ->
+        {:error, {"mnesia transaction aborted", reason}}
+    end
+  end
+
+  @doc """
+  Remove the socket ip with the given composite id from the store.
+  """
+  @spec remove_socket_ip(binary(), binary()) :: :ok
+  def remove_socket_ip(app_id, client_id) do
     :mnesia.transaction(fn ->
       :mnesia.delete {@sockets, {app_id, client_id}}
     end)
