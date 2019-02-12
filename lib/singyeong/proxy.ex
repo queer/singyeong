@@ -30,6 +30,8 @@ defmodule Singyeong.Proxy do
   }
   ```
   """
+  alias Singyeong.Metadata.Query
+  alias Singyeong.MnesiaStore
 
   @methods [
     "GET",
@@ -97,7 +99,6 @@ defmodule Singyeong.Proxy do
         [{header, value} | acc]
       end)
     headers = [{"X-Forwarded-For", client_ip} | headers]
-
     # Verify body + method
     cond do
       not valid_method?(request.method) ->
@@ -114,22 +115,31 @@ defmodule Singyeong.Proxy do
         {:error, "no body required but one given (you probably wanted to send nil)"}
       true ->
         # Otherwise just do whatever
-        # We build the header map up above, and we can get the body from the proxied request object
-        # The main thing left to do is just running the query and fetching the target ip
-        # Potential concern: The post body is typed any(); serialization might be a meme?
-        # Check raw_ws.ex for notes about handling client ip acquisition / storage
-        # Though it raises questions about doing it in clustered mode.....
-        method_atom =
-          request.method
-          |> String.downcase
-          |> String.to_atom
-        # TODO: Need to get target service IP address here
-        {status, response} = HTTPoison.request method_atom, request.route, request.body, headers
-        case status do
-          :ok ->
-            {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: headers_to_map(response.headers)}}
-          :error ->
-            {:error, Exception.message(response)}
+        application = request.query["application"]
+        clients = Query.run_query request.query
+        cond do
+          length(clients) == 0 ->
+            {:error, "no matches"}
+          true ->
+            # Pick a random client
+            client_id = Enum.random clients
+            # We build the header map up above, and we can get the body from the proxied request object
+            # The main thing left to do is just running the query and fetching the target ip
+            # Potential concern: The post body is typed any(); serialization might be a meme?
+            # Check raw_ws.ex for notes about handling client ip acquisition / storage
+            # TODO: This raises questions about doing it in clustered mode.....
+            method_atom =
+              request.method
+              |> String.downcase
+              |> String.to_atom
+            target_ip = MnesiaStore.get_socket_ip application, client_id
+            {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
+            case status do
+              :ok ->
+                {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: headers_to_map(response.headers)}}
+              :error ->
+                {:error, Exception.message(response)}
+            end
         end
     end
   end

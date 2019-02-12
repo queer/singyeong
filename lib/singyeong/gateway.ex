@@ -204,9 +204,9 @@ defmodule Singyeong.Gateway do
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     if restricted do
-      Logger.info "Got new RESTRICTED socket for #{app_id}: #{client_id}"
+      Logger.info "Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"
     else
-      Logger.info "Got new socket for #{app_id}: #{client_id}"
+      Logger.info "Got new socket #{app_id}:#{client_id} @ #{ip}"
     end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
