@@ -49,7 +49,7 @@ defmodule SingyeongWeb.ProxyController do
           :ok ->
             res.headers
             |> Enum.reduce(conn, fn({k, v}, c) ->
-              put_resp_header c, k, v
+              put_resp_header c, String.downcase(k), v
             end)
             |> put_status(res.status)
             |> text(res.body)
