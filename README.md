@@ -63,6 +63,14 @@ WHAT they are; consumers of 신경 can then use the HTTP API to discover service
 names based on tags. Check out the "Service discovery" section in API.md for
 more. 
 
+### Do I need sidecar containers if I'm running in Kubernetes?
+
+Nope.
+
+### Does it support clustering / multi-master / ...?
+
+No. Hopefully someday.
+
 ## Why?
 
 I write [Discord](https://discordapp.com/) bots. With how Discord bot 
@@ -78,7 +86,7 @@ very useful.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
-I like Elixir :thumbsup: I'm not amazing at it, but I like it :thumbsup:
+I like Elixir :thumbsup: I'm not amazing at it, but I like it.
 
 ### Why using Phoenix? Why not just use Cowboy directly?
 
@@ -88,7 +96,7 @@ already so no need to reinvent the wheel. :meowupsidedown:
 
 ## How do I write my own client for it? How does it work internally? etc.
 
-Check out NOTES.md.
+Check out PROTOCOL.md.
 
 ## How do I run the tests?
 

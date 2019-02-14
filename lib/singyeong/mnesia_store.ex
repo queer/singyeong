@@ -40,6 +40,7 @@ defmodule Singyeong.MnesiaStore do
     :mnesia.delete_table @metadata
     :mnesia.delete_table @clients
     :mnesia.delete_table @sockets
+    :mnesia.delete_table @socket_ips
     :mnesia.delete_table @tags
     :mnesia.stop()
     :mnesia.delete_schema []
@@ -323,7 +324,7 @@ defmodule Singyeong.MnesiaStore do
   @spec add_socket_ip(binary(), binary(), pid()) :: :ok
   def add_socket_ip(app_id, client_id, pid) do
     :mnesia.transaction(fn ->
-      :mnesia.write {@sockets, {app_id, client_id}, pid}
+      :mnesia.write {@socket_ips, {app_id, client_id}, pid}
     end)
     :ok
   end
@@ -335,11 +336,11 @@ defmodule Singyeong.MnesiaStore do
   def get_socket_ip(app_id, client_id) do
     res =
       :mnesia.transaction(fn ->
-        :mnesia.read {@sockets, {app_id, client_id}}
+        :mnesia.read {@socket_ips, {app_id, client_id}}
       end)
     case res do
       {:atomic, [out]} ->
-        {@sockets, {^app_id, ^client_id}, pid} = out
+        {@socket_ips, {^app_id, ^client_id}, pid} = out
         {:ok, pid}
       {:atomic, []} ->
         {:ok, nil}
@@ -354,7 +355,7 @@ defmodule Singyeong.MnesiaStore do
   @spec remove_socket_ip(binary(), binary()) :: :ok
   def remove_socket_ip(app_id, client_id) do
     :mnesia.transaction(fn ->
-      :mnesia.delete {@sockets, {app_id, client_id}}
+      :mnesia.delete {@socket_ips, {app_id, client_id}}
     end)
     :ok
   end

@@ -62,7 +62,7 @@ defmodule Singyeong.Proxy do
     defstruct [:method, :route, :body, :headers, :query]
   end
   defmodule ProxiedResponse do
-    @type t :: %ProxiedResponse{status: integer(), body: any(), headers: map()}
+    @type t :: %ProxiedResponse{status: integer(), body: any(), headers: list()}
     defstruct [:status, :body, :headers]
   end
 
@@ -110,17 +110,17 @@ defmodule Singyeong.Proxy do
       requires_body?(request.method) and is_nil(request.body) ->
         # If it requires a body and we don't have one, give up and cry.
         {:error, "requires body but none given (you probably wanted to send empty-string)"}
-      not requires_body?(request.method) and not is_nil(request.body) ->
+      not requires_body?(request.method) and not (is_nil(request.body) or request.body == "") ->
         # If it doesn't require a body and we have one, give up and cry.
         {:error, "no body required but one given (you probably wanted to send nil)"}
       true ->
         # Otherwise just do whatever
-        application = request.query["application"]
         clients = Query.run_query request.query
         cond do
           length(clients) == 0 ->
             {:error, "no matches"}
           true ->
+            application = request.query["application"]
             # Pick a random client
             client_id = Enum.random clients
             # We build the header map up above, and we can get the body from the proxied request object
@@ -132,23 +132,21 @@ defmodule Singyeong.Proxy do
               request.method
               |> String.downcase
               |> String.to_atom
-            target_ip = MnesiaStore.get_socket_ip application, client_id
-            {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
-            case status do
+            {ip_status, target_ip} = MnesiaStore.get_socket_ip application, client_id
+            case ip_status do
               :ok ->
-                {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: headers_to_map(response.headers)}}
+                {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
+                case status do
+                  :ok ->
+                    {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: response.headers}}
+                  :error ->
+                    {:error, Exception.message(response)}
+                end
               :error ->
-                {:error, Exception.message(response)}
+                {:error, "no target ip"}
             end
         end
     end
-  end
-
-  defp headers_to_map(headers) do
-    headers
-    |> Enum.reduce(%{}, fn({k, v}, acc) ->
-      Map.put acc, k, v
-    end)
   end
 
   @spec convert_ip(Phoenix.Conn.t) :: binary()

@@ -16,6 +16,8 @@ defmodule SingyeongWeb.ProxyController do
     #   },
     #   query: {
     #     // See example queries in PROTOCOL.md
+    #     // Do NOT provide nonce, payload, ...
+    #     // Only thing sent here is the `target` part of a routed message
     #   }
     # }
     ip = Proxy.convert_ip conn
@@ -45,13 +47,17 @@ defmodule SingyeongWeb.ProxyController do
         {status, res} = Proxy.proxy ip, request
         case status do
           :ok ->
-            ""
+            res.headers
+            |> Enum.reduce(conn, fn({k, v}, c) ->
+              put_resp_header c, k, v
+            end)
+            |> put_status(res.status)
+            |> text(res.body)
           :error ->
             conn
             |> put_status(400)
             |> json(%{"errors" => [res]})
         end
-        conn |> json(%{})
     end
   end
 end
