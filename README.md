@@ -4,11 +4,11 @@ Singyeong (신경) is the nerve-center of your microservices-based application,
 providing a metadata-oriented message bus for IPC, service discovery, dynamic
 request proxying, and more.
 
-A (somewhat-untested) reference client can be found here: 
-https://github.com/singyeong/java-client
+Clients:
 
-Clients are stored under an org because I don't want them cluttering up my 
-repos page. 
+Language | Link
+---------|-----
+Java     | https://github.com/queer/singyeong-java-client
 
 ### Credit
 

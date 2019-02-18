@@ -272,6 +272,7 @@ object like the following:
 ```Javascript
 {
   "application": "application id here",
+  "restricted": true,
   "ops": [
     {
       "key": {
@@ -308,12 +309,20 @@ For a more-compact example:
 ```Javascript
 {
   "application": "application id here",
+  "restricted": true,
   "ops": [
     {"key": {"$eq": "value"}},
     {"key2": {"$lte": 1234}},
   ]
 }
 ```
+
+The `restricted` key sets whether or not the query can select a restricted-mode
+client as the target of the query. The default is `false` and this will be
+assumed if the value is not provided in the query. That is, if `restricted` is
+`true`, **any client of the given application that is in restricted-mode may 
+receive the data being sent.** If you use 신경 as a websocket gateway, be sure
+that you handle restrictions correctly!
 
 ### Optional queries
 
