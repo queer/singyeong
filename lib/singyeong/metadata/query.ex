@@ -5,39 +5,57 @@ defmodule Singyeong.Metadata.Query do
   Given a query, execute it and return a list of client IDs.
   """
   def run_query(q) when is_map(q) do
-    application = q["application"]
-    allow_restricted = q["restricted"]
-    # ops = q["ops"]
-    ops =
+    application =
       cond do
-        allow_restricted ->
-          # If we allow restricted-mode clients, just run the query as-is
-          q["ops"]
-        true ->
-          # Otherwise, explicitly require clients to not be restricted
-          q["ops"] |> Map.put("restricted", false)
+        is_binary q["application"] ->
+          # Normal case, just return the application name
+          q["application"]
+        is_list q["application"] ->
+          # If we're passed a list, try to discover the application id
+          {:ok, matches} = Singyeong.Discovery.discover_service q["application"]
+          if matches == [] do
+            nil
+          else
+            hd matches
+          end
       end
-    {:ok, clients} = Store.get_clients application
-    for client <- clients do
-      # Super lazy deletion filter
-      {:ok, last} = Store.get_metadata application, client, "last_heartbeat_time"
-      now = :os.system_time :millisecond
-      if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
-        Store.delete_client application, client
-      end
-    end
-    {:ok, clients} = Store.get_clients application
-    res =
-      clients
-      |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
-      |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
-      |> Enum.map(fn({client, _}) -> client end)
-    if length(res) == 0 and q["optional"] == true do
-      # If the query is optional, and the query returned no nodes, just return
-      # all nodes and let the dispatcher figure it out
-      clients
-    else
-      res
+    case application do
+      nil ->
+        []
+      _ ->
+        allow_restricted = q["restricted"]
+        ops =
+          cond do
+            allow_restricted ->
+              # If we allow restricted-mode clients, just run the query as-is
+              q["ops"]
+            true ->
+              # Otherwise, explicitly require clients to not be restricted
+              q["ops"] |> Map.put("restricted", false)
+          end
+        {:ok, clients} = Store.get_clients application
+        # Kind-of silly filter to get rid of clients that haven't heartbeated
+        # lately and are still in the metadata store for some reason
+        for client <- clients do
+          {:ok, last} = Store.get_metadata application, client, "last_heartbeat_time"
+          now = :os.system_time :millisecond
+          if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
+            Store.delete_client application, client
+          end
+        end
+        {:ok, clients} = Store.get_clients application
+        res =
+          clients
+          |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
+          |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
+          |> Enum.map(fn({client, _}) -> client end)
+        if length(res) == 0 and q["optional"] == true do
+          # If the query is optional, and the query returned no nodes, just return
+          # all nodes and let the dispatcher figure it out
+          clients
+        else
+          res
+        end
     end
   end
 

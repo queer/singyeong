@@ -71,7 +71,23 @@ Nope.
 
 No. Hopefully someday.
 
-## Why?
+## Why should I use this?
+
+- No sidecars.
+- No configuration.
+- Choose where messages / requests are routed at runtime; no need to bake exact
+  targets into your application.
+- Service discovery without DNS.
+- Service discovery integrated into HTTP proxying / message sending.
+
+## Why should I NOT use this?
+
+- Query performance might be unacceptable.
+- Websockets might not be acceptable.
+- Lack of clustering support (See issue #4).
+- JSON parsing might be too high (See issue #2).
+
+## Why make this?
 
 I write [Discord](https://discordapp.com/) bots. With how Discord bot 
 [sharding](https://discordapp.com/developers/docs/topics/gateway#sharding)

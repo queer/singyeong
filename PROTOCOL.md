@@ -324,6 +324,13 @@ assumed if the value is not provided in the query. That is, if `restricted` is
 receive the data being sent.** If you use 신경 as a websocket gateway, be sure
 that you handle restrictions correctly!
 
+### Application queries
+
+The `application` key in a query does not have to only be a string! You can 
+also send an array of tags, and 신경 will attempt to find a service matching 
+the provided tag query. See "Service discovery" in API.md for more information,
+as well as the description of tags under the `identify` payload. 
+
 ### Optional queries
 
 Sometimes, it is desirable to have a message be routed even if the query fails.
