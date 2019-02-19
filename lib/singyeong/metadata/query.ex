@@ -6,7 +6,17 @@ defmodule Singyeong.Metadata.Query do
   """
   def run_query(q) when is_map(q) do
     application = q["application"]
-    ops = q["ops"]
+    allow_restricted = q["restricted"]
+    # ops = q["ops"]
+    ops =
+      cond do
+        allow_restricted ->
+          # If we allow restricted-mode clients, just run the query as-is
+          q["ops"]
+        true ->
+          # Otherwise, explicitly require clients to not be restricted
+          q["ops"] |> Map.put("restricted", false)
+      end
     {:ok, clients} = Store.get_clients application
     for client <- clients do
       # Super lazy deletion filter

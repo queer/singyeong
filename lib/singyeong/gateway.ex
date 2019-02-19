@@ -200,7 +200,9 @@ defmodule Singyeong.Gateway do
       Store.add_socket_ip app_id, client_id, ip
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
-    Store.update_metadata(app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond))
+    Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
+    # Update restriction status for queries to take advantage of
+    Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     if restricted do

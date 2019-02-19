@@ -1,4 +1,5 @@
 defmodule Singyeong.MnesiaStore do
+  alias Singyeong.Metadata
   alias Singyeong.Metadata.Types
 
   @clients :clients
@@ -152,6 +153,7 @@ defmodule Singyeong.MnesiaStore do
         if is_map(key_data) and length(Map.keys(key_data)) == 2
           and Map.has_key?(key_data, "type") and Map.has_key?(key_data, "value")
           and Map.has_key?(Types.types(), key_data["type"])
+          and key not in Metadata.forbidden_keys()
         do
           value = key_data["value"]
           type = Types.types()[key_data["type"]]

@@ -39,7 +39,7 @@ AUTH="2d1e29fbe6895b3693112ff<insert more long password here>"
 ## What exactly is it?
 
 신경 is a metadata-oriented message bus of sorts. Clients connect over a 
-websocket (protocol defined in NOTES.md), and can send messages that can be 
+websocket (protocol defined in PROTOCOL.md), and can send messages that can be 
 routed to clients based on client metadata.
 
 ### Metadata-oriented?
@@ -124,3 +124,9 @@ considered naming this something like 등뼈 (deungppyeo, "spine"/"backbone") or
 회로망 (hoelomang, "network") or even 별자리 (byeoljali, "constellation), but I 
 figured that 신경 would be easier for people who don't know Korean to 
 pronounce, as well as being easier to find from GitHub search.
+
+## Shameless plug
+
+If you like what I make, consider supporting me on Patreon.
+
+[![patreon button](https://i.imgur.com/YFjoCd1.png)](https://patreon.com/amyware)
