@@ -10,7 +10,8 @@ defmodule SingyeongWeb.GenericController do
   def versions(conn, _params) do
     conn
     |> json(%{
-      "singyeong" => Singyeong.version()
+      "singyeong" => Singyeong.version(),
+      "api" => "v1",
     })
   end
 end
