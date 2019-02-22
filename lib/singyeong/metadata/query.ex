@@ -31,7 +31,7 @@ defmodule Singyeong.Metadata.Query do
               q["ops"]
             true ->
               # Otherwise, explicitly require clients to not be restricted
-              q["ops"] |> Map.put("restricted", false)
+              [%{"restricted" => %{"$eq" => false}} | q["ops"]]
           end
         {:ok, clients} = Store.get_clients application
         # Kind-of silly filter to get rid of clients that haven't heartbeated
