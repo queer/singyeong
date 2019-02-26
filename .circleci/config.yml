@@ -16,9 +16,6 @@ workflows:
   build:
     jobs:
     - build
-    filters:
-      branches:
-        ignore: master
   build-and-push:
     jobs:
     - build
