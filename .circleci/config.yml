@@ -20,7 +20,7 @@ workflows:
   build-and-push:
     jobs:
     - build
-    - push
+    - push:
         requires:
           - build
     filters:
