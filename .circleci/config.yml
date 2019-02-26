@@ -8,6 +8,8 @@ jobs:
     - checkout
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    branches:
+      ignore: master
   build-and-push:
     machine:
       enabled: true
@@ -17,18 +19,5 @@ jobs:
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
-
-workflows:
-  version: 2
-  build:
-    jobs:
-    - build:
-        filters:
-          branches:
-            ignore: master
-  build-and-push:
-    jobs:
-    - build-and-push:
-        filters:
-          branches:
-            only: master
+    branches:
+      only: master
