@@ -10,8 +10,6 @@ jobs:
     machine: true
     steps:
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
-    branches:
-      only: master
 
 workflows:
   version: 2
@@ -24,3 +22,5 @@ workflows:
     - push:
         requires:
           - build
+        branches:
+          only: master
