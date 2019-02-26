@@ -7,6 +7,8 @@ jobs:
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
   push:
+    machine: true
+    steps:
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
 
 workflows:
