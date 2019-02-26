@@ -9,6 +9,9 @@ jobs:
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
   push:
+    machine:
+      enabled: true
+      docker_layer_caching: true
     steps:
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
 
@@ -16,10 +19,16 @@ workflows:
   version: 2
   build:
     jobs:
-    - build
+    - build:
+        filters:
+          branches:
+            ignore: master
   build-and-push:
     jobs:
-    - build
+    - build:
+        filters:
+          branches:
+            only: master
     - push:
         requires:
           - build
