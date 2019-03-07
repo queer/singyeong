@@ -100,6 +100,12 @@ other services that handle things on a per-guild basis, ex. having a cluster of
 voice nodes, where not needing to know which node holds a particular guild is
 very useful.
 
+Additionally, being able to discover-by-tags is VERY useful - I don't have to 
+know ANYTHING about the receiving end other than what tags it might use for 
+itself! I can say things like "send this message to the service that describes
+itself as 'image-generator' and 'prod' with `latency < 100ms`," and 신경 will
+figure out how to get it where it needs to go.
+
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
 I like Elixir :thumbsup: I'm not amazing at it, but I like it.
