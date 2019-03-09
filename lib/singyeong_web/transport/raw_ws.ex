@@ -12,7 +12,7 @@ defmodule SingyeongWeb.Transport.RawWs do
     [
       timeout: 60_000,
       transport_log: false,
-      cowboy: SingyeongWeb.Transport.CowboyWebsocket # Phoenix.Endpoint.CowboyWebSocket
+      cowboy: SingyeongWeb.Transport.CowboyWebsocket
     ]
   end
 

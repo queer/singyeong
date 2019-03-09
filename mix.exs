@@ -38,6 +38,7 @@ defmodule Singyeong.Mixfile do
       {:plug_cowboy, "~> 2.0"},
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.1"},
+      {:poison, "~> 4.0"},
       {:nimble_parsec, "~> 0.5.0"},
       {:fuse, "~> 2.4"},
       {:httpoison, "~> 1.5"},
