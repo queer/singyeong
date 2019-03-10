@@ -4,6 +4,11 @@ defmodule SingyeongWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+
+    plug Plug.Parsers,
+      parsers: [:urlencoded, :multipart, :json],
+      pass: ["*/*"],
+      json_decoder: Jason
   end
 
   pipeline :authenticated_routes do
