@@ -56,6 +56,7 @@ defmodule Singyeong.DispatchTest do
     now = :os.system_time :millisecond
     op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
+    # TODO: This is marked as unused, I'm not sure why?
     expected = Jason.encode!(%{
         "d" => %{
           "sender" => sender,

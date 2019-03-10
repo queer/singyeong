@@ -5,7 +5,7 @@ defmodule SingyeongWeb.UserSocket do
   alias Singyeong.Gateway.GatewayResponse
   require Logger
 
-  transport :websocket, SingyeongWeb.Transport.RawWs
+  # transport :websocket, SingyeongWeb.Transport.RawWs
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -19,7 +19,7 @@ defmodule SingyeongWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket) do
-    send self(), Payload.create_payload(:hello, Gateway.hello)
+    send self(), Payload.create_payload(:hello, Gateway.hello())
     {:ok, socket}
   end
 

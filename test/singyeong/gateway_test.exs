@@ -36,5 +36,15 @@ defmodule Singyeong.GatewayTest do
       }
 
     assert %{client_id: client_id, app_id: app_id, restricted: false} == assigns
+
+    # Destructure it
+    {:text, response} = response
+    # Decode it
+    response = Jason.decode! response
+    # Actually test it
+    assert is_map response["d"]
+    d = response["d"]
+    assert client_id == d["client_id"]
+    refute d["restricted"]
   end
 end

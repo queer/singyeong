@@ -2,7 +2,6 @@ defmodule SingyeongWeb.DiscoveryControllerTest do
   use SingyeongWeb.ConnCase
   alias SingyeongWeb.Router.Helpers, as: Routes
   alias Singyeong.MnesiaStore
-  alias Singyeong.Env
 
   setup do
     on_exit fn ->

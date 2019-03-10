@@ -1,7 +1,10 @@
 defmodule SingyeongWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :singyeong
 
-  socket "/gateway", SingyeongWeb.UserSocket
+  socket "/gateway", SingyeongWeb.Transport.Raw,
+    websocket: [
+      connect_info: [:x_headers, :peer_data]
+    ]
 
   # Serve at "/" the static files from "priv/static" directory.
   #
