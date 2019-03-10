@@ -22,9 +22,6 @@ defmodule Singyeong.Gateway.Payload do
   end
 
   def close_with_payload(op, data) do
-    [
-      create_payload(op, data),
-      :close
-    ]
+    {:close, create_payload(op, data)}
   end
 end

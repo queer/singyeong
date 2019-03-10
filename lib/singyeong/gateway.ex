@@ -50,7 +50,7 @@ defmodule Singyeong.Gateway do
 
   defmodule GatewayResponse do
     # The empty map for response is effectively just a noop
-    # If the assigns map isn't empty, everything in it will be assigned to the socket`
+    # If the assigns map isn't empty, everything in it will be assigned to the socket
     defstruct response: [],
       assigns: %{}
   end
@@ -60,7 +60,6 @@ defmodule Singyeong.Gateway do
   def heartbeat_interval, do: @heartbeat_interval
   def opcodes_name, do: @opcodes_name
   def opcodes_id, do: @opcodes_id
-
 
   defp craft_response(response, assigns \\ %{})
       when (is_tuple(response) or is_list(response)) and is_map(assigns)
@@ -172,6 +171,9 @@ defmodule Singyeong.Gateway do
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
       restricted = Env.auth() != payload.d["auth"]
+      # If the client doesn't specify its own ip (eg. for routing to a specific
+      # port for HTTP), we fall back to the socket-assign port, which is
+      # derived from peer data in the transport.
       ip = payload.d["ip"] || socket.assigns[:ip]
       cond do
         not Store.client_exists?(app_id, client_id) ->
@@ -257,7 +259,7 @@ defmodule Singyeong.Gateway do
   end
 
   # This is here because we need to be able to send it immediately from
-  # user_socket.ex
+  # the socket transport layer
   def hello do
     %{
       "heartbeat_interval" => @heartbeat_interval
