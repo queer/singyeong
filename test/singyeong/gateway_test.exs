@@ -10,7 +10,7 @@ defmodule Singyeong.GatewayTest do
       Singyeong.MnesiaStore.shutdown()
     end
 
-    {:ok, socket: socket()}
+    {:ok, socket: socket(SingyeongWeb.Transport.Raw, nil, [])}
   end
 
   test "identify works correctly", %{socket: socket} do

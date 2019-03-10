@@ -11,7 +11,7 @@ defmodule Singyeong.DispatchTest do
       Singyeong.MnesiaStore.shutdown()
     end
 
-    {:ok, socket: socket()}
+    {:ok, socket: socket(SingyeongWeb.Transport.Raw, nil, [])}
   end
 
   test "SEND dispatch query to a socket works", %{socket: socket} do
