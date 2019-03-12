@@ -4,6 +4,8 @@ Singyeong (신경) is the nerve-center of your microservices-based application,
 providing a metadata-oriented message bus for IPC, service discovery, dynamic
 request proxying, and more.
 
+For a high-level overview of how 신경 works, check out DESIGN.md.
+
 신경 can be discussed in the amyware Discord server: https://discord.gg/aJSRXdd
 
 ### Clients:
