@@ -97,12 +97,14 @@ No. Hopefully someday.
 
 ## Why should I use this?
 
-- No sidecars.
 - No need for Kubernetes or something similar - anything that can speak
   websockets is a valid 신경 client. 
 - No configuration. 신경 is meant to be "drop in and get started" - a few 
   options exist for things like authentication, but beyond that, no 
   configuration should be needed (at least to start out).
+- Fully dynamic. 신경 is meant to work well with clients randomly appearing and
+  disappearing (ex. browser clients when using 신경 as a websocket gateway).
+- No sidecars.
 - Choose where messages / requests are routed at runtime; no need to bake exact
   targets into your application.
 - Service discovery without DNS.
