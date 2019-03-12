@@ -179,7 +179,7 @@ defmodule Singyeong.Gateway do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
           finish_identify app_id, client_id, tags, socket, ip, restricted
-        Store.client_exists?(app_id, client_id) and payload.d["reconnect"] ->
+        Store.client_exists?(app_id, client_id) and payload.d["reconnect"] and not restricted ->
           # Client does exist, but this is a reconnect, so add to store and okay it
           finish_identify app_id, client_id, tags, socket, ip, restricted
         true ->
