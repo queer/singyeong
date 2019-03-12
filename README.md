@@ -2,7 +2,8 @@
 
 Singyeong (신경) is the nerve-center of your microservices-based application,
 providing a metadata-oriented message bus for IPC, service discovery, dynamic
-request proxying, and more.
+request proxying, and more. 신경 aims to be simple to use, but still provide
+powerful features.
 
 For a high-level overview of how 신경 works, check out DESIGN.md.
 
@@ -41,23 +42,43 @@ AUTH="2d1e29fbe6895b3693112ff<insert more long password here>"
 
 ## What exactly is it?
 
-신경 is a metadata-oriented message bus of sorts. Clients connect over a 
-websocket (protocol defined in PROTOCOL.md), and can send messages that can be 
-routed to clients based on client metadata.
+신경 is a metadata-oriented service mesh. Clients connect over a websocket
+(protocol defined in PROTOCOL.md), and can send messages that can be routed to
+clients based on client metadata.
 
 ### Metadata-oriented?
 
-신경 does not allow you to send a message to a single client by id, or to what
-other messages buses/queues would call a "topic," or etc. Rather, 신경 allows
-clients to send metadata updates (which are stored on the server), and then
-clients can send messages that are routed based on this metadata. For example,
-you can say "this user is in beta, so send all messages related to them to the 
-services with `version_number >= 2.0.0`," or "send this message to all services
-of this type where `processing_latency < 100`," or so on. 
+신경 clients are identified by three factors:
 
-However, 신경 does NOT let you send messages directly to a client by id. If you
-find that you need this functionality, you can get around it by just setting 
-the client's id as a metadata key.
+1. Application id.
+2. Client id.
+3. Client metadata.
+
+When sending messages or HTTP requests over 신경, you do not choose a target
+service instance directly, nor does 신경 choose for you. Rather, you specify a
+target application and a metadata query. 신경 will then run this query on all
+clients under the given application, and choose one that matches to receive the
+message or request.
+
+For example, suppose you wanted to let users who had opted-in to a beta program
+use beta features, but not all users. You could express this as a 신경 query,
+and say something like "send this message to some service in the `backend`
+application where `version_number >= 2.0.0`."
+
+Of course, something like that is easy, but 신경 lets you do all, sorts of 
+things easily. For example, suppose you had a cluster of websocket gateways
+that users connected to and received events over. Instead of having to know
+which gateway a user is connected to, you could trivially express this as a 
+신경 query - "send this message to a `gateway` node that has `123` in its 
+`connected_users` metadata." Importantly, **sending messages like this is done
+in exactly the same way as sending any other message.** 신경 tries to make it 
+very easy to express potentially-complicated routing with the same syntax as a 
+simple "send to any one service in this application group."
+
+### Do I need to know exact client IDs to send messages?
+
+No. You should not try to route to a specific 신경 client by id; instead you 
+should be expressing a metadata query that will send to the client you want.
 
 ### Do I need to hard-code application IDs?
 
