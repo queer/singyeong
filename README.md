@@ -14,10 +14,9 @@ Java     | https://github.com/queer/singyeong-java-client
 
 ### Credit
 
-Singyeong was **heavily** inspired by the [Ayana](https://ayana.io/) developers
-who are implementing something similar with
-[Sekitsui](https://gitlab.com/sekitsui). Singyeong exists because it has 
-somewhat-different goals than Sekitsui. 
+신경 was **heavily** inspired by the [Ayana](https://ayana.io/) developers who
+are implementing something similar with [Sekitsui](https://gitlab.com/sekitsui).
+신경 exists because it has somewhat-different goals than Sekitsui. 
 
 ## WARNING
 
@@ -30,7 +29,7 @@ Configuration is done via environment variables.
 
 ```Bash
 # The port to bind to. Default is 4000. In production, you probably want to be
-# running on port 4000.
+# running on port 80.
 PORT=4567
 # The password that clients must send in order to connect. Optional.
 # It is HIGHLY recommended that you set a long / complex password. See the
@@ -62,7 +61,7 @@ the client's id as a metadata key.
 
 No. When clients connect to 신경, they can choose to set some tags describing 
 WHAT they are; consumers of 신경 can then use the HTTP API to discover service
-names based on tags. Check out the "Service discovery" section in API.md for
+names based on tags. Check out the "Service discovery" section in DESIGN.md for
 more. 
 
 ### Do I need sidecar containers if I'm running in Kubernetes?
@@ -76,7 +75,11 @@ No. Hopefully someday.
 ## Why should I use this?
 
 - No sidecars.
-- No configuration.
+- No need for Kubernetes or something similar - anything that can speak
+  websockets is a valid 신경 client. 
+- No configuration. 신경 is meant to be "drop in and get started" - a few 
+  options exist for things like authentication, but beyond that, no 
+  configuration should be needed (at least to start out).
 - Choose where messages / requests are routed at runtime; no need to bake exact
   targets into your application.
 - Service discovery without DNS.
