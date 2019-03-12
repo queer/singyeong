@@ -65,7 +65,7 @@ use beta features, but not all users. You could express this as a 신경 query,
 and say something like "send this message to some service in the `backend`
 application where `version_number >= 2.0.0`."
 
-Of course, something like that is easy, but 신경 lets you do all, sorts of 
+Of course, something like that is easy, but 신경 lets you do all sorts of 
 things easily. For example, suppose you had a cluster of websocket gateways
 that users connected to and received events over. Instead of having to know
 which gateway a user is connected to, you could trivially express this as a 
