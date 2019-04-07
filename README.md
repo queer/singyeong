@@ -33,12 +33,35 @@ Configuration is done via environment variables.
 ```Bash
 # The port to bind to. Default is 4000. In production, you probably want to be
 # running on port 80.
-PORT=4567
+PORT="4567"
+
 # The password that clients must send in order to connect. Optional.
 # It is HIGHLY recommended that you set a long / complex password. See the
 # "Security" section below for more on why. 
 AUTH="2d1e29fbe6895b3693112ff<insert more long password here>"
+
+# Whether or not clustering should be enabled.
+CLUSTERING="true"
+# The cookie is used for securing communication between nodes. See 
+# http://erlang.org/doc/reference_manual/distributed.html §13.7 Security.
+COOKIE="very long and secure cookie that nobody can guess"
+# Everything needed to connect to Redis. 신경 uses Redis for cluster member
+# discovery.
+REDIS_DSN="redis://:password@127.0.0.1:6379/0"
 ```
+
+## Clustering
+
+신경 is capable of bootstrapping the Erlang node and discovering cluster
+members automatically; you do ***not*** need to manually set the Erlang
+distribution flags, and *you should not set them*. 신경 will set everything up
+automatically.
+
+신경 uses Redis for discovering cluster members. There might be more options
+supported eventually.
+
+Someday it might be cool to support gossip protocol, kube api, ... to allow for
+automatically forming clusters w/o external dependencies, I guess.
 
 ## What exactly is it?
 

@@ -40,8 +40,9 @@ defmodule Singyeong.Gateway.Dispatch do
     rescue
       # Ideally we won't reach this case, but clients can't be trusted :<
       e ->
-        Exception.format(:error, e, __STACKTRACE__)
-        |> Logger.error
+        formatted =
+          Exception.format(:error, e, __STACKTRACE__)
+        Logger.error "[DISPATCH] Encountered error handling metadata update: #{formatted}"
         {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
     end
   end

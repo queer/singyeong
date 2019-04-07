@@ -142,8 +142,9 @@ defmodule Singyeong.Gateway do
         end
       rescue
         e ->
-          Exception.format(:error, e, __STACKTRACE__)
-          |> Logger.error
+          formatted =
+            Exception.format(:error, e, __STACKTRACE__)
+          Logger.error "[GATEWAY] Encountered error handling gateway payload: #{formatted}"
           Payload.close_with_payload(:invalid, %{"error" => "internal server error"})
           |> craft_response
       end
@@ -208,9 +209,9 @@ defmodule Singyeong.Gateway do
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     if restricted do
-      Logger.info "Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"
+      Logger.info "[GATEWAY] Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"
     else
-      Logger.info "Got new socket #{app_id}:#{client_id} @ #{ip}"
+      Logger.info "[GATEWAY] Got new socket #{app_id}:#{client_id} @ #{ip}"
     end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})

@@ -1,4 +1,5 @@
 defmodule SingyeongWeb.Endpoint do
+  alias Singyeong.Env
   use Phoenix.Endpoint, otp_app: :singyeong
 
   socket "/gateway", SingyeongWeb.Transport.Raw,
@@ -48,7 +49,7 @@ defmodule SingyeongWeb.Endpoint do
   """
   def init(_key, config) do
     if config[:load_from_system_env] do
-      port = System.get_env("PORT") || raise "expected the PORT environment variable to be set"
+      port = Env.port() || raise "expected the PORT environment variable to be set"
       {:ok, Keyword.put(config, :http, [:inet6, port: port])}
     else
       {:ok, config}
