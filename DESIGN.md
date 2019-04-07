@@ -2,14 +2,14 @@
 
 For a more in-depth explanation, see PROTOCOL.md.
 
-신경 tries to be stupidly easy to run - outside of port and password, there
-isn't any configuration. In line with this goal is the fact that 신경 does not
-require using a custom binary protocol, raw TCP/UDP sockets, or similar. A very
-explicit goal of 신경 is that **anything** that speaks websockets can speak the
-신경 protocol. This allows for things like a monitoring/web panel to just be
-another 신경 client, rather than something that might need to be specially
-baked in. Additionally, this means that 신경 is designed for clients to appear
-and disappear randomly. 
+신경 tries to be stupidly easy to run - outside of port, password, and
+clustering, there isn't any configuration. In line with this goal is the fact
+that 신경 does not require using a custom binary protocol, raw TCP/UDP sockets,
+or similar. A very explicit goal of 신경 is that **anything** that speaks
+websockets can speak the 신경 protocol. This allows for things like a
+monitoring/web panel to just be another 신경 client, rather than something that
+might need to be specially baked in. Additionally, this means that 신경 is
+designed for clients to appear and disappear randomly. 
 
 One of the main "points" of 신경 is that all communication is expected to be
 run over it; it is NOT expected that a client can discover another client's 

@@ -67,7 +67,7 @@ defmodule SingyeongWeb.Transport.Raw do
         {:ok, {channels, socket}}
       frames when is_list(frames) ->
         # A list of frames to send
-        Logger.error "Was asked to send a frame list, but I don't know how to do that!"
+        Logger.error "[TRANSPORT] Was asked to send a frame list, but I don't know how to do that!"
         {:ok, {channels, socket}}
       _ ->
         # Anything else probably doesn't need a response
@@ -87,7 +87,7 @@ defmodule SingyeongWeb.Transport.Raw do
   def terminate(reason, {_channels, socket} = _state) do
     # TODO: Close codes??
     code = 1000
-    Logger.info "Socket for #{socket.assigns[:app_id]}:#{socket.assigns[:client_id]}"
+    Logger.info "[TRANSPORT] Socket for #{socket.assigns[:app_id]}:#{socket.assigns[:client_id]}"
       <> " @ #{socket.assigns[:ip]}"
       <> " closed with code #{inspect code}: #{inspect reason}"
     Gateway.handle_close socket

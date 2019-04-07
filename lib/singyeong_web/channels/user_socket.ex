@@ -42,7 +42,7 @@ defmodule SingyeongWeb.UserSocket do
 
   def handle(:closed, {code, reason}, state) do
     skt = state[:socket]
-    Logger.info "Socket for #{skt.assigns[:app_id]}:#{skt.assigns[:client_id]} @ #{skt.assigns[:ip]} closed with code #{inspect code}: #{inspect reason}"
+    Logger.info "[SOCKET] Socket for #{skt.assigns[:app_id]}:#{skt.assigns[:client_id]} @ #{skt.assigns[:ip]} closed with code #{inspect code}: #{inspect reason}"
     Gateway.handle_close skt
     {:ok, state}
   end

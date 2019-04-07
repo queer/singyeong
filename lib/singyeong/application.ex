@@ -1,5 +1,7 @@
 defmodule Singyeong.Application do
+  alias Singyeong.Env
   use Application
+  require Logger
 
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
@@ -15,6 +17,18 @@ defmodule Singyeong.Application do
       # Start your own worker by calling: Singyeong.Worker.start_link(arg1, arg2, arg3)
       # worker(Singyeong.Worker, [arg1, arg2, arg3]),
     ]
+    children =
+      if Env.clustering() == "true" do
+        Logger.info "[APP] Clustering enabled, setting up Redis and cluster workers..."
+        children ++ [
+          # Redis worker pool
+          Singyeong.Redis,
+          # Clustering worker
+          Singyeong.Clusterer
+        ]
+      else
+        children
+      end
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

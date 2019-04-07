@@ -1,5 +1,4 @@
 defmodule Singyeong.MessageDispatcher do
-  require Logger
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore
 
