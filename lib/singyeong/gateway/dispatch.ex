@@ -1,4 +1,5 @@
 defmodule Singyeong.Gateway.Dispatch do
+  alias Singyeong.Cluster
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.Metadata.Query
@@ -67,20 +68,54 @@ defmodule Singyeong.Gateway.Dispatch do
 
   defp send_to_clients(socket, data, tries, broadcast \\ true) do
     %{"sender" => sender, "target" => target, "payload" => payload} = data
-    nodes = Query.run_query target
-    unless length(nodes) == 0 do
-      nodes =
-        if broadcast do
-          nodes
-        else
-          [hd(nodes)]
-        end
+    targets = Cluster.query target
+    valid_targets =
+      targets
+      |> Enum.filter(fn({_, res}) ->
+        res != []
+      end)
+      |> Enum.into(%{})
+    matched_client_ids =
+      valid_targets
+      |> Map.values
+      |> Enum.concat
+
+    unless length(matched_client_ids) == 0 do
+      fake_local_node = Cluster.fake_local_node()
       out = %{
         "sender" => sender,
         "payload" => payload,
         "nonce" => data["nonce"]
       }
-      MessageDispatcher.send_message target["application"], nodes, out
+
+      if broadcast do
+        for {node, clients} <- valid_targets do
+          send_fn = fn ->
+            MessageDispatcher.send_message target["application"], clients, out
+          end
+
+          case node do
+            ^fake_local_node ->
+              Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+            _ ->
+              Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
+          end
+        end
+      else
+        # Pick random node
+        {node, clients} = Enum.random valid_targets
+        # Pick a random client from that node's targets
+        target_clients = [Enum.random(clients)]
+        send_fn = fn ->
+          MessageDispatcher.send_message target["application"], target_clients, out
+        end
+        case node do
+          ^fake_local_node ->
+            Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+          _ ->
+            Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
+        end
+      end
     else
       if tries == @max_send_tries do
         failure =

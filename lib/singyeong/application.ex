@@ -8,16 +8,12 @@ defmodule Singyeong.Application do
   def start(_type, _args) do
     import Supervisor.Spec
 
-    # Doesn't need a supervisor, hence doing it like this
-    Singyeong.MnesiaStore.initialize()
-
     # Define workers and child supervisors to be supervised
     children = [
-      # Start the endpoint when the application starts
-      supervisor(SingyeongWeb.Endpoint, []),
       # Task supervisor
       {Task.Supervisor, name: Singyeong.TaskSupervisor},
     ]
+    # Add clustering children if needed
     children =
       if Env.clustering() == "true" do
         Logger.info "[APP] Clustering enabled, setting up Redis and cluster workers..."
@@ -28,8 +24,15 @@ defmodule Singyeong.Application do
           Singyeong.Cluster
         ]
       else
+        # Doesn't need a supervisor, hence doing it like this
+        # We initialize it here because the clustering worker takes care of
+        # initializing Mnesia *after* starting the local node.
+        Singyeong.MnesiaStore.initialize()
+
         children
       end
+    # Finally, add endpoint supervisor
+    children = children ++ [supervisor(SingyeongWeb.Endpoint, [])]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

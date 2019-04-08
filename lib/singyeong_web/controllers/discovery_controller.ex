@@ -23,6 +23,7 @@ defmodule SingyeongWeb.DiscoveryController do
       results =
         results
         |> Map.values()
+        |> Enum.filter(fn x -> not is_nil(x) end)
         |> Enum.filter(fn x -> {:ok, _} = x end)
         |> Enum.map(fn {:ok, x} -> x end)
         |> Enum.concat
