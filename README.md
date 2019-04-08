@@ -63,6 +63,13 @@ supported eventually.
 Someday it might be cool to support gossip protocol, kube api, ... to allow for
 automatically forming clusters w/o external dependencies, I guess.
 
+### Why not using swarm / libcluster?
+
+Meh.
+
+To be serious, swarm doesn't do certain things that I want, and I'm too lazy to
+write a libcluster strategy that does what I want. Maybe Someday:tm:
+
 ## What exactly is it?
 
 신경 is a metadata-oriented service mesh. Clients connect over a websocket

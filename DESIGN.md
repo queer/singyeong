@@ -11,6 +11,10 @@ monitoring/web panel to just be another 신경 client, rather than something tha
 might need to be specially baked in. Additionally, this means that 신경 is
 designed for clients to appear and disappear randomly. 
 
+In general, 신경 tries to keep the server relatively simple. Ideally the server
+codebase could be kept completely under 10k lines, but that may change in the
+future.
+
 One of the main "points" of 신경 is that all communication is expected to be
 run over it; it is NOT expected that a client can discover another client's 
 IP + port or similar. All messages, HTTP requests, ... for 신경-connected 
