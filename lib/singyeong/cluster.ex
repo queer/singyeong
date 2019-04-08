@@ -7,7 +7,9 @@ defmodule Singyeong.Cluster do
   """
 
   use GenServer
+  alias Singyeong.Discovery
   alias Singyeong.Env
+  alias Singyeong.Metadata.Query
   alias Singyeong.Redis
   require Logger
 
@@ -54,6 +56,9 @@ defmodule Singyeong.Cluster do
       {:ok, _} = Node.start node_atom, :longnames
       Node.set_cookie state[:cookie] |> String.to_atom
 
+      Logger.info "[CLUSTER] Bootstrapping Mnesia..."
+      Singyeong.MnesiaStore.initialize()
+
       Logger.info "[CLUSTER] Updating registry..."
       new_state = %{state | longname: node_name}
       registry_write new_state
@@ -81,7 +86,8 @@ defmodule Singyeong.Cluster do
           true ->
             # Don't need to do anything else
             # This is NOT logged at :info to avoid spamme
-            Logger.debug "[CLUSTER] Connected to #{longname}"
+            # Logger.debug "[CLUSTER] Connected to #{longname}"
+            ""
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
@@ -89,13 +95,14 @@ defmodule Singyeong.Cluster do
           :ignored ->
             # TODO: How to handle this case?
             # In general we shouldn't reach it, so...
-            Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
+            # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
+            ""
         end
       end
     end
     # TODO: This should probably be a TRACE, but Elixir doesn't seem to have that :C
     # Could be useful for debuggo I guess?
-    Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
+    # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
@@ -112,7 +119,7 @@ defmodule Singyeong.Cluster do
   """
   def discover(tags) do
     run_clustered fn ->
-      Singyeong.Discovery.discover_service tags
+      Discovery.discover_service tags
     end
   end
 
@@ -122,7 +129,7 @@ defmodule Singyeong.Cluster do
   """
   def query(query) do
     run_clustered fn ->
-      Singyeong.Metadata.Query.run_query query
+      Query.run_query query
     end
   end
 
@@ -134,20 +141,21 @@ defmodule Singyeong.Cluster do
     end
     local_task = Task.Supervisor.async Singyeong.TaskSupervisor, local_func
     tasks = [local_task]
-    results =
-      Node.list()
-      |> Enum.reduce(tasks, fn(node, acc) ->
+    Node.list()
+    |> Enum.reduce(tasks, fn(node, acc) ->
+      task =
         Task.Supervisor.async {Singyeong.TaskSupervisor, node}, fn ->
           res = func.()
           {node, res}
         end
-      end)
-      |> Enum.map(&Task.await/1)
-      |> Enum.reduce(%{}, fn(res, acc) ->
-        # We should never have same-named nodes so it's nbd
-        {node, task_result} = res
-        acc |> Map.put(node, task_result)
-      end)
+      acc ++ [task]
+    end)
+    |> Enum.map(&Task.await/1)
+    |> Enum.reduce(%{}, fn(res, acc) ->
+      # We should never have same-named nodes so it's nbd
+      {node, task_result} = res
+      acc |> Map.put(node, task_result)
+    end)
   end
 
   ######################
