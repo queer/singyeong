@@ -316,6 +316,31 @@ defmodule Singyeong.MnesiaStore do
   end
 
   @doc """
+  Count the number of sockets currently stored. Used for load-balancing.
+  """
+  @spec count_sockets() :: integer() | {:error, any()}
+  def count_sockets do
+    :mnesia.table_info @sockets, :size
+  end
+
+  @spec get_first_sockets(integer()) :: list()
+  def get_first_sockets(count) do
+    res =
+      :mnesia.transaction(fn ->
+        :mnesia.select @sockets, {@sockets, {:_, :_, :_}, :_}, count, :_
+      end)
+    case res do
+      {:atomic, [out]} ->
+        {@socket_ips, {^app_id, ^client_id}, pid} = out
+        {:ok, pid}
+      {:atomic, []} ->
+        {:ok, nil}
+      {:aborted, reason} ->
+        {:error, {"mnesia transaction aborted", reason}}
+    end
+  end
+
+  @doc """
   Remove the socket with the given composite id from the store.
   """
   @spec remove_socket(binary(), binary()) :: :ok

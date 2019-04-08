@@ -9,7 +9,9 @@ defmodule Singyeong.Cluster do
   use GenServer
   alias Singyeong.Discovery
   alias Singyeong.Env
+  alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
+  alias Singyeong.MnesiaStore
   alias Singyeong.Redis
   require Logger
 
@@ -105,9 +107,38 @@ defmodule Singyeong.Cluster do
     # Could be useful for debuggo I guess?
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
+    send self(), :load_balance
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
+    {:noreply, state}
+  end
+
+  def handle_info(:load_balance, state) do
+    spawn fn ->
+      count = MnesiaStore.count_sockets()
+      threshold = length(Node.list()) - 1
+      counts =
+        run_clustered fn ->
+          Mnesia.count_sockets()
+        end
+      average =
+        counts
+        |> Map.drop([@fake_local_node])
+        |> Map.values
+        |> Enum.sum
+        |> :erlang./(threshold)
+      goal = threshold / 2
+      if count > average + goal do
+        to_disconnect = count - (average + goal + 1)
+        Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
+        sockets = MnesiaStore.select_first_sockets to_disconnect
+        for socket <- sockets do
+          payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
+          send socket, payload
+        end
+      end
+    end
     {:noreply, state}
   end
 

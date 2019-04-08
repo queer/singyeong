@@ -91,7 +91,7 @@ defmodule Singyeong.Gateway.Dispatch do
       if broadcast do
         for {node, clients} <- valid_targets do
           send_fn = fn ->
-            MessageDispatcher.send_message target["application"], clients, out
+            MessageDispatcher.send_dispatch target["application"], clients, out
           end
 
           case node do
@@ -107,7 +107,7 @@ defmodule Singyeong.Gateway.Dispatch do
         # Pick a random client from that node's targets
         target_clients = [Enum.random(clients)]
         send_fn = fn ->
-          MessageDispatcher.send_message target["application"], target_clients, out
+          MessageDispatcher.send_dispatch target["application"], target_clients, out
         end
         case node do
           ^fake_local_node ->
