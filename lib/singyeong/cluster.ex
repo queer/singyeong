@@ -84,6 +84,7 @@ defmodule Singyeong.Cluster do
         atom = longname |> String.to_atom
         case Node.connect(atom) do
           true ->
+            # TODO: How to handle this case?
             # Don't need to do anything else
             # This is NOT logged at :info to avoid spamme
             # Logger.debug "[CLUSTER] Connected to #{longname}"
