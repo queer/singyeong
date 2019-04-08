@@ -30,6 +30,7 @@ defmodule Singyeong.Proxy do
   }
   ```
   """
+  alias Singyeong.Cluster
   alias Singyeong.Metadata.Query
   alias Singyeong.MnesiaStore
 
@@ -115,37 +116,57 @@ defmodule Singyeong.Proxy do
         {:error, "no body required but one given (you probably wanted to send nil)"}
       true ->
         # Otherwise just do whatever
-        clients = Query.run_query request.query
+        targets = Query.run_query request.query
+        valid_targets =
+          targets
+          |> Enum.filter(fn({_, res}) ->
+            res != []
+          end)
+          |> Enum.into(%{})
+        matched_client_ids =
+          valid_targets
+          |> Map.values
+          |> Enum.concat
         cond do
-          length(clients) == 0 ->
+          length(matched_client_ids) == 0 ->
             {:error, "no matches"}
           true ->
             application = request.query["application"]
-            # Pick a random client
+            # Pick a random node
+            {node, clients} = Enum.random valid_targets
             client_id = Enum.random clients
-            # We build the header map up above, and we can get the body from the proxied request object
-            # The main thing left to do is just running the query and fetching the target ip
-            # Potential concern: The post body is typed any(); serialization might be a meme?
-            # Check raw_ws.ex for notes about handling client ip acquisition / storage
-            # TODO: This raises questions about doing it in clustered mode.....
-            method_atom =
-              request.method
-              |> String.downcase
-              |> String.to_atom
-            {ip_status, target_ip} = MnesiaStore.get_socket_ip application, client_id
-            case ip_status do
-              :ok ->
-                {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
-                case status do
-                  :ok ->
-                    {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: response.headers}}
-                  :error ->
-                    {:error, Exception.message(response)}
-                end
-              :error ->
-                {:error, "no target ip"}
-            end
+            run_proxied_request(node, applicatoin, client, request)
+            |> Task.await
         end
+    end
+  end
+
+  defp run_proxied_request(node, app_id, client, request) do
+    fake_local_node = Cluster.fake_local_node()
+    send_fn = fn ->
+      method_atom =
+        request.method
+        |> String.downcase
+        |> String.to_atom
+      {ip_status, target_ip} = MnesiaStore.get_socket_ip application, client_id
+      case ip_status do
+        :ok ->
+          {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
+          case status do
+            :ok ->
+              {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: response.headers}}
+            :error ->
+              {:error, Exception.message(response)}
+          end
+        :error ->
+          {:error, "no target ip"}
+      end
+    end
+    case node do
+      ^fake_local_node ->
+        Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+      _ ->
+        Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
     end
   end
 
