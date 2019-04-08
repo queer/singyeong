@@ -120,7 +120,7 @@ defmodule Singyeong.Cluster do
       threshold = length(Node.list()) - 1
       counts =
         run_clustered fn ->
-          Mnesia.count_sockets()
+          MnesiaStore.count_sockets()
         end
       average =
         counts
@@ -132,7 +132,7 @@ defmodule Singyeong.Cluster do
       if count > average + goal do
         to_disconnect = count - (average + goal + 1)
         Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-        sockets = MnesiaStore.select_first_sockets to_disconnect
+        sockets = MnesiaStore.get_first_sockets to_disconnect
         for socket <- sockets do
           payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
           send socket, payload

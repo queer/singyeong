@@ -331,8 +331,7 @@ defmodule Singyeong.MnesiaStore do
       end)
     case res do
       {:atomic, [out]} ->
-        {@socket_ips, {^app_id, ^client_id}, pid} = out
-        {:ok, pid}
+        {:ok, out}
       {:atomic, []} ->
         {:ok, nil}
       {:aborted, reason} ->
