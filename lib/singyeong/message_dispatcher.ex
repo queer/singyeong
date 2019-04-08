@@ -9,7 +9,7 @@ defmodule Singyeong.MessageDispatcher do
     MnesiaStore.remove_socket socket.assigns[:app_id], socket.assigns[:client_id]
   end
 
-  def send_message(app_id, clients, msg) do
+  def send_dispatch(app_id, clients, msg) do
     clients
     |> Enum.map(fn client ->
       {:ok, pid} = MnesiaStore.get_socket app_id, client
