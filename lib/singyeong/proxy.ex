@@ -135,20 +135,20 @@ defmodule Singyeong.Proxy do
             # Pick a random node
             {node, clients} = Enum.random valid_targets
             client_id = Enum.random clients
-            run_proxied_request(node, applicatoin, client, request)
+            run_proxied_request(node, application, client_id, request, headers)
             |> Task.await
         end
     end
   end
 
-  defp run_proxied_request(node, app_id, client, request) do
+  defp run_proxied_request(node, app_id, client, request, headers) do
     fake_local_node = Cluster.fake_local_node()
     send_fn = fn ->
       method_atom =
         request.method
         |> String.downcase
         |> String.to_atom
-      {ip_status, target_ip} = MnesiaStore.get_socket_ip application, client_id
+      {ip_status, target_ip} = MnesiaStore.get_socket_ip app_id, client
       case ip_status do
         :ok ->
           {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
