@@ -8,14 +8,15 @@ defmodule Singyeong.Application do
   def start(_type, _args) do
     import Supervisor.Spec
 
+    # Doesn't need a supervisor, hence doing it like this
     Singyeong.MnesiaStore.initialize()
 
     # Define workers and child supervisors to be supervised
     children = [
       # Start the endpoint when the application starts
       supervisor(SingyeongWeb.Endpoint, []),
-      # Start your own worker by calling: Singyeong.Worker.start_link(arg1, arg2, arg3)
-      # worker(Singyeong.Worker, [arg1, arg2, arg3]),
+      # Task supervisor
+      {Task.Supervisor, name: Singyeong.TaskSupervisor},
     ]
     children =
       if Env.clustering() == "true" do
@@ -24,7 +25,7 @@ defmodule Singyeong.Application do
           # Redis worker pool
           Singyeong.Redis,
           # Clustering worker
-          Singyeong.Clusterer
+          Singyeong.Cluster
         ]
       else
         children

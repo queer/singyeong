@@ -1,6 +1,6 @@
 defmodule SingyeongWeb.DiscoveryController do
   use SingyeongWeb, :controller
-  alias Singyeong.Discovery
+  alias Singyeong.Cluster
 
   @doc """
   For some input array ["tag", "tag", ...], usage is
@@ -19,9 +19,15 @@ defmodule SingyeongWeb.DiscoveryController do
         conn.query_params["q"]
         |> URI.decode
         |> Jason.decode!
-      {:ok, out} = Discovery.discover_service query
+      results = Cluster.discover query
+      results =
+        results
+        |> Map.values()
+        |> Enum.filter(fn x -> {:ok, _} = x end)
+        |> Enum.map(fn {:ok, x} -> x end)
+        |> Enum.concat
       conn
-      |> json(%{"status" => "ok", "result" => out})
+      |> json(%{"status" => "ok", "result" => results})
     else
       conn
       |> put_status(400)

@@ -16,6 +16,7 @@ defmodule Singyeong.Metadata.Query do
           if matches == [] do
             nil
           else
+            # TODO: What about other behaviours?
             hd matches
           end
       end

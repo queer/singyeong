@@ -1,8 +1,9 @@
-defmodule Singyeong.Clusterer do
+defmodule Singyeong.Cluster do
   @moduledoc """
   Adapted from https://github.com/queer/lace/blob/master/lib/lace.ex
 
-  TODO: Wouldn't it make more sense to just use a set?
+  TODO: Wouldn't it make more sense to just use a set instead of a hash in
+    Redis?
   """
 
   use GenServer
@@ -12,6 +13,11 @@ defmodule Singyeong.Clusterer do
 
   @start_delay 50
   @connect_interval 1000
+  @fake_local_node :singyeong_local_node
+
+  #######################
+  # GenServer callbacks #
+  #######################
 
   def start_link(opts) do
     GenServer.start_link __MODULE__, opts
@@ -89,13 +95,64 @@ defmodule Singyeong.Clusterer do
     end
     # TODO: This should probably be a TRACE, but Elixir doesn't seem to have that :C
     # Could be useful for debuggo I guess?
-    Logger.debug "[CLUSTER] Connected to: #{inspect Node.list}"
+    Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
     {:noreply, state}
   end
+
+  ##########################
+  # Cluster-wide functions #
+  ##########################
+
+  @doc """
+  Discover a service name based off of tags across the entire 신경 cluster.
+  """
+  def discover(tags) do
+    run_clustered fn ->
+      Singyeong.Discovery.discover_service tags
+    end
+  end
+
+  @doc """
+  Run a metadata query across the entire cluster, and return a mapping of nodes
+  to matching client ids.
+  """
+  def query(query) do
+    run_clustered fn ->
+      Singyeong.Metadata.Query.run_query query
+    end
+  end
+
+  defp run_clustered(func) do
+    # Wrap the local function into a
+    local_func = fn ->
+      res = func.()
+      {@fake_local_node, res}
+    end
+    local_task = Task.Supervisor.async Singyeong.TaskSupervisor, local_func
+    tasks = [local_task]
+    results =
+      Node.list()
+      |> Enum.reduce(tasks, fn(node, acc) ->
+        Task.Supervisor.async {Singyeong.TaskSupervisor, node}, fn ->
+          res = func.()
+          {node, res}
+        end
+      end)
+      |> Enum.map(&Task.await/1)
+      |> Enum.reduce(%{}, fn(res, acc) ->
+        # We should never have same-named nodes so it's nbd
+        {node, task_result} = res
+        acc |> Map.put(node, task_result)
+      end)
+  end
+
+  ######################
+  # Clustering helpers #
+  ######################
 
   defp delete_node(state, hash, longname) do
     Logger.debug "[CLUSTER] [WARN] Couldn't connect to #{longname} (#{hash}), deleting..."
@@ -144,4 +201,10 @@ defmodule Singyeong.Clusterer do
   defp registry_name(name) do
     "singyeong:cluster:registry:#{name}"
   end
+
+  def is_clustered? do
+    Env.clustering() == "true"
+  end
+
+  def fake_local_node, do: @fake_local_node
 end

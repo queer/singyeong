@@ -149,6 +149,13 @@ defmodule Singyeong.MnesiaStore do
       data
       |> Map.keys
       |> Enum.reduce([], fn(key, acc) ->
+        # For every key in the map, we ensure that the metadata entry
+        # is well-formed, as well as that the metadata key is not forbidden.
+        # If it's NOT forbidden, we validate it, and prepend the
+        # validation result it to the accumulator, and then keep going.
+        # If it IS forbidden, we prepend false.
+        # Once the processing is finished, we check if all values are
+        # truthy; any false values means we return an error.
         key_data = data[key]
         if is_map(key_data) and length(Map.keys(key_data)) == 2
           and Map.has_key?(key_data, "type") and Map.has_key?(key_data, "value")
@@ -164,6 +171,7 @@ defmodule Singyeong.MnesiaStore do
       end)
       |> Enum.all?
     if res do
+      # If it's valid, we reduce the input to a simple key => value map
       cleaned =
         data
         |> Map.keys
