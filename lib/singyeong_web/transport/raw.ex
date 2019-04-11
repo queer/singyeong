@@ -32,8 +32,11 @@ defmodule SingyeongWeb.Transport.Raw do
     {:ok, {channels, socket}} = Phoenix.Socket.__connect__(__MODULE__, map, false)
     # Convert the ip
     peer_data = map[:connect_info][:peer_data]
-    {a, b, c, d} = peer_data[:address]
-    ip = "#{a}.#{b}.#{c}.#{d}"
+    ip = case peer_data[:address] do 
+        {a, b, c, d} -> "#{a}.#{b}.#{c}.#{d}"
+        {a, b, c, d, e, f, g, h} -> "#{hex a}:#{hex b}:#{hex c}:#{hex d}" <>
+                                    ":#{hex e}:#{hex f}:#{hex g}:#{hex h}"
+    end
     socket =
       socket
       |> assign(:ip, ip)
@@ -92,5 +95,9 @@ defmodule SingyeongWeb.Transport.Raw do
       <> " closed with code #{inspect code}: #{inspect reason}"
     Gateway.handle_close socket
     :ok
+  end
+
+  defp hex(v) do
+    Integer.to_string(v, 16)
   end
 end
