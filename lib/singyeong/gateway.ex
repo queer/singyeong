@@ -189,7 +189,7 @@ defmodule Singyeong.Gateway do
         if restricted do
           false
         else
-          d["etf"]
+          d["etf"] || false
         end
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
