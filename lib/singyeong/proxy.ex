@@ -116,7 +116,6 @@ defmodule Singyeong.Proxy do
       true ->
         # Otherwise just do whatever
         targets = Cluster.query request.query
-        IO.inspect targets, pretty: true
         valid_targets =
           targets
           |> Enum.filter(fn({_, res}) ->
