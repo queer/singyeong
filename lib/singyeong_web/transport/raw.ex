@@ -48,8 +48,9 @@ defmodule SingyeongWeb.Transport.Raw do
     res
   end
 
-  def handle_in({payload, _opts}, {channels, socket} = _state) do
-    %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_payload socket, payload
+  def handle_in({payload, opts}, {channels, socket} = _state) do
+    opcode = Keyword.fetch! opts, :opcode
+    %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_payload socket, {opcode, payload}
     # Add assigns
     socket =
       assigns
@@ -59,8 +60,13 @@ defmodule SingyeongWeb.Transport.Raw do
       end)
     case response do
       {:text, payload} ->
-        # Just a single text frame to send
-        {:push, {:text, payload}, {channels, socket}}
+        if socket.assigns[:etf] do
+          # Send the frame as an ETF binary payload
+          {:push, {:binary, :erlang.term_to_binary(payload)}, {channels, socket}}
+        else
+          # Just a single text frame to send
+          {:push, {:text, Jason.encode!(payload)}, {channels, socket}}
+        end
       {:close, {:text, payload}} ->
         {:push, {:text, payload}, {channels, socket}}
       [] ->

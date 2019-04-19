@@ -2,7 +2,7 @@
 
 Some notes to myself so I don't forget
 
-## 신경 flow
+## Basic 신경 Lifecycle
 
 1.  Open a websocket connection to `/gateway/websocket`. The server will 
     immediately reply with a packet like this:
@@ -120,7 +120,16 @@ you~~.
   // ie. allowing other services to discover your app id without needing to
   // hardcode it. 
   // Clients that are placed into restricted mode are NOT able to set tags.
-  "tags": ["thing", "cool", "webscale"]
+  "tags": ["thing", "cool", "webscale"],
+  // Whether or not the client wants to send / receive ETF payloads. If this is
+  // set to true, all payloads that are sent *to* the client will be ETF.
+  // Payloads sent *by* the client may be either ETF or JSON. ETF payloads sent
+  // *from* the client will be accepted by the server **if and only if** the
+  // client sending the payload(s) is **not in restricted mode.** This is done
+  // mainly to prevent an untrusted client DoSing the server by flooding it
+  // with atoms or similar non-GC'd terms. An ETF-mode client will ALWAYS
+  // receive ETF from the server.
+  "etf": true
 }
 ```
 
