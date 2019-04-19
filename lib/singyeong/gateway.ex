@@ -72,8 +72,20 @@ defmodule Singyeong.Gateway do
   # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
 
   # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
-  def handle_payload(socket, payload) when is_binary(payload) do
-    {status, msg} = Jason.decode payload
+  def handle_payload(socket, {opcode, payload}) when is_atom(opcode) and is_binary(payload) do
+    {status, msg} =
+      case opcode do
+        :text ->
+          Jason.decode payload
+        :binary ->
+          try do
+            term = :erlang.binary_to_term payload
+            {:ok, term}
+          rescue
+            _ ->
+              {:error, nil}
+          end
+      end
     case status do
       :ok ->
         handle_payload socket, msg
@@ -166,23 +178,30 @@ defmodule Singyeong.Gateway do
 
   @spec handle_identify(Phoenix.Socket.t, Payload.t) :: GatewayResponse.t
   def handle_identify(socket, payload) do
-    client_id = payload.d["client_id"]
-    app_id = payload.d["application_id"]
-    tags = Map.get payload.d, "tags", []
+    d = payload.d
+    client_id = d["client_id"]
+    app_id = d["application_id"]
+    tags = Map.get d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
-      restricted = Env.auth() != payload.d["auth"]
+      restricted = Env.auth() != d["auth"]
+      etf =
+        if restricted do
+          false
+        else
+          d["etf"]
+        end
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
-      ip = payload.d["ip"] || socket.assigns[:ip]
+      ip = d["ip"] || socket.assigns[:ip]
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted
-        Store.client_exists?(app_id, client_id) and payload.d["reconnect"] and not restricted ->
+          finish_identify app_id, client_id, tags, socket, ip, restricted, etf
+        Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
           # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted
+          finish_identify app_id, client_id, tags, socket, ip, restricted, etf
         true ->
           # If we already have a client, reject outright
           Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
@@ -193,7 +212,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, tags, socket, ip, restricted) do
+  defp finish_identify(app_id, client_id, tags, socket, ip, restricted, etf) do
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
@@ -206,6 +225,8 @@ defmodule Singyeong.Gateway do
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
     # Update restriction status for queries to take advantage of
     Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
+    # Update ETF status for queries to take advantage of
+    Store.update_metadata app_id, client_id, Metadata.etf(), etf
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     if restricted do
@@ -215,7 +236,7 @@ defmodule Singyeong.Gateway do
     end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
-    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted})
+    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted, etf: etf})
   end
 
   def handle_dispatch(socket, payload) do

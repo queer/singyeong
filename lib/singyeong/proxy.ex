@@ -31,7 +31,6 @@ defmodule Singyeong.Proxy do
   ```
   """
   alias Singyeong.Cluster
-  alias Singyeong.Metadata.Query
   alias Singyeong.MnesiaStore
 
   @methods [
@@ -116,7 +115,8 @@ defmodule Singyeong.Proxy do
         {:error, "no body required but one given (you probably wanted to send nil)"}
       true ->
         # Otherwise just do whatever
-        targets = Query.run_query request.query
+        targets = Cluster.query request.query
+        IO.inspect targets, pretty: true
         valid_targets =
           targets
           |> Enum.filter(fn({_, res}) ->
@@ -151,7 +151,20 @@ defmodule Singyeong.Proxy do
       {ip_status, target_ip} = MnesiaStore.get_socket_ip app_id, client
       case ip_status do
         :ok ->
-          {status, response} = HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", request.body, headers
+          encoded_body =
+            cond do
+              is_map(request.body) ->
+                Jason.encode! request.body
+              is_list(request.body) ->
+                Jason.encode! request.body
+              is_binary(request.body) ->
+                request.body
+              true ->
+                Jason.encode! request.body
+            end
+          {status, response} =
+            HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", encoded_body,
+              headers, [timeout: 15_000]
           case status do
             :ok ->
               {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: response.headers}}
