@@ -72,7 +72,7 @@ defmodule Singyeong.Gateway do
   # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
 
   # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
-  def handle_payload(socket, {opcode, payload}) when is_atom(opcode) and is_binary(payload) do
+  def handle_incoming_payload(socket, {opcode, payload}) when is_atom(opcode) and is_binary(payload) do
     {status, msg} =
       case opcode do
         :text ->

@@ -50,7 +50,7 @@ defmodule SingyeongWeb.Transport.Raw do
 
   def handle_in({payload, opts}, {channels, socket} = _state) do
     opcode = Keyword.fetch! opts, :opcode
-    %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_payload socket, {opcode, payload}
+    %GatewayResponse{response: response, assigns: assigns} = Gateway.handle_incoming_payload socket, {opcode, payload}
     # Add assigns
     socket =
       assigns
@@ -81,9 +81,17 @@ defmodule SingyeongWeb.Transport.Raw do
     end
   end
 
-  def handle_info({:text, payload} = msg, state) when is_binary(payload) do
-    # When we get a :text payload, we need to just push it to the client
-    {:push, msg, state}
+  def handle_info({:text, payload} = msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
+    new_payload =
+      if socket.assigns[:etf] do
+        # Send the frame as an ETF binary payload
+        {:binary, :erlang.term_to_binary(payload)}
+      else
+        # Just a single text frame to send
+        {:text, Jason.encode!(payload)}
+      end
+
+    {:push, new_payload, state}
   end
 
   def handle_info(_, state) do
