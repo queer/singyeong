@@ -79,12 +79,18 @@ defmodule Singyeong.Gateway do
           Jason.decode payload
         :binary ->
           try do
-            term = :erlang.binary_to_term payload
-            {:ok, term}
+            if socket.assigns[:etf] do
+              term = :erlang.binary_to_term payload
+              {:ok, term}
+            else
+              {:error, nil}
+            end
           rescue
             _ ->
               {:error, nil}
           end
+        _ ->
+          {:error, nil}
       end
     case status do
       :ok ->
