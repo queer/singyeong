@@ -81,7 +81,7 @@ defmodule SingyeongWeb.Transport.Raw do
     end
   end
 
-  def handle_info({:text, payload} = msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
+  def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
     new_payload =
       if socket.assigns[:etf] do
         # Send the frame as an ETF binary payload
