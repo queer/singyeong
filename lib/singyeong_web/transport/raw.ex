@@ -32,11 +32,13 @@ defmodule SingyeongWeb.Transport.Raw do
     {:ok, {channels, socket}} = Phoenix.Socket.__connect__(__MODULE__, map, false)
     # Convert the ip
     peer_data = map[:connect_info][:peer_data]
-    ip = case peer_data[:address] do 
-        {a, b, c, d} -> "#{a}.#{b}.#{c}.#{d}"
-        {a, b, c, d, e, f, g, h} -> "#{hex a}:#{hex b}:#{hex c}:#{hex d}" <>
-                                    ":#{hex e}:#{hex f}:#{hex g}:#{hex h}"
-    end
+    ip =
+      case peer_data[:address] do
+        {a, b, c, d} ->
+          "#{a}.#{b}.#{c}.#{d}"
+        {a, b, c, d, e, f, g, h} ->
+          "#{hex a}:#{hex b}:#{hex c}:#{hex d}:#{hex e}:#{hex f}:#{hex g}:#{hex h}"
+      end
     socket =
       socket
       |> assign(:ip, ip)
