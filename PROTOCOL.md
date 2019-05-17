@@ -16,6 +16,8 @@ Some notes to myself so I don't forget
     ```
     Your client should start sending a heartbeat packet every 
     `heartbeat_interval` milliseconds (more on this later). 
+    If you want to use ETF or MessagePack, append an `encoding` query param to
+    the URL you connect to. Valid encoding values can be seen in the table below. 
 2.  Send the gateway a packet like this to identify:
     ```Javascript
     {
@@ -44,6 +46,19 @@ Some notes to myself so I don't forget
     ```
     and you will be considered connected. Be sure to heartbeat so that the 
     gateway doesn't disconnect you!
+
+## 신경 websocket encodings
+
+Encoding can be specified by adding an `encoding` query param, ex
+`/gateway/websocket?encoding=msgpack`. If no encoding is specified, JSON
+encoding is assumed.
+
+| name    | description |
+|---------|-------------|
+| json    | The client sends and receives JSON. |
+| etf     | The client sends and receives ETF. Only available for non-restricted clients. |
+| msgpack | The client sends and receives MessagePack. |
+
 
 ## 신경 websocket packet structure
 
