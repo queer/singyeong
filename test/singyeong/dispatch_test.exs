@@ -68,6 +68,14 @@ defmodule Singyeong.DispatchTest do
       }
 
     Process.sleep 100
+    # assert_receive / assert_received exist, but we have the issue that
+    # waiting for a message to be received may actually take longer than 1ms -
+    # especially if we "send" the initial message near the end of a millisecond
+    # - meaning that we could have timestamp variance between the expected
+    # ts and the ts that the gateway sends back. We can get around this by
+    # pulling the message from the process' mailbox ourselves, and do the
+    # "pattern matching" manually with == instead of doing a real pattern
+    # match.
     {:messages, msgs} = :erlang.process_info self(), :messages
     {opcode, msg} = hd msgs
     assert :text == opcode
