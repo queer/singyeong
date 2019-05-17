@@ -11,7 +11,7 @@ defmodule Singyeong.MnesiaStoreTest do
     end
   end
 
-  test "adding clients works" do
+  test "that adding clients works" do
     MnesiaStore.add_client "test-app-1", "client-1"
     MnesiaStore.add_client "test-app-1", "client-2"
     MnesiaStore.add_client "test-app-1", "client-3"
@@ -36,12 +36,12 @@ defmodule Singyeong.MnesiaStoreTest do
     assert MapSet.member?(clients2, "client-2")
   end
 
-  test "checking that a client exists works" do
+  test "that checking that a client exists works" do
     MnesiaStore.add_client "test-app-1", "client-1"
     assert MnesiaStore.client_exists? "test-app-1", "client-1"
   end
 
-  test "adding an existing client fails" do
+  test "that adding an existing client fails" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -57,7 +57,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert :error == status
   end
 
-  test "deleting clients works" do
+  test "that deleting clients works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -71,7 +71,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert 0 == MapSet.size(clients)
   end
 
-  test "updating single metadata key works" do
+  test "that updating single metadata key works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -83,7 +83,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert "value" == data
   end
 
-  test "updating many metadata keys works" do
+  test "that updating many metadata keys works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -100,7 +100,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert "value 2" == data
   end
 
-  test "bulk-updating metadata keys works" do
+  test "that bulk-updating metadata keys works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -118,7 +118,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert "value 2" == data
   end
 
-  test "bulk-fetching metadata keys works" do
+  test "that bulk-fetching metadata keys works" do
     {:ok, clients} = MnesiaStore.get_clients "test-app-1"
     assert 0 == MapSet.size(clients)
 
@@ -135,7 +135,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert "value 2" == data["key-2"]
   end
 
-  test "metadata validation works" do
+  test "that metadata validation works" do
     MnesiaStore.add_client "test-app-1", "client-1"
     metadata = %{
       "a" => %{
@@ -154,7 +154,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert :error == status
   end
 
-  test "handling pids works" do
+  test "that handling pids works" do
     pid = spawn fn -> "" end
     MnesiaStore.add_socket "test-app-1", "client-1", pid
     {:ok, out} = MnesiaStore.get_socket "test-app-1", "client-1"
@@ -167,7 +167,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert nil == out
   end
 
-  test "can add / fetch / delete tags" do
+  test "that add / fetch / delete tags works" do
     tags = ["test", "cool", "memes"]
     MnesiaStore.add_client "test-app-1", "client-1"
 
@@ -188,7 +188,7 @@ defmodule Singyeong.MnesiaStoreTest do
     assert nil == empty_tags
   end
 
-  test "can match application ids by tags" do
+  test "that matching application ids by tags works" do
     many_tags = ["test", "cool", "memes"]
     one_tag = ["test-tag"]
     some_tags = ["test", "test-tag"]

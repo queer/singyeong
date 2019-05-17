@@ -14,4 +14,9 @@ defmodule SingyeongWeb.GenericController do
       "api" => "v1",
     })
   end
+
+  def gateway_redirect(conn, _params) do
+    conn
+    |> redirect(to: "/gateway/websocket")
+  end
 end

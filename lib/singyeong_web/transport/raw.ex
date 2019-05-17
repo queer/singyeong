@@ -23,13 +23,14 @@ defmodule SingyeongWeb.Transport.Raw do
   ########################
 
   def child_spec(opts) do
-    Phoenix.Socket.__child_spec__(__MODULE__, opts)
+    Phoenix.Socket.__child_spec__ __MODULE__, opts
   end
 
   def connect(map) do
     # map has a key :connect_info map that contains this, which we want:
     # peer_data: %{address: {127, 0, 0, 1}, port: 49818, ssl_cert: nil},
-    {:ok, {channels, socket}} = Phoenix.Socket.__connect__(__MODULE__, map, false)
+    {:ok, {channels, socket}} = Phoenix.Socket.__connect__ __MODULE__, map, false
+
     # Convert the ip
     peer_data = map[:connect_info][:peer_data]
     ip =
@@ -39,15 +40,29 @@ defmodule SingyeongWeb.Transport.Raw do
         {a, b, c, d, e, f, g, h} ->
           "#{hex a}:#{hex b}:#{hex c}:#{hex d}:#{hex e}:#{hex f}:#{hex g}:#{hex h}"
       end
-    socket =
-      socket
-      |> assign(:ip, ip)
-    {:ok, {channels, socket}}
+
+    # Check querystring for ex. requested encoding
+    %URI{query: query} = map[:connect_info][:uri]
+    query =
+      query
+      |> URI.decode_query(%{"encoding" => "json"})
+
+    if Singyeong.Gateway.validate_encoding(query["encoding"]) do
+      socket =
+        socket
+        |> assign(:ip, ip)
+        |> assign(:encoding, query["encoding"])
+      {:ok, {channels, socket}}
+    else
+      # If the encoding is invalid, just throw away the connection
+      Logger.warn "[TRANSPORT] Rejecting client from #{ip} with invalid encoding #{query["encoding"]}"
+      :error
+    end
   end
 
   def init(state) do
     # Now we are effectively inside the process that maintains the socket.
-    res = Phoenix.Socket.__init__(state)
+    res = Phoenix.Socket.__init__ state
     # Once we've initialized and returned, we can actually send the hello payload
     send self(), Payload.create_payload(:hello, Gateway.hello())
     res
@@ -65,15 +80,9 @@ defmodule SingyeongWeb.Transport.Raw do
       end)
     case response do
       {:text, payload} ->
-        if socket.assigns[:etf] do
-          # Send the frame as an ETF binary payload
-          {:push, {:binary, :erlang.term_to_binary(payload)}, {channels, socket}}
-        else
-          # Just a single text frame to send
-          {:push, {:text, Jason.encode!(payload)}, {channels, socket}}
-        end
+        {:push, Gateway.encode(socket, payload), {channels, socket}}
       {:close, {:text, payload}} ->
-        {:push, {:text, payload}, {channels, socket}}
+        {:push, Gateway.encode(socket, payload), {channels, socket}}
       [] ->
         {:ok, {channels, socket}}
       frames when is_list(frames) ->
@@ -87,15 +96,7 @@ defmodule SingyeongWeb.Transport.Raw do
   end
 
   def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
-    new_payload =
-      if socket.assigns[:etf] do
-        # Send the frame as an ETF binary payload
-        {:binary, :erlang.term_to_binary(payload)}
-      else
-        # Just a single text frame to send
-        {:text, Jason.encode!(payload)}
-      end
-
+    new_payload = Gateway.encode socket, payload
     {:push, new_payload, state}
   end
 

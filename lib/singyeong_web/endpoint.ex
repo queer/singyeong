@@ -4,7 +4,7 @@ defmodule SingyeongWeb.Endpoint do
 
   socket "/gateway", SingyeongWeb.Transport.Raw,
     websocket: [
-      connect_info: [:x_headers, :peer_data]
+      connect_info: [:x_headers, :peer_data, :uri]
     ]
 
   # Serve at "/" the static files from "priv/static" directory.
