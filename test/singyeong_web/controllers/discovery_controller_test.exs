@@ -9,7 +9,7 @@ defmodule SingyeongWeb.DiscoveryControllerTest do
     end
   end
 
-  test "Can discover services via querystring tags", %{conn: conn} do
+  test "that discovering services via querystring tags works", %{conn: conn} do
     # ugly boring gross setup stuff qwq
     MnesiaStore.initialize()
     many_tags = ["test", "cool", "memes"]
@@ -46,7 +46,7 @@ defmodule SingyeongWeb.DiscoveryControllerTest do
     MnesiaStore.shutdown()
   end
 
-  test "Can discover services with authentication", %{conn: conn} do
+  test "that discovering services with authentication works", %{conn: conn} do
     # ugly boring gross setup stuff qwq
     MnesiaStore.initialize()
     one_tag = ["webscale"]

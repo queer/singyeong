@@ -14,7 +14,7 @@ defmodule Singyeong.DispatchTest do
     {:ok, socket: socket(SingyeongWeb.Transport.Raw, nil, [])}
   end
 
-  test "SEND dispatch query to a socket works", %{socket: socket} do
+  test "that SEND dispatch query to a socket works", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     # Who needs nice TDD anyway amirite :^)
@@ -64,8 +64,17 @@ defmodule Singyeong.DispatchTest do
           "nonce" => nonce
         },
         "op" => op,
-        "ts" => now
+        "ts" => now,
       }
-    assert_receive {:text, ^expected}
+
+    Process.sleep 100
+    {:messages, msgs} = :erlang.process_info self(), :messages
+    {opcode, msg} = hd msgs
+    assert :text == opcode
+    assert msg["d"] == expected["d"]
+    assert msg["op"] == expected["op"]
+    # Really this should be within ~1ms or so, but there's a host of possible
+    # things that could make it not work out.
+    assert 10 > abs(msg["ts"] - expected["ts"])
   end
 end

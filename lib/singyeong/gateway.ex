@@ -26,7 +26,6 @@ defmodule Singyeong.Gateway do
     # recv
     :heartbeat_ack  => 6,
     # recv
-    # TODO: Build real clustering so that this actually does something :^(
     :goodbye        => 7,
   }
   @opcodes_id %{
@@ -48,6 +47,12 @@ defmodule Singyeong.Gateway do
     7 => :goodbye,
   }
 
+  @valid_encodings [
+    "json",
+    "msgpack",
+    "etf",
+  ]
+
   defmodule GatewayResponse do
     # The empty map for response is effectively just a noop
     # If the assigns map isn't empty, everything in it will be assigned to the socket
@@ -67,36 +72,81 @@ defmodule Singyeong.Gateway do
     %GatewayResponse{response: response, assigns: assigns}
   end
 
+  def validate_encoding(encoding) when is_binary(encoding), do: encoding in @valid_encodings
+
+  def encode(socket, {ignored, payload}) when is_atom(ignored) do
+    encode socket, payload
+  end
+
+  def encode(socket, payload) do
+    encoding = socket.assigns[:encoding] || "json"
+    case encoding do
+      "json" ->
+        {:ok, term} = Jason.encode payload
+        {:text, term}
+      "msgpack" ->
+        {:ok, term} = Msgpax.pack payload
+        {:binary, term}
+      "etf" ->
+        term = :erlang.term_to_binary payload
+        {:binary, term}
+    end
+  end
+
   ## INCOMING PAYLOAD ##
 
   # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
 
   # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
-  def handle_incoming_payload(socket, {opcode, payload}) when is_atom(opcode) and is_binary(payload) do
+  def handle_incoming_payload(socket, {opcode, payload}) when is_atom(opcode) do
+    encoding = socket.assigns[:encoding]
+    restricted = socket.assigns[:restricted]
     {status, msg} =
-      case opcode do
-        :text ->
+      case {opcode, encoding} do
+        {:text, "json"} ->
           Jason.decode payload
-        :binary ->
-          try do
-            if socket.assigns[:etf] do
+        {:binary, "msgpack"} ->
+          {e, d} = Msgpax.unpack payload
+          case e do
+            :ok ->
+              {:ok, d}
+            :error ->
+              {:error, Exception.message(d)}
+          end
+        {:binary, "etf"} ->
+          case restricted do
+            true ->
+              # If the client is restricted, but is sending us ETF, make it go
+              # away
+              {:error, "restricted clients may not use ETF"}
+            false ->
+              # If the client is NOT restricted and sends ETF, decode it.
+              # In this particular case, we trust that the client isn't stupid
+              # about the ETF it's sending
               term = :erlang.binary_to_term payload
               {:ok, term}
-            else
-              {:error, nil}
-            end
-          rescue
-            _ ->
-              {:error, nil}
+            nil ->
+              # If we don't yet know if the client will be restricted, decode
+              # it in safe mode
+              term = :erlang.binary_to_term payload, [:safe]
+              {:ok, term}
           end
         _ ->
-          {:error, nil}
+          {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
       end
+
     case status do
       :ok ->
         handle_payload socket, msg
-      _ ->
-        Payload.close_with_payload(:invalid, %{"error" => "cannot decode payload"})
+      :error ->
+        error_msg =
+          case msg do
+            nil ->
+              "cannot decode payload"
+            _ ->
+              msg
+          end
+        Payload.close_with_payload(:invalid, %{"error" => error_msg})
         |> craft_response
     end
   end
@@ -106,7 +156,7 @@ defmodule Singyeong.Gateway do
     handle_payload_internal socket, %{
       "op" => op,
       "d" => d,
-      "t" => payload["t"] || ""
+      "t" => payload["t"] || "",
     }
   end
 
@@ -191,12 +241,7 @@ defmodule Singyeong.Gateway do
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
       restricted = Env.auth() != d["auth"]
-      etf =
-        if restricted do
-          false
-        else
-          d["etf"] || false
-        end
+      encoding = socket.assigns[:encoding]
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
@@ -204,10 +249,10 @@ defmodule Singyeong.Gateway do
       cond do
         not Store.client_exists?(app_id, client_id) ->
           # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, etf
+          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
         Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
           # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, etf
+          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
         true ->
           # If we already have a client, reject outright
           Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
@@ -218,7 +263,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, tags, socket, ip, restricted, etf) do
+  defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
@@ -231,8 +276,8 @@ defmodule Singyeong.Gateway do
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
     # Update restriction status for queries to take advantage of
     Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
-    # Update ETF status for queries to take advantage of
-    Store.update_metadata app_id, client_id, Metadata.etf(), etf
+    # Update encoding status for queries to take advantage of
+    Store.update_metadata app_id, client_id, Metadata.encoding(), encoding
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
     if restricted do
@@ -242,7 +287,7 @@ defmodule Singyeong.Gateway do
     end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
-    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted, etf: etf})
+    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted, encoding: encoding})
   end
 
   def handle_dispatch(socket, payload) do

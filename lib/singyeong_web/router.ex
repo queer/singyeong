@@ -30,6 +30,7 @@ defmodule SingyeongWeb.Router do
   end
 
   scope "/", SingyeongWeb do
+    get     "/",      GenericController, :gateway_redirect
     # lol
     # catch all missing routes and 404 them nicely instead of Phoenix's
     # generated error page
