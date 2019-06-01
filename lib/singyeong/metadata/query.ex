@@ -50,12 +50,24 @@ defmodule Singyeong.Metadata.Query do
           |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
           |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
           |> Enum.map(fn({client, _}) -> client end)
-        if length(res) == 0 and q["optional"] == true do
-          # If the query is optional, and the query returned no nodes, just return
-          # all nodes and let the dispatcher figure it out
-          clients
-        else
-          res
+        cond do
+          length(res) == 0 and q["optional"] == true ->
+            # If the query is optional, and the query returned no nodes, just return
+            # all nodes and let the dispatcher figure it out
+            clients
+          length(res) > 0 and q["key"] != nil ->
+            # If the query is "consistently hashed", do the best we can to
+            # ensure that it ends up on the same target client each time
+            hash = :erlang.phash2 q["key"]
+            # :erlang.phash2/1 will return a value on the range 0..2^27-1, so
+            # we just modulus it and we're done
+            idx = rem hash, length(res)
+            # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
+            # target client will always be the same
+            [Enum.at(res, idx)]
+          _ ->
+            # Otherwise, just give back exactly what was asked for, even if it's nothing
+            res
         end
     end
   end
