@@ -297,6 +297,7 @@ object like the following:
 {
   "application": "application id here",
   "restricted": true,
+  "key": "1234567890",
   "ops": [
     {
       "key": {
@@ -333,6 +334,7 @@ For a more-compact example:
 ```Javascript
 {
   "application": "application id here",
+  "key": "1234567890",
   "restricted": true,
   "ops": [
     {"key": {"$eq": "value"}},
@@ -347,6 +349,12 @@ assumed if the value is not provided in the query. That is, if `restricted` is
 `true`, **any client of the given application that is in restricted-mode may 
 receive the data being sent.** If you use 신경 as a websocket gateway, be sure
 that you handle restrictions correctly!
+
+The `key` key is the value used for consistent hashing. However, due to the 
+dynamic nature of 신경, the clients being hashed against cannot be guaranteed
+to be the same. Because of this, 신경 "consistent hashes" are BEST-EFFORT. That
+is, **a "consistently-hashed" message's target will always be the same client
+if and only if the set of clients returned by the query does not change.**
 
 ### Application queries
 
