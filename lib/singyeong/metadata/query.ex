@@ -65,7 +65,7 @@ defmodule Singyeong.Metadata.Query do
             # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
             # target client will always be the same
             [Enum.at(res, idx)]
-          _ ->
+          true ->
             # Otherwise, just give back exactly what was asked for, even if it's nothing
             res
         end
