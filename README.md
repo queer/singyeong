@@ -144,8 +144,6 @@ Nope.
 
 - Query performance might be unacceptable.
 - Websockets might not be acceptable.
-- Lack of clustering support (See issue #4).
-- JSON parsing might be too high (See issue #2).
 
 ## Why make this?
 
