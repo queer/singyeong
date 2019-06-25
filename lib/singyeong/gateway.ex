@@ -158,7 +158,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  # @spec handle_payload(Phoenix.Socket.t, %{binary() => any()}) :: GatewayResponse.t
+  @spec handle_payload(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
   def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
     handle_payload_internal socket, %{
       "op" => op,
