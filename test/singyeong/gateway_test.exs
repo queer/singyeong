@@ -46,8 +46,8 @@ defmodule Singyeong.GatewayTest do
     # isn't necessary
     # response = Jason.decode! response
     # Actually test it
-    assert is_map response["d"]
-    d = response["d"]
+    assert is_map response.d
+    d = response.d
     assert client_id == d["client_id"]
     refute d["restricted"]
   end
@@ -86,8 +86,8 @@ defmodule Singyeong.GatewayTest do
     # isn't necessary
     # response = Jason.decode! response
     # Actually test it
-    assert is_map response["d"]
-    d = response["d"]
+    assert is_map response.d
+    d = response.d
     assert client_id == d["client_id"]
     refute d["restricted"]
   end
@@ -109,9 +109,9 @@ defmodule Singyeong.GatewayTest do
       "t" => :os.system_time(:millisecond),
     }
 
-    # Test actually setting ETF mode
+    # Test actually setting msgpack mode
     %GatewayResponse{
-      response: response,
+      response: _response,
       assigns: assigns
     } =
       Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(incoming_payload)}

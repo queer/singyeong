@@ -1,7 +1,7 @@
 defmodule Singyeong.ProxyTest do
   use ExUnit.Case
   doctest Singyeong.Proxy
-  alias Singyeong.Proxy
+  #  alias Singyeong.Proxy
 
   test "can proxy a request" do
     if System.get_env("DISABLE_PROXY_TESTS") do
