@@ -1,6 +1,8 @@
 defmodule Singyeong.Gateway.Payload do
   alias Singyeong.Gateway
 
+  @type t :: %__MODULE__{op: integer(), d: map(), t: binary() | nil}
+
   defstruct op: 0, d: %{}, t: nil
 
   def create_payload(op, data) when is_atom(op) and is_map(data) do
