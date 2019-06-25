@@ -8,6 +8,8 @@ defmodule Singyeong.Gateway do
 
   require Logger
 
+  ## STATIC DATA ##
+
   @heartbeat_interval 45_000
 
   @opcodes_name %{
@@ -53,7 +55,11 @@ defmodule Singyeong.Gateway do
     "etf",
   ]
 
+  ## STRUCT DEFINITIONS ##
+
   defmodule GatewayResponse do
+    @type t :: %__MODULE__{response: [] | [any()] | {:text, any()} | {:close, {:text, any()}}, assigns: map()}
+
     # The empty map for response is effectively just a noop
     # If the assigns map isn't empty, everything in it will be assigned to the socket
     defstruct response: [],
@@ -93,11 +99,12 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  ## INCOMING PAYLOAD ##
+  ## INCOMING PAYLOADS ##
 
   # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
 
   # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
+  @spec handle_incoming_payload(Phoenix.Socket.t(), {atom(), binary()}) :: GatewayResponse.t()
   def handle_incoming_payload(socket, {opcode, payload}) when is_atom(opcode) do
     encoding = socket.assigns[:encoding]
     restricted = socket.assigns[:restricted]

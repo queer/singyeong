@@ -182,7 +182,7 @@ defmodule Singyeong.Proxy do
     end
   end
 
-  @spec convert_ip(Phoenix.Conn.t) :: binary()
+  @spec convert_ip(Plug.Conn.t) :: binary()
   def convert_ip(conn) do
     conn.remote_ip
     |> :inet_parse.ntoa

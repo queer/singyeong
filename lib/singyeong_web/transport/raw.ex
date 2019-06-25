@@ -89,9 +89,6 @@ defmodule SingyeongWeb.Transport.Raw do
         # A list of frames to send
         Logger.error "[TRANSPORT] Was asked to send a frame list, but I don't know how to do that!"
         {:ok, {channels, socket}}
-      _ ->
-        # Anything else probably doesn't need a response
-        {:ok, {channels, socket}}
     end
   end
 
