@@ -123,7 +123,7 @@ Nope.
 
 ### Does it support clustering / multi-master / ...?
 
-No. Hopefully someday.
+신경 has basic masterless clustering support. See "Clustering" above.
 
 ## Why should I use this?
 
