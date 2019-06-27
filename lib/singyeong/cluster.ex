@@ -1,9 +1,6 @@
 defmodule Singyeong.Cluster do
   @moduledoc """
   Adapted from https://github.com/queer/lace/blob/master/lib/lace.ex
-
-  TODO: Wouldn't it make more sense to just use a set instead of a hash in
-    Redis?
   """
 
   use GenServer
@@ -19,9 +16,7 @@ defmodule Singyeong.Cluster do
   @connect_interval 1000
   @fake_local_node :singyeong_local_node
 
-  #######################
-  # GenServer callbacks #
-  #######################
+  # GENSERVER CALLBACKS #
 
   def start_link(opts) do
     GenServer.start_link __MODULE__, opts
@@ -130,21 +125,24 @@ defmodule Singyeong.Cluster do
         |> :erlang./(threshold)
       goal = threshold / 2
       if count > average + goal do
-        to_disconnect = count - (average + goal + 1)
+        to_disconnect = Kernel.trunc count - (average + goal + 1)
         Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-        sockets = MnesiaStore.get_first_sockets to_disconnect
-        for socket <- sockets do
-          payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
-          send socket, payload
+        {status, result} = MnesiaStore.get_first_sockets to_disconnect
+        case status do
+          :ok ->
+            for socket <- result do
+              payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
+              send socket, payload
+            end
+          :error ->
+            Logger.error "Couldn't get sockets to load-balance away: #{result}"
         end
       end
     end
     {:noreply, state}
   end
 
-  ##########################
-  # Cluster-wide functions #
-  ##########################
+  # CLUSTER-WIDE FUNCTIONS #
 
   @doc """
   Discover a service name based off of tags across the entire 신경 cluster.
@@ -166,7 +164,7 @@ defmodule Singyeong.Cluster do
   end
 
   defp run_clustered(func) do
-    # Wrap the local function into a
+    # Wrap the local function into an "awaitable" fn
     local_func = fn ->
       res = func.()
       {@fake_local_node, res}
@@ -190,9 +188,7 @@ defmodule Singyeong.Cluster do
     end)
   end
 
-  ######################
-  # Clustering helpers #
-  ######################
+  # CLUSTERING HELPERS #
 
   defp delete_node(state, hash, longname) do
     Logger.debug "[CLUSTER] [WARN] Couldn't connect to #{longname} (#{hash}), deleting..."
@@ -201,6 +197,7 @@ defmodule Singyeong.Cluster do
     :ok
   end
 
+  @spec get_network_state() :: %{hostname: binary(), hostaddr: binary()}
   defp get_network_state do
     {:ok, hostname} = :inet.gethostname()
     {:ok, hostaddr} = :inet.getaddr(hostname, :inet)
@@ -214,10 +211,12 @@ defmodule Singyeong.Cluster do
     }
   end
 
+  @spec get_hostname() :: binary()
   def get_hostname do
     get_network_state()[:hostname]
   end
 
+  @spec get_hostaddr() :: binary()
   def get_hostaddr do
     get_network_state()[:hostaddr]
   end
@@ -242,9 +241,11 @@ defmodule Singyeong.Cluster do
     "singyeong:cluster:registry:#{name}"
   end
 
+  @spec is_clustered? :: boolean
   def is_clustered? do
     Env.clustering() == "true"
   end
 
+  @spec fake_local_node :: atom()
   def fake_local_node, do: @fake_local_node
 end
