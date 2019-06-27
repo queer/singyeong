@@ -142,6 +142,7 @@ defmodule Singyeong.Proxy do
 
   defp run_proxied_request(node, app_id, client, request, headers) do
     fake_local_node = Cluster.fake_local_node()
+    # Build up the send function so we can potentially run it on remote nodes
     send_fn = fn ->
       method_atom =
         request.method
@@ -174,6 +175,7 @@ defmodule Singyeong.Proxy do
           {:error, "no target ip"}
       end
     end
+    # Actually run the send function
     case node do
       ^fake_local_node ->
         Task.Supervisor.async Singyeong.TaskSupervisor, send_fn

@@ -28,6 +28,7 @@ defmodule Singyeong.Gateway.Dispatch do
 
   # Note: Dispatch handlers will return a list of response frames
 
+  @spec handle_dispatch(Phoenix.Socket.t(), Payload.t()) :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do
     try do
       {status, res} = Store.validate_metadata data
@@ -43,7 +44,7 @@ defmodule Singyeong.Gateway.Dispatch do
       e ->
         formatted =
           Exception.format(:error, e, __STACKTRACE__)
-        Logger.error "[DISPATCH] Encountered error handling metadata update: #{formatted}"
+        Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
         {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
     end
   end
@@ -75,6 +76,7 @@ defmodule Singyeong.Gateway.Dispatch do
         res != []
       end)
       |> Enum.into(%{})
+    # Basically just flattening a list of lists
     matched_client_ids =
       valid_targets
       |> Map.values

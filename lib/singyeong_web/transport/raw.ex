@@ -8,9 +8,7 @@ defmodule SingyeongWeb.Transport.Raw do
   import Phoenix.Socket, only: [assign: 3]
   require Logger
 
-  #####################
-  # Socket behaviours #
-  #####################
+  # SOCKET BEHAVIOURS #
 
   def id(_), do: nil
 
@@ -18,9 +16,7 @@ defmodule SingyeongWeb.Transport.Raw do
     {:ok, socket}
   end
 
-  ########################
-  # Transport behaviours #
-  ########################
+  # TRANSPORT BEHAVIOURS #
 
   def child_spec(opts) do
     Phoenix.Socket.__child_spec__ __MODULE__, opts
