@@ -86,11 +86,13 @@ defmodule Singyeong.Gateway do
 
   @spec encode(Phoenix.Socket.t(), {any(), any()} | any()) :: {:binary, any()} | {:text, binary()}
   def encode(socket, {ignored, payload}) when is_atom(ignored) do
-    encode socket, payload
+    encoding = socket.assigns[:encoding] || "json"
+    encode_real encoding, payload
   end
 
-  def encode(socket, payload) do
-    encoding = socket.assigns[:encoding] || "json"
+  @spec encode_real(binary(), any()) :: {:binary, binary()} | {:text, binary()}
+  def encode_real(encoding, payload) do
+    payload = to_outgoing payload
     case encoding do
       "json" ->
         {:ok, term} = Jason.encode payload
@@ -103,6 +105,12 @@ defmodule Singyeong.Gateway do
         term = :erlang.term_to_binary payload
         {:binary, term}
     end
+  end
+  defp to_outgoing(%{__struct__: _} = payload) do
+    Map.from_struct payload
+  end
+  defp to_outgoing(payload) do
+    payload
   end
 
   ## INCOMING PAYLOADS ##
