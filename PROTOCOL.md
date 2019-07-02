@@ -135,16 +135,7 @@ you~~.
   // ie. allowing other services to discover your app id without needing to
   // hardcode it. 
   // Clients that are placed into restricted mode are NOT able to set tags.
-  "tags": ["thing", "cool", "webscale"],
-  // Whether or not the client wants to send / receive ETF payloads. If this is
-  // set to true, all payloads that are sent *to* the client will be ETF.
-  // Payloads sent *by* the client may be either ETF or JSON. ETF payloads sent
-  // *from* the client will be accepted by the server **if and only if** the
-  // client sending the payload(s) is **not in restricted mode.** This is done
-  // mainly to prevent an untrusted client DoSing the server by flooding it
-  // with atoms or similar non-GC'd terms. An ETF-mode client will ALWAYS
-  // receive ETF from the server.
-  "etf": true
+  "tags": ["thing", "cool", "webscale"]
 }
 ```
 
@@ -273,7 +264,6 @@ Logical:
 - `$and`
 - `$or`
 - `$nor`
-- `$not` - NOT YET IMPLEMENTED
 
 Element "operators" are not supported mainly because 신경 will enforce types 
 and value existence automatically, and return errors if your query is invalid.
@@ -295,9 +285,13 @@ object like the following:
 
 ```Javascript
 {
+  // ID of the application to query against
   "application": "application id here",
+  // Whether or not to allow restricted-mode clients in the query results
   "restricted": true,
+  // The key used for consistent-hashing when choosing a client from the output
   "key": "1234567890",
+  // The ops used for querying. See the description(s) above
   "ops": [
     {
       "key": {

@@ -4,6 +4,8 @@ defmodule Singyeong.Metadata do
   @restricted "restricted"
   @encoding "encoding"
 
+  # We reserve some keys for internal use while still allowing them to be
+  # metadata-queried on.
   @forbidden_keys [
     @last_heartbeat_time,
     @ip,

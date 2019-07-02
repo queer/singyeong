@@ -1,24 +1,22 @@
 defmodule Singyeong.Gateway.Payload do
   alias Singyeong.Gateway
 
-  defstruct op: 0, d: %{}, t: nil
+  @type t :: %__MODULE__{op: integer(), d: any(), t: binary() | nil, ts: number() | nil}
 
-  def create_payload(op, data) when is_atom(op) and is_map(data) do
+  defstruct op: 0, d: %{}, t: nil, ts: 0
+
+  @spec create_payload(op :: atom() | integer(), data :: any()) :: {:text, %__MODULE__{}}
+  def create_payload(op, data) when is_atom(op) do
     create_payload Gateway.opcodes_name()[op], data
   end
-  def create_payload(op, data) when is_integer(op) and is_map(data) do
-    txt =
-      %{
-        "op"  => op,
-        "d"   => data,
-        "ts"  => :os.system_time(:millisecond)
+  def create_payload(op, data) when is_integer(op) do
+    {:text, %__MODULE__{
+        op: op,
+        d: data,
+        t: nil,
+        ts: :os.system_time(:millisecond),
       }
-      #Jason.encode!(%{
-      #  "op"  => op,
-      #  "d"   => data,
-      #  "ts"  => :os.system_time(:millisecond)
-      #})
-    {:text, txt}
+    }
   end
   def create_payload(op, data) do
     op_atom = is_atom op

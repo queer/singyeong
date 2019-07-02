@@ -57,14 +57,15 @@ defmodule Singyeong.DispatchTest do
     op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
-      %{
-        "d" => %{
+      %Singyeong.Gateway.Payload{
+        d: %{
           "sender" => sender,
           "payload" => payload,
           "nonce" => nonce
         },
-        "op" => op,
-        "ts" => now,
+        op: op,
+        ts: now,
+        t: nil,
       }
 
     Process.sleep 100
@@ -79,10 +80,10 @@ defmodule Singyeong.DispatchTest do
     {:messages, msgs} = :erlang.process_info self(), :messages
     {opcode, msg} = hd msgs
     assert :text == opcode
-    assert msg["d"] == expected["d"]
-    assert msg["op"] == expected["op"]
+    assert msg.d == expected.d
+    assert msg.op == expected.op
     # Really this should be within ~1ms or so, but there's a host of possible
     # things that could make it not work out.
-    assert 10 > abs(msg["ts"] - expected["ts"])
+    assert 10 > abs(msg.ts - expected.ts)
   end
 end
