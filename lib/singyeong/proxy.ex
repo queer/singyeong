@@ -32,6 +32,7 @@ defmodule Singyeong.Proxy do
   """
   alias Singyeong.Cluster
   alias Singyeong.MnesiaStore
+  require Logger
 
   @methods [
     "GET",
