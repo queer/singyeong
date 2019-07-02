@@ -11,10 +11,10 @@ For a high-level overview of how 신경 works, check out DESIGN.md.
 
 ### Clients:
 
-Language | Link
----------|-----
-Java     | https://github.com/queer/singyeong-java-client
-Python   | https://github.com/PendragonLore/shinkei
+Language | Author         | Link
+---------|----------------|-----------------------------------------------
+Java     | @queer         | https://github.com/queer/singyeong-java-client
+Python   | @PendragonLore | https://github.com/PendragonLore/shinkei
 
 ### Credit
 
