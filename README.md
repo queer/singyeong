@@ -14,6 +14,7 @@ For a high-level overview of how 신경 works, check out DESIGN.md.
 Language | Link
 ---------|-----
 Java     | https://github.com/queer/singyeong-java-client
+Python   | https://github.com/PendragonLore/shinkei
 
 ### Credit
 
