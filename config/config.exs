@@ -15,7 +15,7 @@ config :singyeong, SingyeongWeb.Endpoint,
 
 # Configures Elixir's Logger
 config :logger, :console,
-  format: "$time $metadata[$level] $message\n",
+  format: "[$time] $metadata[$level]$levelpad $message\n",
   metadata: [:user_id]
 
 config :phoenix, :format_encoders,
