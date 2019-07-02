@@ -206,6 +206,13 @@ The inner payloads for these events are as follows:
 }
 ```
 
+Available metadata types:
+- string
+- integer
+- float
+- [version](https://hexdocs.pm/elixir/Version.html)
+- list
+
 ### `SEND` / `BROADCAST`
 
 When sending:
