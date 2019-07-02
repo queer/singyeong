@@ -1,6 +1,8 @@
 defmodule Singyeong.Metadata.Query do
   alias Singyeong.MnesiaStore, as: Store
 
+  @opaque query_op_result() :: {:ok, boolean()} | {:error, binary()}
+
   @doc """
   Given a query, execute it and return a list of client IDs.
   """
@@ -37,6 +39,9 @@ defmodule Singyeong.Metadata.Query do
         {:ok, clients} = Store.get_clients application
         # Kind-of silly filter to get rid of clients that haven't heartbeated
         # lately and are still in the metadata store for some reason
+        # Ideally this should never be necessary, as we clean this out of the
+        # metadata store when the client disconnects, but it's just a safety
+        # measure more than anything
         for client <- clients do
           {:ok, last} = Store.get_metadata application, client, "last_heartbeat_time"
           now = :os.system_time :millisecond
@@ -72,20 +77,25 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
+  @spec reduce_query(binary(), binary(), list()) :: [boolean()]
   defp reduce_query(app_id, client_id, q) when is_binary(client_id) and is_list(q) do
     if length(q) == 0 do
+      # If there's nothing to query, just return true
       [true]
     else
+      # Otherwise, actually run it and see what comes out
       {:ok, metadata} = Store.get_metadata app_id, client_id
       do_reduce_query metadata, q
     end
   end
+  @spec do_reduce_query(map(), list()) :: [boolean()]
   defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
     q
     |> Enum.map(fn(x) ->
-      # x = {key: {$eq: "value"}}
+      # x = {key: %{$eq: "value"}}
       key = Map.keys(x) |> hd
       query = x[key]
+      # do_run_query(metadata, key, %{$eq: "value"})
       do_run_query(metadata, key, query)
     end)
     |> Enum.map(fn(x) ->
@@ -104,20 +114,35 @@ defmodule Singyeong.Metadata.Query do
     end)
   end
 
+  @spec do_run_query(map(), binary(), map()) :: [query_op_result()]
   defp do_run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
+    value = metadata[key]
     Map.keys(q)
-    |> Enum.map(fn(x) ->
-      atom = operator_to_function(x)
-      f = fn(z) -> apply(Singyeong.Metadata.Query, atom, z) end
-      {x, f}
-    end)
-    |> Enum.map(fn({x, f}) ->
-      value = metadata[key]
-      f.([key, metadata, value, q[x]])
+    |> Enum.map(fn(op_atom) ->
+      # > q = %{$eq: "value"}
+      # which ultimately becomes
+      # > op_eq metadata, key, value
+      #
+      # We convert each op into a function that can take the input and then map
+      # the input into a result
+      atom = operator_to_function op_atom
+      args = [
+        # The metadata key being queried against
+        key,
+        # The client's metadata
+        metadata,
+        # The value of the metadata
+        value,
+        # The incoming value to compare to the client's metadata,
+        # ie op(value, q[op_atom])
+        q[op_atom],
+      ]
+      apply Singyeong.Metadata.Query, atom, args
     end)
   end
 
   defp operator_to_function(op) when is_binary(op) do
+    # $eq -> :op_eq
     op
     |> String.trim("$")
     |> as_op
@@ -129,31 +154,31 @@ defmodule Singyeong.Metadata.Query do
 
   ## QUERY OPERATORS ##
 
-  @spec op_eq(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_eq(binary(), map(), any(), any()) :: query_op_result()
   def op_eq(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value == value}
   end
-  @spec op_ne(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_ne(binary(), map(), any(), any()) :: query_op_result()
   def op_ne(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value != value}
   end
-  @spec op_gt(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_gt(binary(), map(), any(), any()) :: query_op_result()
   def op_gt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value > value}
   end
-  @spec op_gte(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_gte(binary(), map(), any(), any()) :: query_op_result()
   def op_gte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value >= value}
   end
-  @spec op_lt(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_lt(binary(), map(), any(), any()) :: query_op_result()
   def op_lt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value < value}
   end
-  @spec op_lte(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_lte(binary(), map(), any(), any()) :: query_op_result()
   def op_lte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value <= value}
   end
-  @spec op_in(binary(), map(), any(), list()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_in(binary(), map(), any(), list()) :: query_op_result()
   def op_in(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
       {:ok, metadata_value in value}
@@ -161,7 +186,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
-  @spec op_nin(binary(), map(), any(), list()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_nin(binary(), map(), any(), list()) :: query_op_result()
   def op_nin(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
       {:ok, metadata_value not in value}
@@ -169,7 +194,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
-  @spec op_contains(binary(), map(), list(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_contains(binary(), map(), list(), any()) :: query_op_result()
   def op_contains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
       {:ok, value in metadata_value}
@@ -177,7 +202,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "metadata not a list"}
     end
   end
-  @spec op_ncontains(binary(), map(), list(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_ncontains(binary(), map(), list(), any()) :: query_op_result()
   def op_ncontains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
       {:ok, value not in metadata_value}
@@ -188,7 +213,7 @@ defmodule Singyeong.Metadata.Query do
 
   # Logical operators
 
-  @spec op_and(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_and(binary(), map(), any(), any()) :: query_op_result()
   def op_and(key, client_metadata, _metadata_value, value) do
     if is_list(value) do
       res =
@@ -204,7 +229,7 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  @spec op_or(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_or(binary(), map(), any(), any()) :: query_op_result()
   def op_or(key, client_metadata, _metadata_value, value) do
     if is_list(value) do
       res =
@@ -212,6 +237,7 @@ defmodule Singyeong.Metadata.Query do
         |> Enum.map(fn(x) -> do_reduce_query(client_metadata, [%{key => x}]) end)
         # We get back a list from the previous step, so we need to extract the
         # first element of the list in order for this to be accurate
+        # TODO: Does this even work right? :blobcatsweats:
         |> Enum.map(fn([x]) -> x end)
         |> Enum.any?
       {:ok, res}
@@ -220,7 +246,7 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  @spec op_nor(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
+  @spec op_nor(binary(), map(), any(), any()) :: query_op_result()
   def op_nor(key, client_metadata, metadata_value, value) do
     case op_or(key, client_metadata, metadata_value, value) do
       {:ok, res} ->
@@ -228,13 +254,5 @@ defmodule Singyeong.Metadata.Query do
       {:error, err} ->
         {:error, err}
     end
-  end
-
-  # The problem with $not is that it would return a LIST of values, but all the
-  # other operators would return a SINGLE VALUE.
-  # TODO: Come up with a better solution...
-  @spec op_not(binary(), map(), any(), any()) :: {:ok, boolean()} | {:error, binary()}
-  def op_not(_key, _client_metadata, _metadata, _value) do
-    {:error, "$not isn't implemented"}
   end
 end

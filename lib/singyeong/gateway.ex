@@ -8,6 +8,8 @@ defmodule Singyeong.Gateway do
 
   require Logger
 
+  ## STATIC DATA ##
+
   @heartbeat_interval 45_000
 
   @opcodes_name %{
@@ -53,7 +55,11 @@ defmodule Singyeong.Gateway do
     "etf",
   ]
 
+  ## STRUCT DEFINITIONS ##
+
   defmodule GatewayResponse do
+    @type t :: %__MODULE__{response: [] | [any()] | {:text, any()} | {:close, {:text, any()}}, assigns: map()}
+
     # The empty map for response is effectively just a noop
     # If the assigns map isn't empty, everything in it will be assigned to the socket
     defstruct response: [],
@@ -62,8 +68,11 @@ defmodule Singyeong.Gateway do
 
   ## HELPERS ##
 
+  @spec heartbeat_interval() :: integer()
   def heartbeat_interval, do: @heartbeat_interval
+  @spec opcodes_name() :: %{atom() => integer()}
   def opcodes_name, do: @opcodes_name
+  @spec opcodes_id() :: %{integer() => atom()}
   def opcodes_id, do: @opcodes_id
 
   defp craft_response(response, assigns \\ %{})
@@ -72,45 +81,58 @@ defmodule Singyeong.Gateway do
     %GatewayResponse{response: response, assigns: assigns}
   end
 
+  @spec validate_encoding(binary()) :: boolean()
   def validate_encoding(encoding) when is_binary(encoding), do: encoding in @valid_encodings
 
+  @spec encode(Phoenix.Socket.t(), {any(), any()} | any()) :: {:binary, any()} | {:text, binary()}
   def encode(socket, {ignored, payload}) when is_atom(ignored) do
-    encode socket, payload
+    encoding = socket.assigns[:encoding] || "json"
+    encode_real encoding, payload
   end
 
-  def encode(socket, payload) do
-    encoding = socket.assigns[:encoding] || "json"
+  @spec encode_real(binary(), any()) :: {:binary, binary()} | {:text, binary()}
+  def encode_real(encoding, payload) do
+    payload = to_outgoing payload
     case encoding do
       "json" ->
         {:ok, term} = Jason.encode payload
         {:text, term}
       "msgpack" ->
         {:ok, term} = Msgpax.pack payload
-        {:binary, term}
+        # msgpax returns iodata, so we convert it to binary for consistency
+        {:binary, IO.iodata_to_binary(term)}
       "etf" ->
         term = :erlang.term_to_binary payload
         {:binary, term}
     end
   end
+  defp to_outgoing(%{__struct__: _} = payload) do
+    Map.from_struct payload
+  end
+  defp to_outgoing(payload) do
+    payload
+  end
 
-  ## INCOMING PAYLOAD ##
+  ## INCOMING PAYLOADS ##
 
-  # handle_payload doesn't have any typespecs because dialyzer gets a n g e r y ;_;
-
-  # @spec handle_payload(Phoenix.Socket.t, binary()) :: GatewayResponse.t
+  @spec handle_incoming_payload(Phoenix.Socket.t(), {atom(), binary()}) :: GatewayResponse.t()
   def handle_incoming_payload(socket, {opcode, payload}) when is_atom(opcode) do
     encoding = socket.assigns[:encoding]
     restricted = socket.assigns[:restricted]
+    # Decode incoming packets based on the state of the socket
     {status, msg} =
       case {opcode, encoding} do
         {:text, "json"} ->
+          # JSON can just be directly encoded
           Jason.decode payload
         {:binary, "msgpack"} ->
+          # MessagePack has to be unpacked and error-checked
           {e, d} = Msgpax.unpack payload
           case e do
             :ok ->
               {:ok, d}
             :error ->
+              # We convert the exception into smth more useful
               {:error, Exception.message(d)}
           end
         {:binary, "etf"} ->
@@ -140,18 +162,17 @@ defmodule Singyeong.Gateway do
         handle_payload socket, msg
       :error ->
         error_msg =
-          case msg do
-            nil ->
-              "cannot decode payload"
-            _ ->
-              msg
+          if msg do
+            msg
+          else
+            "cannot decode payload"
           end
         Payload.close_with_payload(:invalid, %{"error" => error_msg})
         |> craft_response
     end
   end
 
-  # @spec handle_payload(Phoenix.Socket.t, %{binary() => any()}) :: GatewayResponse.t
+  @spec handle_payload(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
   def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
     handle_payload_internal socket, %{
       "op" => op,
@@ -160,13 +181,15 @@ defmodule Singyeong.Gateway do
     }
   end
 
-  # @spec handle_payload(Phoenix.Socket.t, any()) :: GatewayResponse.t
+  # Handle malformed packets
+  # This SHOULDN'T be called, but clients can't be trusted smh >:I
   def handle_payload(_socket, _payload) do
     Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
     |> craft_response
   end
 
   defp handle_payload_internal(socket, %{"op" => op, "d" => d, "t" => t} = _payload) do
+    # Check if we need to disconnect the client for taking too long to heartbeat
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
@@ -189,7 +212,10 @@ defmodule Singyeong.Gateway do
     op = payload.op
     named = @opcodes_id[op]
     if named != :identify and socket.assigns[:client_id] == nil do
-      # Try to halt it as soon as possible so that we don't waste time on it
+      # If we don't have a client id assigned, then the client hasn't
+      # identified itself yet and as such shouldn't be allowed to do anything
+      # BUT identify
+      # We try to halt it as soon as possible so that we don't waste time on it
       Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
       |> craft_response
     else
@@ -201,8 +227,8 @@ defmodule Singyeong.Gateway do
             handle_dispatch socket, payload
           :heartbeat ->
             # We only really do heartbeats to keep clients alive.
-            # cowboy server will automatically disconnect after some period if
-            # no messages come over the socket, so the client is responsible
+            # The cowboy server will automatically disconnect after some period
+            # if no messages come over the socket, so the client is responsible
             # for keeping itself alive.
             handle_heartbeat socket, payload
           _ ->
@@ -212,7 +238,7 @@ defmodule Singyeong.Gateway do
         e ->
           formatted =
             Exception.format(:error, e, __STACKTRACE__)
-          Logger.error "[GATEWAY] Encountered error handling gateway payload: #{formatted}"
+          Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
           Payload.close_with_payload(:invalid, %{"error" => "internal server error"})
           |> craft_response
       end
@@ -232,7 +258,7 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  @spec handle_identify(Phoenix.Socket.t, Payload.t) :: GatewayResponse.t
+  @spec handle_identify(Phoenix.Socket.t(), Payload.t) :: GatewayResponse.t
   def handle_identify(socket, payload) do
     d = payload.d
     client_id = d["client_id"]
@@ -331,8 +357,8 @@ defmodule Singyeong.Gateway do
     |> craft_response
   end
 
-  # This is here because we need to be able to send it immediately from
-  # the socket transport layer
+  # This is here because we need to be able to send it immediately from the
+  # socket transport layer, but it wouldn't really make sense elsewhere.
   def hello do
     %{
       "heartbeat_interval" => @heartbeat_interval

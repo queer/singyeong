@@ -14,6 +14,7 @@ For a high-level overview of how 신경 works, check out DESIGN.md.
 Language | Link
 ---------|-----
 Java     | https://github.com/queer/singyeong-java-client
+Python   | https://github.com/PendragonLore/shinkei
 
 ### Credit
 
@@ -31,6 +32,8 @@ no guarantee that it won't break, eat your cat, ... Use at your own risk!
 Configuration is done via environment variables.
 
 ```Bash
+# Basic configuration
+
 # The port to bind to. Default is 4000. In production, you probably want to be
 # running on port 80.
 PORT="4567"
@@ -39,6 +42,9 @@ PORT="4567"
 # It is HIGHLY recommended that you set a long / complex password. See the
 # "Security" section below for more on why. 
 AUTH="2d1e29fbe6895b3693112ff<insert more long password here>"
+
+# Clustering configuration
+# If you're not running a cluster, these options shouldn't be set.
 
 # Whether or not clustering should be enabled.
 CLUSTERING="true"
@@ -62,6 +68,8 @@ supported eventually.
 
 Someday it might be cool to support gossip protocol, kube api, ... to allow for
 automatically forming clusters w/o external dependencies, I guess.
+
+See CLUSTERING.md for more information.
 
 ### Why not using swarm / libcluster?
 
@@ -123,7 +131,8 @@ Nope.
 
 ### Does it support clustering / multi-master / ...?
 
-No. Hopefully someday.
+신경 has basic masterless clustering support. See "Clustering" above, or
+CLUSTERING.md for more information on how it works.
 
 ## Why should I use this?
 
@@ -144,8 +153,6 @@ No. Hopefully someday.
 
 - Query performance might be unacceptable.
 - Websockets might not be acceptable.
-- Lack of clustering support (See issue #4).
-- JSON parsing might be too high (See issue #2).
 
 ## Why make this?
 

@@ -8,9 +8,7 @@ defmodule Singyeong.MnesiaStore do
   @socket_ips :socket_ips
   @tags :tags
 
-  ####################
-  ## INITIALIZATION ##
-  ####################
+  # INITIALIZATION #
 
   @doc """
   Initialize the Mnesia-backed metadata store. Creates the schema, starts
@@ -48,9 +46,7 @@ defmodule Singyeong.MnesiaStore do
     :ok
   end
 
-  #############
-  ## CLIENTS ##
-  #############
+  # CLIENTS #
 
   @doc """
   Add a client with the given app id and client id
@@ -133,9 +129,7 @@ defmodule Singyeong.MnesiaStore do
     :ok
   end
 
-  ##############
-  ## METADATA ##
-  ##############
+  # METADATA #
 
   @doc """
   Validate that the incoming metadata update has valid types. Used when
@@ -278,9 +272,7 @@ defmodule Singyeong.MnesiaStore do
     end
   end
 
-  ############################
-  ## WEBSOCKET PIDS AND IPS ##
-  ############################
+  # WEBSOCKET PIDS AND IPS #
 
   # Sockets
 
@@ -323,7 +315,7 @@ defmodule Singyeong.MnesiaStore do
     :mnesia.table_info @sockets, :size
   end
 
-  @spec get_first_sockets(integer()) :: list()
+  @spec get_first_sockets(integer()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), binary()}}
   def get_first_sockets(count) do
     res =
       :mnesia.transaction(fn ->
@@ -394,9 +386,7 @@ defmodule Singyeong.MnesiaStore do
     :ok
   end
 
-  ##########
-  ## TAGS ##
-  ##########
+  # TAGS #
 
   @doc """
   Set the tags for the client with the given application id.
