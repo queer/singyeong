@@ -84,10 +84,15 @@ defmodule Singyeong.Gateway do
   @spec validate_encoding(binary()) :: boolean()
   def validate_encoding(encoding) when is_binary(encoding), do: encoding in @valid_encodings
 
-  @spec encode(Phoenix.Socket.t(), {any(), any()} | any()) :: {:binary, any()} | {:text, binary()}
-  def encode(socket, {ignored, payload}) when is_atom(ignored) do
+  @spec encode(Phoenix.Socket.t(), {any(), any()} | Singyeong.Gateway.Payload.t()) :: {:binary, any()} | {:text, binary()}
+  def encode(socket, data) do
     encoding = socket.assigns[:encoding] || "json"
-    encode_real encoding, payload
+    case data do
+      {_, payload} ->
+        encode_real encoding, payload
+      _ ->
+        encode_real encoding, data
+    end
   end
 
   @spec encode_real(binary(), any()) :: {:binary, binary()} | {:text, binary()}
