@@ -37,18 +37,6 @@ defmodule Singyeong.Metadata.Query do
               q["ops"] ++ [%{"restricted" => %{"$eq" => false}}]
           end
         {:ok, clients} = Store.get_clients application
-        # Kind-of silly filter to get rid of clients that haven't heartbeated
-        # lately and are still in the metadata store for some reason
-        # Ideally this should never be necessary, as we clean this out of the
-        # metadata store when the client disconnects, but it's just a safety
-        # measure more than anything
-        #for client <- clients do
-        #  {:ok, last} = Store.get_metadata application, client, "last_heartbeat_time"
-        #  now = :os.system_time :millisecond
-        #  if (last + (Singyeong.Gateway.heartbeat_interval * 1.5)) < now do
-        #    Store.delete_client application, client
-        #  end
-        #end
         {:ok, clients} = Store.get_clients application
         res =
           clients
