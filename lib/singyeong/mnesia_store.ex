@@ -18,14 +18,24 @@ defmodule Singyeong.MnesiaStore do
   def initialize do
     :mnesia.create_schema []
     :mnesia.start()
+
     :mnesia.create_table @metadata, [attributes: [:composite_key, :value]]
+    :mnesia.add_table_index @metadata, :composite_key
+
     :mnesia.create_table @clients, [attributes: [:app_id, :client_ids]]
+    :mnesia.add_table_index @clients, :app_id
+
     :mnesia.create_table @sockets, [attributes: [:composite_key, :socket_pid]]
+    :mnesia.add_table_index @sockets, :composite_key
+
     :mnesia.create_table @socket_ips, [attributes: [:composite_key, :socket_pid]]
+    :mnesia.add_table_index @socket_ips, :composite_key
+
     # The tags table is created as a bag so that we can have a less-painful
     # time trying to fetch and read the client's tags in a way that allows us
     # to do tag comparisons for eg. connects
     :mnesia.create_table @tags, [attributes: [:composite_key, :tags], type: :bag]
+    :mnesia.add_table_index @tags, :composite_key
     :ok
   end
 
