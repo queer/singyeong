@@ -37,7 +37,6 @@ defmodule Singyeong.Metadata.Query do
               q["ops"] ++ [%{"restricted" => %{"$eq" => false}}]
           end
         {:ok, clients} = Store.get_clients application
-        {:ok, clients} = Store.get_clients application
         res =
           clients
           |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
@@ -72,6 +71,15 @@ defmodule Singyeong.Metadata.Query do
       [true]
     else
       # Otherwise, actually run it and see what comes out
+      # q = [%{key: %{$eq: "value"}}]
+      metadata =
+        q
+        |> Enum.map(fn m ->
+          [key] = Map.keys m
+          value = Store.get_metadata app_id, client_id, key
+          {key, value}
+        end)
+        |> Enum.into(%{})
       {:ok, metadata} = Store.get_metadata app_id, client_id
       do_reduce_query metadata, q
     end
@@ -80,7 +88,7 @@ defmodule Singyeong.Metadata.Query do
   defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
     q
     |> Enum.map(fn(x) ->
-      # x = {key: %{$eq: "value"}}
+      # x = %{key: %{$eq: "value"}}
       key = Map.keys(x) |> hd
       query = x[key]
       # do_run_query(metadata, key, %{$eq: "value"})
