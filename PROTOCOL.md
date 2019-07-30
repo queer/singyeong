@@ -387,8 +387,9 @@ value to `true`:
 take advantage of target queries for message routing. 
 
 When connecting to the 신경 websocket gateway, the identify payload that your
-client sends should include a `application_name` field; this field is a 
-requirement as it's the main key used for the majority of routing queries. 
+client sends must include `application_id` and `client_id` fields; these fields
+are a requirement as they're the main keys used for the majority of routing
+queries. 
 
 ### Important things to consider
 
