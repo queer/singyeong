@@ -15,4 +15,4 @@ RUN mix deps.get
 RUN mix test
 RUN MIX_ENV=prod mix compile
 
-ENTRYPOINT [ "bash", "docker-entrypoint.sh" ]
+CMD bash docker-entrypoint.sh
