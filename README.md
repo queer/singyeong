@@ -1,5 +1,7 @@
 # 신경
 
+[![CircleCI](https://circleci.com/gh/queer/singyeong.svg?style=svg)](https://circleci.com/gh/queer/singyeong) [![codecov](https://codecov.io/gh/queer/singyeong/branch/master/graph/badge.svg)](https://codecov.io/gh/queer/singyeong)
+
 Singyeong (신경) is the nerve-center of your microservices-based application,
 providing a metadata-oriented message bus for IPC, service discovery, dynamic
 request proxying, and more. 신경 aims to be simple to use, but still provide
