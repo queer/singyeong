@@ -17,4 +17,6 @@ erl_crash.dump
 
 .elixir_ls/
 *.sh
+!/coverage.sh
+!/docker-entrypoint.sh
 Mnesia*/

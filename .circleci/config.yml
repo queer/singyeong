@@ -6,19 +6,27 @@ jobs:
       docker_layer_caching: true
     steps:
     - checkout
-    - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash | sed -e 's/-e /--build-arg /g')"
+    - run: "export CONTAINER_TAG=$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
+    - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash)"
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
-    - run: "docker build --build-arg CODECOV_TOKEN $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    - run: "docker build -t queer/singyeong:$CONTAINER_TAG ."
+    # Run the coverage inside the container, rather than at build time, since
+    # the latter seems impossible to do properly.
+    - run: "docker run $CODECOV_CI_ENV --rm -it queer/singyeong:$CONTAINER_TAG bash coverage.sh"
   build-and-push:
     machine:
       enabled: true
       docker_layer_caching: true
     steps:
     - checkout
-    - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash | sed -e 's/-e /--build-arg /g')"
+    - run: "export CONTAINER_TAG=$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
+    - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash)"
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
-    - run: "docker build --build-arg CODECOV_TOKEN $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
-    - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
+    - run: "docker build -t queer/singyeong:$CONTAINER_TAG ."
+    # Run the coverage inside the container, rather than at build time, since
+    # the latter seems impossible to do properly.
+    - run: "docker run $CODECOV_CI_ENV --rm -it queer/singyeong:$CONTAINER_TAG bash coverage.sh"
+    - run: "docker push queer/singyeong:$CONTAINER_TAG"
 
 workflows:
   version: 2
