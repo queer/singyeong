@@ -8,7 +8,7 @@ jobs:
     - checkout
     - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash | sed -e 's/-e /--build-arg /g')"
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
-    - run: "docker build $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    - run: "docker build --build-arg CODECOV_TOKEN $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
   build-and-push:
     machine:
       enabled: true
@@ -17,7 +17,7 @@ jobs:
     - checkout
     - run: "export CODECOV_CI_ENV=$(curl -s https://codecov.io/env | bash | sed -e 's/-e /--build-arg /g')"
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
-    - run: "docker build $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    - run: "docker build --build-arg CODECOV_TOKEN $CODECOV_CI_ENV -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
 
 workflows:
