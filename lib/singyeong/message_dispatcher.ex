@@ -1,4 +1,9 @@
 defmodule Singyeong.MessageDispatcher do
+  @moduledoc """
+  The message dispatcher is responsible for sending messages to a set of
+  client pids inside of an application id.
+  """
+
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore
 

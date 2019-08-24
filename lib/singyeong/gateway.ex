@@ -1,4 +1,10 @@
 defmodule Singyeong.Gateway do
+  @moduledoc """
+  The "gateway" into the 신경 system. All messages that a client sends or
+  receives over its websocket connection come through the gateway for
+  preprocessing, authentication, and other things.
+  """
+
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Metadata
@@ -58,6 +64,10 @@ defmodule Singyeong.Gateway do
   ## STRUCT DEFINITIONS ##
 
   defmodule GatewayResponse do
+    @moduledoc """
+    A packet being sent from the gateway to a client.
+    """
+
     @type t :: %__MODULE__{response: [] | [any()] | {:text, any()} | {:close, {:text, any()}}, assigns: map()}
 
     # The empty map for response is effectively just a noop

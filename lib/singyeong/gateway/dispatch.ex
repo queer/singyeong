@@ -1,4 +1,11 @@
 defmodule Singyeong.Gateway.Dispatch do
+  @moduledoc """
+  The dispatcher takes in events from clients and processes them in whatever
+  manner is needed. This module ties together metadata querying, clustering,
+  packet sending / receiving, and "exposes" them all in a way that incoming and
+  outgoing messages can take reasonably use.
+  """
+
   alias Singyeong.Cluster
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore, as: Store
@@ -82,7 +89,7 @@ defmodule Singyeong.Gateway.Dispatch do
       |> Map.values
       |> Enum.concat
 
-    unless length(matched_client_ids) == 0 do
+    unless Enum.empty?(matched_client_ids) do
       fake_local_node = Cluster.fake_local_node()
       out = %{
         "sender" => sender,

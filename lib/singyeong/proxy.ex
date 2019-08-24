@@ -59,22 +59,23 @@ defmodule Singyeong.Proxy do
   ]
 
   defmodule ProxiedRequest do
+    @moduledoc """
+    An incoming request that needs to be proxied.
+    """
     @type t :: %ProxiedRequest{method: binary(), route: binary(), body: any(), headers: map(), query: map()}
     defstruct [:method, :route, :body, :headers, :query]
   end
   defmodule ProxiedResponse do
+    @moduledoc """
+    A response from a request that has been successfully proxied.
+    """
     @type t :: %ProxiedResponse{status: integer(), body: any(), headers: list()}
     defstruct [:status, :body, :headers]
   end
 
   @spec requires_body?(binary()) :: boolean
   defp requires_body?(method) do
-    cond do
-      method in @body_methods ->
-        true
-      true ->
-        false
-    end
+    method in @body_methods
   end
 
   @spec valid_method?(binary()) :: boolean
@@ -127,16 +128,14 @@ defmodule Singyeong.Proxy do
           valid_targets
           |> Map.values
           |> Enum.concat
-        cond do
-          length(matched_client_ids) == 0 ->
-            {:error, "no matches"}
-          true ->
-            application = request.query["application"]
-            # Pick a random node
-            {node, clients} = Enum.random valid_targets
-            client_id = Enum.random clients
-            run_proxied_request(node, application, client_id, request, headers)
-            |> Task.await
+        if Enum.empty?(matched_client_ids) do
+          {:error, "no matches"}
+        else
+          application = request.query["application"]
+          # Pick a random node
+          {node, clients} = Enum.random valid_targets
+          client_id = Enum.random clients
+          Task.await run_proxied_request(node, application, client_id, request, headers)
         end
     end
   end
@@ -150,31 +149,7 @@ defmodule Singyeong.Proxy do
         |> String.downcase
         |> String.to_atom
       {ip_status, target_ip} = MnesiaStore.get_socket_ip app_id, client
-      case ip_status do
-        :ok ->
-          encoded_body =
-            cond do
-              is_map(request.body) ->
-                Jason.encode! request.body
-              is_list(request.body) ->
-                Jason.encode! request.body
-              is_binary(request.body) ->
-                request.body
-              true ->
-                Jason.encode! request.body
-            end
-          {status, response} =
-            HTTPoison.request method_atom, "http://#{target_ip}/#{request.route}", encoded_body,
-              headers, [timeout: 15_000]
-          case status do
-            :ok ->
-              {:ok, %ProxiedResponse{status: response.status_code, body: response.body, headers: response.headers}}
-            :error ->
-              {:error, Exception.message(response)}
-          end
-        :error ->
-          {:error, "no target ip"}
-      end
+      send_proxied_request request, method_atom, headers, ip_status, target_ip
     end
     # Actually run the send function
     case node do
@@ -182,6 +157,45 @@ defmodule Singyeong.Proxy do
         Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
       _ ->
         Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
+    end
+  end
+
+  defp send_proxied_request(request, method_atom, headers, ip_status, target_ip) do
+    case ip_status do
+      :ok ->
+        encoded_body = encode_body request.body
+        {status, response} = HTTPoison.request(
+          method_atom,
+          "http://#{target_ip}/#{request.route}",
+          encoded_body,
+          headers,
+          [timeout: 15_000]
+        )
+        case status do
+          :ok ->
+            {:ok, %ProxiedResponse{
+              status: response.status_code,
+              body: response.body,
+              headers: response.headers,
+            }}
+          :error ->
+            {:error, Exception.message(response)}
+        end
+      :error ->
+        {:error, "no target ip"}
+    end
+  end
+
+  defp encode_body(body) do
+    cond do
+      is_map(body) ->
+        Jason.encode! body
+      is_list(body) ->
+        Jason.encode! body
+      is_binary(body) ->
+        body
+      true ->
+        Jason.encode! body
     end
   end
 

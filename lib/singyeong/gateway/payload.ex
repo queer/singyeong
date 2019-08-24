@@ -1,4 +1,8 @@
 defmodule Singyeong.Gateway.Payload do
+  @moduledoc """
+  Represents actual JSON (or ETF, msgpack,...) blob that gets sent to a client.
+  """
+
   alias Singyeong.Gateway
 
   @type t :: %__MODULE__{op: integer(), d: any(), t: binary() | nil, ts: number() | nil}
