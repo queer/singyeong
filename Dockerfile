@@ -15,4 +15,4 @@ RUN mix deps.get
 RUN mix test
 RUN MIX_ENV=prod mix compile
 
-CMD epmd -daemon && MIX_ENV=prod mix phx.server
+CMD bash docker-entrypoint.sh
