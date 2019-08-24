@@ -1,4 +1,6 @@
 defmodule Singyeong.Application do
+  @moduledoc false
+
   alias Singyeong.Env
   use Application
   require Logger

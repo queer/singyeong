@@ -1,5 +1,15 @@
 defmodule Singyeong.Metadata.Query do
+  @moduledoc """
+  The "query engine" that makes metadata queries work. Currently, this is tied
+  to specifics of how the Mnesia storage engine is implemented. This will need
+  to be genericised somehow in a way that lets it become a property of the
+  storage engine -- so to speak -- as it would make it much easier to implement
+  a performant storage engine if the specifics of querying was able to take
+  advantage of the specific backend being used.
+  """
+
   alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.Utils
 
   @opaque query_op_result() :: {:ok, boolean()} | {:error, binary()}
 
@@ -18,7 +28,7 @@ defmodule Singyeong.Metadata.Query do
           if matches == [] do
             nil
           else
-            # TODO: What about other behaviours?
+            # Pick the first application id that actually has all tags.
             hd matches
           end
       end
@@ -28,13 +38,12 @@ defmodule Singyeong.Metadata.Query do
       _ ->
         allow_restricted = q["restricted"]
         ops =
-          cond do
-            allow_restricted ->
-              # If we allow restricted-mode clients, just run the query as-is
-              q["ops"]
-            true ->
-              # Otherwise, explicitly require clients to not be restricted
-              q["ops"] ++ [%{"restricted" => %{"$eq" => false}}]
+          if allow_restricted do
+            # If we allow restricted-mode clients, just run the query as-is
+            q["ops"]
+          else
+            # Otherwise, explicitly require clients to not be restricted
+            Utils.fast_list_concat q["ops"], [%{"restricted" => %{"$eq" => false}}]
           end
         {:ok, clients} = Store.get_clients application
         res =
@@ -43,11 +52,11 @@ defmodule Singyeong.Metadata.Query do
           |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
           |> Enum.map(fn({client, _}) -> client end)
         cond do
-          length(res) == 0 and q["optional"] == true ->
+          Enum.empty?(res) and q["optional"] == true ->
             # If the query is optional, and the query returned no nodes, just return
             # all nodes and let the dispatcher figure it out
             clients
-          length(res) > 0 and q["key"] != nil ->
+          not Enum.empty?(res) and q["key"] != nil ->
             # If the query is "consistently hashed", do the best we can to
             # ensure that it ends up on the same target client each time
             hash = :erlang.phash2 q["key"]
@@ -66,7 +75,7 @@ defmodule Singyeong.Metadata.Query do
 
   @spec reduce_query(binary(), binary(), list()) :: [boolean()]
   defp reduce_query(app_id, client_id, q) when is_binary(client_id) and is_list(q) do
-    if length(q) == 0 do
+    if Enum.empty?(q) do
       # If there's nothing to query, just return true
       [true]
     else
@@ -88,17 +97,17 @@ defmodule Singyeong.Metadata.Query do
     end)
     |> Enum.map(fn(x) ->
       # x = [{:ok, true}, {:error, false}, ...]
-      x |> Enum.all?(fn(e) ->
-          case e do
-            {:ok, res} ->
-              res
-            {:error, _} ->
-              # TODO: Figure out how to warn the initiating client about errors
-              false
-            _ ->
-              false
-          end
-        end)
+      Enum.all?(x, fn(e) ->
+        case e do
+          {:ok, res} ->
+            res
+          {:error, _} ->
+            # TODO: Figure out how to warn the initiating client about errors
+            false
+          _ ->
+            false
+        end
+      end)
     end)
   end
 
@@ -225,7 +234,6 @@ defmodule Singyeong.Metadata.Query do
         |> Enum.map(fn(x) -> do_reduce_query(client_metadata, [%{key => x}]) end)
         # We get back a list from the previous step, so we need to extract the
         # first element of the list in order for this to be accurate
-        # TODO: Does this even work right? :blobcatsweats:
         |> Enum.map(fn([x]) -> x end)
         |> Enum.any?
       {:ok, res}

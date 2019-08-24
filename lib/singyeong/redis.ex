@@ -1,4 +1,9 @@
 defmodule Singyeong.Redis do
+  @moduledoc """
+  Sets up pooled Redix connections for transparent usage.
+  TODO: Should probably just use poolboy or similar here...
+  """
+
   alias Singyeong.Env
 
   @pool_size 5

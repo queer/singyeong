@@ -1,4 +1,9 @@
 defmodule Singyeong.Metadata do
+  @moduledoc """
+  Holds constant information about specific metadata values that are reserved
+  for internal use.
+  """
+
   @last_heartbeat_time "last_heartbeat_time"
   @ip "ip"
   @restricted "restricted"

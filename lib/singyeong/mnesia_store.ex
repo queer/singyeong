@@ -1,6 +1,13 @@
 defmodule Singyeong.MnesiaStore do
+  @moduledoc """
+  The default, Mnesia-backed metadata store for 신경. May someday be refactored
+  into a generic behaviour that would allow for plugging in more storage
+  adapters.
+  """
+
   alias Singyeong.Metadata
   alias Singyeong.Metadata.Types
+  alias Singyeong.Utils
 
   @clients :clients
   @metadata :metadata
@@ -517,8 +524,7 @@ defmodule Singyeong.MnesiaStore do
                 tags = map[app_id]
                 if Map.has_key?(inner_acc, app_id) do
                   # Merge lists
-                  # TODO: Can we make this more efficient?
-                  Map.put inner_acc, app_id, inner_acc[app_id] ++ tags
+                  Map.put inner_acc, app_id, Utils.fast_list_concat(inner_acc[app_id], tags)
                 else
                   Map.put inner_acc, app_id, tags
                 end

@@ -1,4 +1,10 @@
 defmodule SingyeongWeb.Transport.Raw do
+  @moduledoc """
+  Raw websocket transport. This is used to "override" the default Phoenix
+  transport, as I don't want to require that everyone learn the (seemingly
+  undocumented?) Phoenix socket/channel protocol.
+  """
+
   @behaviour Phoenix.Socket
   @behaviour Phoenix.Socket.Transport
 

@@ -44,20 +44,24 @@ defmodule SingyeongWeb.ProxyController do
             headers: params["headers"] || %{},
             query: params["query"],
           }
-        {status, res} = Proxy.proxy ip, request
-        case status do
-          :ok ->
-            res.headers
-            |> Enum.reduce(conn, fn({k, v}, c) ->
-              put_resp_header c, String.downcase(k), v
-            end)
-            |> put_status(res.status)
-            |> text(res.body)
-          :error ->
-            conn
-            |> put_status(400)
-            |> json(%{"errors" => [res]})
-        end
+        proxy_request conn, ip, request
+    end
+  end
+
+  defp proxy_request(conn, ip, request) do
+    {status, res} = Proxy.proxy ip, request
+    case status do
+      :ok ->
+        res.headers
+        |> Enum.reduce(conn, fn({k, v}, c) ->
+          put_resp_header c, String.downcase(k), v
+        end)
+        |> put_status(res.status)
+        |> text(res.body)
+      :error ->
+        conn
+        |> put_status(400)
+        |> json(%{"errors" => [res]})
     end
   end
 end

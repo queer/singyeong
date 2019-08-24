@@ -10,6 +10,7 @@ defmodule Singyeong.Cluster do
   alias Singyeong.Metadata.Query
   alias Singyeong.MnesiaStore
   alias Singyeong.Redis
+  alias Singyeong.Utils
   require Logger
 
   @start_delay 50
@@ -81,24 +82,22 @@ defmodule Singyeong.Cluster do
         atom = longname |> String.to_atom
         case Node.connect(atom) do
           true ->
-            # TODO: How to handle this case?
             # Don't need to do anything else
             # This is NOT logged at :info to avoid spamme
             # Logger.debug "[CLUSTER] Connected to #{longname}"
-            ""
+            nil
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
             delete_node state, hash, longname
           :ignored ->
-            # TODO: How to handle this case?
             # In general we shouldn't reach it, so...
             # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
-            ""
+            nil
         end
       end
     end
-    # TODO: This should probably be a TRACE, but Elixir doesn't seem to have that :C
+    # This should probably be a TRACE, but Elixir doesn't seem to have that :C
     # Could be useful for debuggo I guess?
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
@@ -178,7 +177,7 @@ defmodule Singyeong.Cluster do
           res = func.()
           {node, res}
         end
-      acc ++ [task]
+      Utils.fast_list_concat acc, [task]
     end)
     |> Enum.map(&Task.await/1)
     |> Enum.reduce(%{}, fn(res, acc) ->
@@ -241,8 +240,8 @@ defmodule Singyeong.Cluster do
     "singyeong:cluster:registry:#{name}"
   end
 
-  @spec is_clustered? :: boolean
-  def is_clustered? do
+  @spec clustered? :: boolean
+  def clustered? do
     Env.clustering() == "true"
   end
 
