@@ -72,14 +72,6 @@ defmodule Singyeong.Metadata.Query do
     else
       # Otherwise, actually run it and see what comes out
       # q = [%{key: %{$eq: "value"}}]
-      metadata =
-        q
-        |> Enum.map(fn m ->
-          [key] = Map.keys m
-          value = Store.get_metadata app_id, client_id, key
-          {key, value}
-        end)
-        |> Enum.into(%{})
       {:ok, metadata} = Store.get_metadata app_id, client_id
       do_reduce_query metadata, q
     end
