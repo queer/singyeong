@@ -8,6 +8,9 @@ jobs:
     - checkout
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    # Run the coverage inside the container, rather than at build time, since
+    # the latter seems impossible to do properly.
+    - run: "docker run $(curl -s https://codecov.io/env | bash) --rm -it queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM bash coverage.sh"
   build-and-push:
     machine:
       enabled: true
@@ -16,6 +19,9 @@ jobs:
     - checkout
     - run: "docker login -u $DOCKER_USER -p $DOCKER_PASS"
     - run: "docker build -t queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM ."
+    # Run the coverage inside the container, rather than at build time, since
+    # the latter seems impossible to do properly.
+    - run: "docker run $(curl -s https://codecov.io/env | bash) --rm -it queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM bash coverage.sh"
     - run: "docker push queer/singyeong:$(echo $CIRCLE_BRANCH | sed -e 's|/|_|g')-$CIRCLE_BUILD_NUM"
 
 workflows:
