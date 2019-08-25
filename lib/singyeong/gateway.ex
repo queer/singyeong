@@ -11,7 +11,6 @@ defmodule Singyeong.Gateway do
   alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.MessageDispatcher
   alias Singyeong.Env
-
   require Logger
 
   ## STATIC DATA ##
@@ -264,11 +263,22 @@ defmodule Singyeong.Gateway do
 
   def handle_close(socket) do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
-      MessageDispatcher.unregister_socket socket
-      Store.delete_client socket.assigns[:app_id], socket.assigns[:client_id]
-      Store.remove_socket socket.assigns[:app_id], socket.assigns[:client_id]
-      Store.remove_socket_ip socket.assigns[:app_id], socket.assigns[:client_id]
+      app_id = socket.assigns[:app_id]
+      client_id = socket.assigns[:client_id]
+
+      cleanup socket, app_id, client_id
     end
+  end
+
+  def cleanup(socket, app_id, client_id) do
+    MessageDispatcher.unregister_socket socket
+    Store.delete_client app_id, client_id
+    Store.remove_socket app_id, client_id
+    Store.remove_socket_ip app_id, client_id
+
+    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    pid = Process.whereis queue_worker
+    DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
   end
 
   ## OP HANDLING ##
@@ -278,6 +288,7 @@ defmodule Singyeong.Gateway do
     d = payload.d
     client_id = d["client_id"]
     app_id = d["application_id"]
+
     tags = Map.get d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # Check app/client IDs to ensure validity
@@ -312,6 +323,10 @@ defmodule Singyeong.Gateway do
       Store.set_tags app_id, client_id, tags
       # Update ip
       Store.add_socket_ip app_id, client_id, ip
+      # Start metadata update queue worker
+      queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+      DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
+        {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
@@ -328,7 +343,7 @@ defmodule Singyeong.Gateway do
     end
     # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
-    |> craft_response(%{client_id: client_id, app_id: app_id, restricted: restricted, encoding: encoding})
+    |> craft_response(%{app_id: app_id, client_id: client_id, restricted: restricted, encoding: encoding})
   end
 
   def handle_dispatch(socket, payload) do
