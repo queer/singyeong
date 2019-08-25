@@ -14,6 +14,7 @@ defmodule Singyeong.Application do
     children = [
       # Task supervisor
       {Task.Supervisor, name: Singyeong.TaskSupervisor},
+      {DynamicSupervisor, strategy: :one_for_one, name: Singyeong.MetadataQueueSupervisor},
     ]
     # Add clustering children if needed
     children =

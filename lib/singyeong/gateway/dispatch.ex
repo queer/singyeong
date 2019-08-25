@@ -41,7 +41,12 @@ defmodule Singyeong.Gateway.Dispatch do
       {status, res} = Store.validate_metadata data
       case status do
         :ok ->
-          Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
+          app_id = socket.assigns[:app_id]
+          client_id = socket.assigns[:client_id]
+          # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
+          queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+          pid = Process.whereis queue_worker
+          send pid, {:queue, app_id, client_id, res}
           {:ok, []}
         :error ->
           {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}

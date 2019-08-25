@@ -7,6 +7,9 @@ defmodule SingyeongWeb.ProxyControllerTest do
 
   doctest Singyeong.Proxy
 
+  @app_id "test-app-1"
+  @client_id "client-1"
+
   setup do
     MnesiaStore.initialize()
 
@@ -17,12 +20,12 @@ defmodule SingyeongWeb.ProxyControllerTest do
     {:ok, socket: socket(SingyeongWeb.Transport.Raw, nil, [])}
   end
 
-  defp identify(socket, app_id, client_id) do
+  defp identify(socket, @app_id, @client_id) do
     Gateway.handle_identify socket, %{
       op: Gateway.opcodes_name()[:identify],
       d: %{
-        "client_id" => client_id,
-        "application_id" => app_id,
+        "client_id" => @client_id,
+        "application_id" => @app_id,
         "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"],
@@ -32,18 +35,15 @@ defmodule SingyeongWeb.ProxyControllerTest do
     }
   end
 
+  defp close_socket(socket) do
+    Gateway.cleanup socket, @app_id, @client_id
+  end
+
   test "that proxying GET requests works", %{socket: socket} do
     if System.get_env("DISABLE_PROXY_TESTS") do
       assert true
     else
-      # Serious stuff
-
-      # IDENTIFY with the gateway so that we have everything we need set up
-      # This is tested in another location
-      app_id = "test-app-1"
-      client_id = "client-1"
-
-      identify socket, app_id, client_id
+      identify socket, @app_id, @client_id
 
       proxy_request = %{
         "method" => "GET",
@@ -53,7 +53,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
           "Content-Type" => "application/json",
         },
         "query" => %{
-          "application" => app_id,
+          "application" => @app_id,
           "ops" => [],
         }
       }
@@ -71,6 +71,8 @@ defmodule SingyeongWeb.ProxyControllerTest do
         |> json_response(200)
 
       assert %{} == res
+
+      close_socket socket
     end
   end
 
@@ -82,10 +84,10 @@ defmodule SingyeongWeb.ProxyControllerTest do
 
       # IDENTIFY with the gateway so that we have everything we need set up
       # This is tested in another location
-      app_id = "test-app-1"
-      client_id = "client-1"
+      @app_id = "test-app-1"
+      @client_id = "client-1"
 
-      identify socket, app_id, client_id
+      identify socket, @app_id, @client_id
 
       proxy_body = %{
         "test" => "key",
@@ -101,7 +103,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
           "Content-Type" => "application/json",
         },
         "query" => %{
-          "application" => app_id,
+          "application" => @app_id,
           "ops" => [],
         }
       }
@@ -119,6 +121,8 @@ defmodule SingyeongWeb.ProxyControllerTest do
         |> json_response(200)
 
       assert proxy_body == res
+
+      close_socket socket
     end
   end
 end

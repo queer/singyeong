@@ -3,6 +3,9 @@ defmodule Singyeong.GatewayTest do
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
 
+  @app_id "test-app-1"
+  @client_id "client-1"
+
   setup do
     Singyeong.MnesiaStore.initialize()
 
@@ -14,17 +17,14 @@ defmodule Singyeong.GatewayTest do
   end
 
   test "that identify works" do
-    client_id = "client-1"
-    app_id = "test-app-1"
-
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "json"}
 
     incoming_payload =
       %{
         "op" => Gateway.opcodes_name()[:identify],
         "d" => %{
-          "client_id" => client_id,
-          "application_id" => app_id,
+          "client_id" => @client_id,
+          "application_id" => @app_id,
           "reconnect" => false,
           "auth" => nil,
           "tags" => ["test", "webscale"],
@@ -38,7 +38,7 @@ defmodule Singyeong.GatewayTest do
     } =
       Gateway.handle_incoming_payload socket, {:text, Jason.encode!(incoming_payload)}
 
-    assert %{client_id: client_id, app_id: app_id, restricted: false, encoding: "json"} == assigns
+    assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "json"} == assigns
 
     # Destructure it
     {:text, response} = response
@@ -48,22 +48,21 @@ defmodule Singyeong.GatewayTest do
     # Actually test it
     assert is_map response.d
     d = response.d
-    assert client_id == d["client_id"]
+    assert @client_id == d["client_id"]
     refute d["restricted"]
+
+    Gateway.cleanup socket, @app_id, @client_id
   end
 
   test "that ETF identify works" do
-    client_id = "client-1"
-    app_id = "test-app-1"
-
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "etf"}
 
     incoming_payload =
       %{
         "op" => Gateway.opcodes_name()[:identify],
         "d" => %{
-          "client_id" => client_id,
-          "application_id" => app_id,
+          "client_id" => @client_id,
+          "application_id" => @app_id,
           "reconnect" => false,
           "auth" => nil,
           "tags" => ["test", "webscale"],
@@ -78,7 +77,7 @@ defmodule Singyeong.GatewayTest do
     } =
       Gateway.handle_incoming_payload socket, {:binary, :erlang.term_to_binary(incoming_payload)}
 
-    assert %{client_id: client_id, app_id: app_id, restricted: false, encoding: "etf"} == assigns
+    assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "etf"} == assigns
 
     # Destructure it
     {:text, response} = response
@@ -88,20 +87,19 @@ defmodule Singyeong.GatewayTest do
     # Actually test it
     assert is_map response.d
     d = response.d
-    assert client_id == d["client_id"]
+    assert @client_id == d["client_id"]
     refute d["restricted"]
+
+    Gateway.cleanup socket, @app_id, @client_id
   end
 
   test "that msgpack identify works" do
-    client_id = "client-1"
-    app_id = "test-app-1"
-
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "msgpack"}
     incoming_payload = %{
       "op" => Gateway.opcodes_name()[:identify],
       "d" => %{
-        "client_id" => client_id,
-        "application_id" => app_id,
+        "client_id" => @client_id,
+        "application_id" => @app_id,
         "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"],
@@ -116,6 +114,8 @@ defmodule Singyeong.GatewayTest do
     } =
       Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(incoming_payload)}
 
-    assert %{client_id: client_id, app_id: app_id, restricted: false, encoding: "msgpack"} == assigns
+    assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "msgpack"} == assigns
+
+    Gateway.cleanup socket, @app_id, @client_id
   end
 end
