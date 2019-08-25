@@ -17,7 +17,6 @@ defmodule Singyeong.DispatchTest do
   test "that SEND dispatch query to a socket works", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    # Who needs nice TDD anyway amirite :^)
     client_id = "client-1"
     app_id = "test-app-1"
     Gateway.handle_identify socket, %{
