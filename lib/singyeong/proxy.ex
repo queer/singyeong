@@ -164,12 +164,21 @@ defmodule Singyeong.Proxy do
     case ip_status do
       :ok ->
         encoded_body = encode_body request.body
+        dest_with_protocol =
+          case target_ip do
+            "http://" <> _ip_or_domain ->
+              target_ip
+            "https://" <> _ip_or_domain ->
+              target_ip
+            _ ->
+              "http://#{target_ip}"
+          end
         {status, response} = HTTPoison.request(
           method_atom,
-          "http://#{target_ip}/#{request.route}",
+          "#{dest_with_protocol}/#{request.route}",
           encoded_body,
           headers,
-          [timeout: 15_000]
+          [timeout: 5_000]
         )
         case status do
           :ok ->

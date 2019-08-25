@@ -110,8 +110,7 @@ The initial payload you receive after connecting to 신경.
 
 ### identify
 
-The payload you send to tell the gateway who you are ~~before it disconnects 
-you~~.
+The payload you send to tell the gateway who you are.
 ```Javascript
 {
   // A unique client ID. If there is already a *healthy* client with this 
@@ -135,7 +134,12 @@ you~~.
   // ie. allowing other services to discover your app id without needing to
   // hardcode it. 
   // Clients that are placed into restricted mode are NOT able to set tags.
-  "tags": ["thing", "cool", "webscale"]
+  "tags": ["thing", "cool", "webscale"],
+  // Optional value. If you specify an IP here, the server will use this as the
+  // client's IP for HTTP request proxying. This can be useful for a case where
+  // you may want to have proxied requests to the client sent somewhere else.
+  // This field is only applicable to non-restricted clients.
+  "ip": "1.2.3.4"
 }
 ```
 
