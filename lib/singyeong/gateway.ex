@@ -316,6 +316,10 @@ defmodule Singyeong.Gateway do
   end
 
   defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
+    # Start metadata update queue worker
+    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
+      {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
@@ -323,10 +327,6 @@ defmodule Singyeong.Gateway do
       Store.set_tags app_id, client_id, tags
       # Update ip
       Store.add_socket_ip app_id, client_id, ip
-      # Start metadata update queue worker
-      queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
-      DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
-        {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
