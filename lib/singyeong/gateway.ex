@@ -275,6 +275,7 @@ defmodule Singyeong.Gateway do
     Store.delete_client app_id, client_id
     Store.remove_socket app_id, client_id
     Store.remove_socket_ip app_id, client_id
+    Store.delete_tags app_id, client_id
 
     queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
     pid = Process.whereis queue_worker

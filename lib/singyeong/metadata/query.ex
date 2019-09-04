@@ -55,7 +55,7 @@ defmodule Singyeong.Metadata.Query do
           Enum.empty?(res) and q["optional"] == true ->
             # If the query is optional, and the query returned no nodes, just return
             # all nodes and let the dispatcher figure it out
-            clients
+            {application, clients}
           not Enum.empty?(res) and q["key"] != nil ->
             # If the query is "consistently hashed", do the best we can to
             # ensure that it ends up on the same target client each time
@@ -65,10 +65,10 @@ defmodule Singyeong.Metadata.Query do
             idx = rem hash, length(res)
             # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
             # target client will always be the same
-            [Enum.at(res, idx)]
+            {application, [Enum.at(res, idx)]}
           true ->
             # Otherwise, just give back exactly what was asked for, even if it's nothing
-            res
+            {application, res}
         end
     end
   end
