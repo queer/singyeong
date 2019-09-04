@@ -16,7 +16,7 @@ defmodule Singyeong.Gateway.Dispatch do
   # TODO: Config option for this
   @max_send_tries 3
   # TODO: Config option for this too
-  @retry_backoff_ms 5_000
+  @retry_backoff_ms 1_000
 
   ## DISPATCH EVENTS ##
 
@@ -84,7 +84,7 @@ defmodule Singyeong.Gateway.Dispatch do
     targets = Cluster.query target
     valid_targets =
       targets
-      |> Enum.filter(fn({_, res}) ->
+      |> Enum.filter(fn({_, {_, res}}) ->
         res != []
       end)
       |> Enum.into(%{})
@@ -92,6 +92,7 @@ defmodule Singyeong.Gateway.Dispatch do
     matched_client_ids =
       valid_targets
       |> Map.values
+      |> Enum.map(fn({_, res}) -> res end)
       |> Enum.concat
 
     unless Enum.empty?(matched_client_ids) do
@@ -103,9 +104,10 @@ defmodule Singyeong.Gateway.Dispatch do
       }
 
       if broadcast do
-        for {node, clients} <- valid_targets do
+        for {node, {target_application, clients}} <- valid_targets do
+          Logger.debug "Broadcasting message to #{target_application}:#{inspect clients} on node #{node}"
           send_fn = fn ->
-            MessageDispatcher.send_dispatch target["application"], clients, out
+            MessageDispatcher.send_dispatch target_application, clients, out
           end
 
           case node do
@@ -117,11 +119,12 @@ defmodule Singyeong.Gateway.Dispatch do
         end
       else
         # Pick random node
-        {node, clients} = Enum.random valid_targets
+        {node, {target_application, clients}} = Enum.random valid_targets
         # Pick a random client from that node's targets
-        target_clients = [Enum.random(clients)]
+        target_client = [Enum.random(clients)]
+        Logger.debug "Sending message to #{target_application}:#{target_client} on node #{node}"
         send_fn = fn ->
-          MessageDispatcher.send_dispatch target["application"], target_clients, out
+          MessageDispatcher.send_dispatch target_application, target_client, out
         end
         case node do
           ^fake_local_node ->

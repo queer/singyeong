@@ -489,7 +489,7 @@ defmodule Singyeong.MnesiaStore do
       # Don't even bother if there's no tags to search for
       {:ok, []}
     else
-      sorted_tags = Enum.sort tags
+      tags_set = Enum.into tags, %MapSet{}
       res =
         :mnesia.transaction(fn ->
           apps_with_tags =
@@ -534,7 +534,7 @@ defmodule Singyeong.MnesiaStore do
           apps_with_tags
           |> Map.keys
           |> Enum.filter(fn(app_id) ->
-            sorted_tags == Enum.sort(apps_with_tags[app_id])
+            MapSet.subset? tags_set, Enum.into(apps_with_tags[app_id], %MapSet{})
           end)
         end)
 

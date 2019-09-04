@@ -120,22 +120,22 @@ defmodule Singyeong.Proxy do
         targets = Cluster.query request.query
         valid_targets =
           targets
-          |> Enum.filter(fn({_, res}) ->
+          |> Enum.filter(fn({_, {_, res}}) ->
             res != []
           end)
           |> Enum.into(%{})
         matched_client_ids =
           valid_targets
           |> Map.values
+          |> Enum.map(fn({_, res}) -> res end)
           |> Enum.concat
         if Enum.empty?(matched_client_ids) do
           {:error, "no matches"}
         else
-          application = request.query["application"]
           # Pick a random node
-          {node, clients} = Enum.random valid_targets
+          {node, {target_application, clients}} = Enum.random valid_targets
           client_id = Enum.random clients
-          Task.await run_proxied_request(node, application, client_id, request, headers)
+          Task.await run_proxied_request(node, target_application, client_id, request, headers)
         end
     end
   end
