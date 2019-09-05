@@ -34,7 +34,7 @@ defmodule Singyeong.Metadata.Query do
       end
     case application do
       nil ->
-        []
+        {nil, []}
       _ ->
         allow_restricted = q["restricted"]
         ops =
