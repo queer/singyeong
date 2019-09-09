@@ -19,7 +19,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
       # doesn't store this as part of the queue itself, but rather recomputes
       # it each time you call :queue.len/1.
       |> Map.put(:queue_size, 0)
-    Process.send_after self(), :process, 1
+    Process.send_after self(), :process, 1000
     {:ok, state}
   end
 
@@ -30,6 +30,11 @@ defmodule Singyeong.Metadata.UpdateQueue do
   end
 
   def handle_info(:process, state) do
+    new_state = process_updates state
+    {:noreply, new_state}
+  end
+
+  defp process_updates(state) do
     if state[:queue_size] > 0 do
       res = :queue.out state[:queue]
       {new_queue, queue_size} =
@@ -49,11 +54,9 @@ defmodule Singyeong.Metadata.UpdateQueue do
             # queue itself. This *shouldn't* happen, but who knows.
             {state[:queue], state[:queue_size]}
         end
-      send self(), :process
-      {:noreply, %{state | queue: new_queue, queue_size: queue_size}}
+      process_updates(%{state | queue: new_queue, queue_size: queue_size})
     else
-      send self(), :process
-      {:noreply, state}
+      state
     end
   end
 
