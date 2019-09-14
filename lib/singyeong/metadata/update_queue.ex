@@ -31,6 +31,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
 
   def handle_info(:process, state) do
     new_state = process_updates state
+    Process.send_after self(), :process, 1000
     {:noreply, new_state}
   end
 
