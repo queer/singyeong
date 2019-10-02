@@ -1,5 +1,10 @@
 defmodule Singyeong.Metadata.UpdateQueue do
   @moduledoc """
+  A non-WS-pid worker that processes metadata updates for connected clients.
+  A metadata queue worker will only process 50 updates per second, at most, for
+  the sake of not abusing the CPU. This means that, if a single client is
+  sending many metadata updates at once, said updates may not be visible for
+  several seconds.
   """
 
   alias Singyeong.MnesiaStore, as: Store
@@ -30,13 +35,13 @@ defmodule Singyeong.Metadata.UpdateQueue do
   end
 
   def handle_info(:process, state) do
-    new_state = process_updates state
+    new_state = process_updates state, 50
     Process.send_after self(), :process, 1000
     {:noreply, new_state}
   end
 
-  defp process_updates(state) do
-    if state[:queue_size] > 0 do
+  defp process_updates(state, count) do
+    if state[:queue_size] > 0 and count > 0 do
       res = :queue.out state[:queue]
       {new_queue, queue_size} =
         case res do
@@ -55,7 +60,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
             # queue itself. This *shouldn't* happen, but who knows.
             {state[:queue], state[:queue_size]}
         end
-      process_updates(%{state | queue: new_queue, queue_size: queue_size})
+      process_updates %{state | queue: new_queue, queue_size: queue_size}, count - 1
     else
       state
     end
