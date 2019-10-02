@@ -177,13 +177,17 @@ figure out how to get it where it needs to go.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
-I like Elixir :thumbsup: I'm not amazing at it, but I like it.
+I like Elixir :thumbsup:
 
 ### Why using Phoenix? Why not just use Cowboy directly?
 
 Phoenix's socket abstraction is really really useful. Also I didn't want to 
 have to build eg. HTTP routing from scratch; Phoenix does a great job of it
-already so no need to reinvent the wheel. :meowupsidedown:
+already so no need to reinvent the wheel. While it is possible to use Plug or a
+similar library on top of Cowboy or another HTTP server, I just liked the
+convenience of getting it all out-of-the-box with Phoenix and being able to
+focus on writing my application-level code instead of setting up a ton of weird
+plumbing.
 
 ## How do I write my own client for it? How does it work internally? etc.
 
