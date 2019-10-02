@@ -409,3 +409,8 @@ queries.
 responsible for caching whatever metadata needs to be set so that it can be
 restored on reconnect, as a client's metadata is always cleared when it 
 disconnects.
+
+**Client metadata updates are applied lazily.** This is done to make sure that 
+a single client's connection PID cannot be crushed by a flood of updates all at
+once. Currently, a single metadata queue worker will process 50 updates/second,
+and anything beyond that is left in the queue to be processed later.
