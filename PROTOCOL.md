@@ -385,6 +385,14 @@ value to `true`:
 }
 ```
 
+### Why invent a new-ish query language?
+
+I didn't want to tie the querying functionality to any specific datastore, 
+didn't want to invent something silly like a new SQL dialect, and also had the
+constraint of clients that connect not necessarily having consistent metadata
+layouts or similar, so anything more complicated than a key-value store becomes
+rather difficult to work with in terms of actually storing and retrieving data.
+
 ## 신경 metadata store
 
 신경 stores metadata in Mnesia. By storing metadata in 신경 you're able to 
