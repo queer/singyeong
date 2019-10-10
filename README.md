@@ -1,6 +1,6 @@
 # 신경
 
-[![CircleCI](https://circleci.com/gh/queer/singyeong.svg?style=svg)](https://circleci.com/gh/queer/singyeong) [![codecov](https://codecov.io/gh/queer/singyeong/branch/master/graph/badge.svg)](https://codecov.io/gh/queer/singyeong) [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-queer%2Fsingyeong-%23007ec6)](https://hub.docker.com/r/queer/singyeong/tags)
+[![CircleCI](https://circleci.com/gh/queer/singyeong.svg?style=svg)](https://circleci.com/gh/queer/singyeong) [![codecov](https://codecov.io/gh/queer/singyeong/branch/master/graph/badge.svg)](https://codecov.io/gh/queer/singyeong) [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-queer%2Fsingyeong-%23007ec6)](https://hub.docker.com/r/queer/singyeong/tags) [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=queer/singyeong)](https://dependabot.com)
 
 Singyeong (신경) is the nerve-center of your microservices-based application,
 providing a metadata-oriented message bus for IPC, service discovery, dynamic
