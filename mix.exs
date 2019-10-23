@@ -53,7 +53,7 @@ defmodule Singyeong.Mixfile do
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.11.2", only: :test},
+      {:excoveralls, "~> 0.12.0", only: :test},
     ]
   end
 end
