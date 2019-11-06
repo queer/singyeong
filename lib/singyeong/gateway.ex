@@ -317,23 +317,18 @@ defmodule Singyeong.Gateway do
   end
 
   defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
-    # Start metadata update queue worker
     queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
       {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
-      # Update tags
       Store.set_tags app_id, client_id, tags
-      # Update ip
       Store.add_socket_ip app_id, client_id, ip
     end
     # Last heartbeat time is the current time to avoid incorrect disconnects
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
-    # Update restriction status for queries to take advantage of
     Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
-    # Update encoding status for queries to take advantage of
     Store.update_metadata app_id, client_id, Metadata.encoding(), encoding
     # Register with pubsub
     MessageDispatcher.register_socket app_id, client_id, socket
@@ -342,7 +337,6 @@ defmodule Singyeong.Gateway do
     else
       Logger.info "[GATEWAY] Got new socket #{app_id}:#{client_id} @ #{ip}"
     end
-    # Respond to the client
     Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
     |> craft_response(%{app_id: app_id, client_id: client_id, restricted: restricted, encoding: encoding})
   end
