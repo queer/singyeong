@@ -28,7 +28,6 @@ defmodule Singyeong.MessageDispatcher do
     end)
     |> Enum.each(fn pid ->
       send pid, Payload.create_payload(:dispatch, %{
-        "sender" => msg["sender"],
         "nonce" => msg["nonce"],
         "payload" => msg["payload"],
       })
