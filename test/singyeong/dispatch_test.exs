@@ -50,7 +50,6 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         t: "SEND",
         d: %{
-          "sender" => sender,
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
@@ -64,7 +63,6 @@ defmodule Singyeong.DispatchTest do
     expected =
       %Payload{
         d: %{
-          "sender" => sender,
           "payload" => payload,
           "nonce" => nonce
         },
@@ -143,7 +141,6 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         t: "SEND",
         d: %{
-          "sender" => sender,
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
@@ -157,7 +154,6 @@ defmodule Singyeong.DispatchTest do
     expected =
       %Payload{
         d: %{
-          "sender" => sender,
           "payload" => payload,
           "nonce" => nonce
         },
