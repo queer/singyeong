@@ -67,7 +67,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
       res =
         conn
         |> put_req_header("content-type", "application/json")
-        |> post(Routes.proxy_path(conn, :proxy), Jason.encode!(proxy_request))
+        |> post(Routes.proxy_path(conn, :proxy), Jiffy.encode!(proxy_request))
         |> json_response(200)
 
       assert %{} == res
@@ -117,7 +117,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
       res =
         conn
         |> put_req_header("content-type", "application/json")
-        |> post(Routes.proxy_path(conn, :proxy), Jason.encode!(proxy_request))
+        |> post(Routes.proxy_path(conn, :proxy), Jiffy.encode!(proxy_request))
         |> json_response(200)
 
       assert proxy_body == res

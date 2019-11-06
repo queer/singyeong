@@ -198,13 +198,13 @@ defmodule Singyeong.Proxy do
   defp encode_body(body) do
     cond do
       is_map(body) ->
-        Jason.encode! body
+        Jiffy.encode! body
       is_list(body) ->
-        Jason.encode! body
+        Jiffy.encode! body
       is_binary(body) ->
         body
       true ->
-        Jason.encode! body
+        Jiffy.encode! body
     end
   end
 

@@ -19,8 +19,8 @@ config :logger, :console,
   metadata: [:user_id]
 
 config :phoenix, :format_encoders,
-  json: Jason
-config :phoenix, :json_library, Jason
+  json: Jiffy
+config :phoenix, :json_library, Jiffy
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -109,7 +109,7 @@ defmodule Singyeong.Gateway do
     payload = to_outgoing payload
     case encoding do
       "json" ->
-        {:ok, term} = Jason.encode payload
+        {:ok, term} = Jiffy.encode payload
         {:text, term}
       "msgpack" ->
         {:ok, term} = Msgpax.pack payload
@@ -138,7 +138,7 @@ defmodule Singyeong.Gateway do
       case {opcode, encoding} do
         {:text, "json"} ->
           # JSON can just be directly encoded
-          Jason.decode payload
+          Jiffy.decode payload
         {:binary, "msgpack"} ->
           # MessagePack has to be unpacked and error-checked
           {e, d} = Msgpax.unpack payload

@@ -26,7 +26,7 @@ defmodule SingyeongWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    json_decoder: Jason
+    json_decoder: Jiffy
 
   plug Plug.MethodOverride
   plug Plug.Head

@@ -6,7 +6,7 @@ defmodule Singyeong.EncodingTest do
   test "that JSON payload encoding works" do
     {:text, payload} = Payload.create_payload :dispatch, %{"test" => "test"}
     {:text, encoded} = Gateway.encode_real "json", payload
-    decoded = Jason.decode! encoded
+    decoded = Jiffy.decode! encoded
     assert payload.ts == decoded["ts"]
     assert payload.t == decoded["t"]
     assert payload.op == decoded["op"]

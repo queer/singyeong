@@ -36,7 +36,7 @@ defmodule Singyeong.GatewayTest do
       response: response,
       assigns: assigns
     } =
-      Gateway.handle_incoming_payload socket, {:text, Jason.encode!(incoming_payload)}
+      Gateway.handle_incoming_payload socket, {:text, Jiffy.encode!(incoming_payload)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "json"} == assigns
 
@@ -44,7 +44,7 @@ defmodule Singyeong.GatewayTest do
     {:text, response} = response
     # Payloads are only encoded at the moment of sending, so decoding here
     # isn't necessary
-    # response = Jason.decode! response
+    # response = Jiffy.decode! response
     # Actually test it
     assert is_map response.d
     d = response.d
@@ -83,7 +83,7 @@ defmodule Singyeong.GatewayTest do
     {:text, response} = response
     # Payloads are only encoded at the moment of sending, so decoding here
     # isn't necessary
-    # response = Jason.decode! response
+    # response = Jiffy.decode! response
     # Actually test it
     assert is_map response.d
     d = response.d

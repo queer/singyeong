@@ -27,7 +27,7 @@ defmodule Singyeong.Mixfile do
   def application do
     [
       mod: {Singyeong.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :jiffy]
     ]
   end
 
@@ -40,19 +40,19 @@ defmodule Singyeong.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:fuse, "~> 2.4"},
+      {:gettext, "~> 0.11"},
+      {:httpoison, "~> 1.6"},
+      {:jiffy, git: "https://github.com/gabixdev/jiffy"},
+      {:msgpax, "~> 2.2"},
+      {:nimble_parsec, "~> 0.5.0"},
       {:phoenix, "~> 1.4.1"},
       {:phoenix_pubsub, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
-      {:gettext, "~> 0.11"},
-      {:jason, "~> 1.1"},
-      {:nimble_parsec, "~> 0.5.0"},
-      {:fuse, "~> 2.4"},
-      {:httpoison, "~> 1.6"},
       {:redix, ">= 0.0.0"},
-      {:msgpax, "~> 2.2"},
 
-      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:excoveralls, "~> 0.12.0", only: :test},
     ]
   end

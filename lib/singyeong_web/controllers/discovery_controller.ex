@@ -18,7 +18,7 @@ defmodule SingyeongWeb.DiscoveryController do
       query =
         conn.query_params["q"]
         |> URI.decode
-        |> Jason.decode!
+        |> Jiffy.decode!
       results = Cluster.discover query
       results =
         results
