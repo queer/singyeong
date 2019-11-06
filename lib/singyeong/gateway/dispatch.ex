@@ -80,7 +80,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   defp send_to_clients(socket, data, tries, broadcast \\ true) do
-    %{"sender" => sender, "target" => target, "payload" => payload} = data
+    %{"target" => target, "payload" => payload} = data
     targets = Cluster.query target
     valid_targets =
       targets
@@ -98,7 +98,6 @@ defmodule Singyeong.Gateway.Dispatch do
     unless Enum.empty?(matched_client_ids) do
       fake_local_node = Cluster.fake_local_node()
       out = %{
-        "sender" => sender,
         "payload" => payload,
         "nonce" => data["nonce"]
       }

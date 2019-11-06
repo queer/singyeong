@@ -222,8 +222,6 @@ Available metadata types:
 When sending:
 ```Javascript
 {
-  // Client ID sending the payload
-  "sender": "your client id goes here",
   // Routing query for finding receiving nodes
   "target": "routing query goes here",
   // Optional nonce, used by clients for req-res queries
@@ -237,8 +235,6 @@ When sending:
 When receiving:
 ```Javascript
 {
-  // Client ID sending the payload
-  "sender": "your client id goes here",
   // Optional nonce, used by clients for req-res queries
   "nonce": "unique nonce",
   "payload": {
