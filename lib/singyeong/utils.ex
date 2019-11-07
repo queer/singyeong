@@ -8,4 +8,7 @@ defmodule Singyeong.Utils do
     # See https://github.com/devonestes/fast-elixir/blob/master/code/general/concat_vs_cons.exs
     List.flatten [a | b]
   end
+
+  # Check out https://stackoverflow.com/a/43881511
+  def module_compiled?(module), do: function_exported?(module, :__info__, 1)
 end
