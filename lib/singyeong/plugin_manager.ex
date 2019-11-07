@@ -5,6 +5,7 @@ defmodule Singyeong.PluginManager do
   @plugins "./plugins"
 
   def init do
+    _table = :ets.new :plugins, [:named_table, :set, read_concurrency: true]
     Logger.info "[PLUGIN] Loading plugins..."
     File.mkdir_p! @plugins
     plugin_mods =
@@ -17,12 +18,37 @@ defmodule Singyeong.PluginManager do
         |> String.ends_with?(".zip")
       end)
       |> Enum.map(fn file -> "#{@plugins}/#{file}" end)
-      |> Enum.flat_map(fn zip -> load_plugin(zip, false) end)
+      |> Enum.flat_map(fn zip -> load_plugin_from_zip(zip, false) end)
+    plugin_mods
+    |> Enum.each(fn mod ->
+      :ets.insert :plugins, {mod, mod}
+    end)
     Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
   end
 
-  # TODO: Allow blocking redefinition of already-defined modules
-  def load_plugin(path, allow_module_overrides \\ true) do
+  def plugins do
+    :plugins
+    |> :ets.tab2list
+    |> Enum.map(fn {mod, _} -> mod end)
+  end
+
+  def load_plugins do
+    plugins()
+    |> Enum.flat_map(fn plugin ->
+      load_result = plugin.load()
+      case load_result do
+        {:ok, children} when is_list(children) ->
+          children
+        {:ok, nil} ->
+          []
+        {:error, reason} ->
+          Logger.error "[PLUGIN] Failed loading plugin #{plugin}: #{reason}"
+          []
+      end
+    end)
+  end
+
+  defp load_plugin_from_zip(path, allow_module_overrides \\ true) do
     zip_name =
       path
       |> String.split("/")

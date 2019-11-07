@@ -36,6 +36,8 @@ defmodule Singyeong.Application do
 
         children
       end
+    # Load plugins and add their behaviours to the supervision tree
+    children = children ++ PluginManager.load_plugins()
     # Finally, add endpoint supervisor
     children = children ++ [supervisor(SingyeongWeb.Endpoint, [])]
 
