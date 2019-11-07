@@ -1,0 +1,93 @@
+defmodule Singyeong.PluginManager do
+  alias Singyeong.Utils
+  require Logger
+
+  @plugins "./plugins"
+
+  def init do
+    Logger.info "[PLUGIN] Loading plugins..."
+    File.mkdir_p! @plugins
+    plugin_mods =
+      @plugins
+      |> File.ls!
+      |> Enum.filter(fn file ->
+        # Only attempt to load ZIPs
+        file
+        |> String.downcase
+        |> String.ends_with?(".zip")
+      end)
+      |> Enum.map(fn file -> "#{@plugins}/#{file}" end)
+      |> Enum.flat_map(fn zip -> load_plugin(zip, false) end)
+    Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
+  end
+
+  # TODO: Allow blocking redefinition of already-defined modules
+  def load_plugin(path, allow_module_overrides \\ true) do
+    zip_name =
+      path
+      |> String.split("/")
+      |> Enum.reverse
+      |> hd
+    path = to_charlist path
+
+    Logger.debug "[PLUGIN] Loading plugin from: #{zip_name}"
+    {:ok, handle} = :zip.zip_open path, [:memory]
+    {:ok, dir_list} = :zip.zip_list_dir handle
+
+    dir_list
+    |> Enum.filter(fn tuple ->
+      kind =
+        tuple
+        |> Tuple.to_list
+        |> hd
+      kind == :zip_file
+    end)
+    |> Enum.filter(fn file ->
+      {:zip_file, file_name, _metadata, _, _, _} = file
+      file_name
+      |> to_string
+      |> String.ends_with?(".beam")
+    end)
+    |> Enum.map(fn file ->
+      {:zip_file, file_name, _metadata, _, _, _} = file
+      {:ok, {zip_file_name, zip_data}} = :zip.zip_get file_name, handle
+
+      beam_file_name =
+        zip_file_name
+        |> to_string
+        |> String.split("/")
+        |> Enum.reverse
+        |> hd
+      module_name =
+        beam_file_name
+        |> String.replace_trailing(".beam", "")
+        |> String.to_atom
+
+      can_load? =
+        if allow_module_overrides do
+          true
+        else
+          not Utils.module_compiled? module_name
+        end
+
+      if can_load? do
+        # We convert back to a charlist here because :code doesn't take binaries
+        beam_file_name = to_charlist beam_file_name
+        Logger.debug "[PLUGIN] Loaded BEAM file #{beam_file_name}, #{byte_size(zip_data)} bytes"
+        :code.load_binary module_name, beam_file_name, zip_data
+        Logger.debug "[PLUGIN] Loaded new module: #{module_name}"
+        module_name
+      else
+        Logger.warn "[PLUGIN] Not redefining already-existing module #{module_name}"
+        nil
+      end
+    end)
+    # The previous step returns nil if it can't redefine a mod, so we have to
+    # make sure that we filter that out
+    |> Enum.filter(fn mod -> not is_nil(mod) end)
+    # Scan for modules implementing Singyeong.Plugin
+    |> Enum.map(fn mod -> {mod, mod.module_info()[:attributes][:behaviour]} end)
+    |> Enum.filter(fn {_, behaviours} -> behaviours != nil and Singyeong.Plugin in behaviours end)
+    |> Enum.map(fn {mod, _} -> mod end)
+  end
+end

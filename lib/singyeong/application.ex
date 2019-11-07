@@ -1,14 +1,16 @@
 defmodule Singyeong.Application do
   @moduledoc false
 
-  alias Singyeong.Env
   use Application
+  alias Singyeong.{Env, PluginManager}
   require Logger
 
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
     import Supervisor.Spec
+
+    PluginManager.init()
 
     # Define workers and child supervisors to be supervised
     children = [

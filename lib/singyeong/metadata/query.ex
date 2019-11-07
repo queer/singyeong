@@ -48,7 +48,7 @@ defmodule Singyeong.Metadata.Query do
         {:ok, clients} = Store.get_clients application
         res =
           clients
-          |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
+          |> Enum.map(fn(client) -> {client, reduce_query(application, client, ops)} end)
           |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
           |> Enum.map(fn({client, _}) -> client end)
         cond do
