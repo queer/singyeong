@@ -55,7 +55,7 @@ defmodule Singyeong.Mixfile do
       {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.0", only: :test},
 
-      {:singyeong_plugin, git: "git@github.com:queer/singyeong_plugin.git"},
+      {:singyeong_plugin, github: "queer/singyeong_plugin"},
     ]
   end
 end
