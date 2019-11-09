@@ -84,6 +84,8 @@ defmodule SingyeongWeb.Transport.Raw do
       {:text, payload} ->
         {:push, Gateway.encode(socket, payload), {channels, socket}}
       {:close, {:text, payload}} ->
+        # My god, why can we not specify custom close codes?
+        send self(), {:stop, "closed by server"}
         {:push, Gateway.encode(socket, payload), {channels, socket}}
       [] ->
         {:ok, {channels, socket}}
@@ -97,6 +99,10 @@ defmodule SingyeongWeb.Transport.Raw do
   def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
     new_payload = Gateway.encode socket, payload
     {:push, new_payload, state}
+  end
+
+  def handle_info({:stop, reason} = _msg, state) do
+    {:stop, reason, state}
   end
 
   def handle_info(_, state) do
