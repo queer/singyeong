@@ -26,7 +26,8 @@ defmodule Singyeong.PluginManager do
       |> Enum.flat_map(fn zip -> load_plugin_from_zip(zip, false) end)
     plugin_mods
     |> Enum.each(fn mod ->
-      :ets.insert :plugins, {mod, mod}
+      Logger.debug "[PLUGIN] Loaded plugin #{mod} with manifest #{inspect mod.manifest(), pretty: true}"
+      :ets.insert :plugins, {mod, mod.manifest()}
     end)
     Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
   end
