@@ -38,6 +38,18 @@ defmodule Singyeong.PluginManager do
     |> Enum.map(fn {mod, _} -> mod end)
   end
 
+  @spec manifest(atom()) :: {:ok, Singyeong.Plugin.Manifest.t()} | {:error, :no_plugin}
+  def manifest(plugin) when is_atom(plugin) do
+    case :ets.lookup(:plugins, plugin) do
+      [] ->
+        {:error, :no_plugin}
+      [{^plugin, manifest}] ->
+        {:ok, manifest}
+      _ ->
+        {:error, :no_plugin}
+    end
+  end
+
   def load_plugins do
     plugins()
     |> Enum.flat_map(fn plugin ->
