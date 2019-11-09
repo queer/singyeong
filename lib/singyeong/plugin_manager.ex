@@ -1,4 +1,9 @@
 defmodule Singyeong.PluginManager do
+  @moduledoc """
+  The plugin manager is responsible for loading and setting up plugins at
+  runtime, as well as for providing an interface for interaction with plugins.
+  """
+
   alias Singyeong.Utils
   require Logger
 
