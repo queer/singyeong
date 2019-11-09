@@ -37,7 +37,6 @@ defmodule Singyeong.DispatchTest do
       t: nil,
     }
 
-    sender = @client_id
     target = %{
       "application" => @app_id,
       "optional" => true,
@@ -128,7 +127,6 @@ defmodule Singyeong.DispatchTest do
     Process.sleep 100
 
     # Actually do and test the dispatch
-    sender = @client_id
     target = %{
       "application" => @app_id,
       "optional" => true,
