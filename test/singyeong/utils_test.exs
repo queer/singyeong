@@ -8,7 +8,7 @@ defmodule Singyeong.UtilsTest do
   end
 
   test "that checking for modules existing works" do
-    assert Utils.module_compiled?(String)
-    refute Utils.module_compiled?(:this_module_does_not_exist)
+    assert Utils.module_loaded?(String)
+    refute Utils.module_loaded?(:this_module_does_not_exist)
   end
 end
