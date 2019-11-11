@@ -5,12 +5,12 @@ defmodule Singyeong.Gateway do
   preprocessing, authentication, and other things.
   """
 
-  alias Singyeong.Gateway.Payload
-  alias Singyeong.Gateway.Dispatch
-  alias Singyeong.Metadata
-  alias Singyeong.MnesiaStore, as: Store
-  alias Singyeong.MessageDispatcher
   alias Singyeong.Env
+  alias Singyeong.Gateway.{Dispatch, Payload}
+  alias Singyeong.MessageDispatcher
+  alias Singyeong.Metadata
+  alias Singyeong.Metadata.UpdateQueue
+  alias Singyeong.MnesiaStore, as: Store
   require Logger
 
   ## STATIC DATA ##
@@ -93,7 +93,8 @@ defmodule Singyeong.Gateway do
   @spec validate_encoding(binary()) :: boolean()
   def validate_encoding(encoding) when is_binary(encoding), do: encoding in @valid_encodings
 
-  @spec encode(Phoenix.Socket.t(), {any(), any()} | Singyeong.Gateway.Payload.t()) :: {:binary, any()} | {:text, binary()}
+  @spec encode(Phoenix.Socket.t(), {any(), any()} | Singyeong.Gateway.Payload.t())
+    :: {:binary, any()} | {:text, binary()}
   def encode(socket, data) do
     encoding = socket.assigns[:encoding] || "json"
     case data do
@@ -134,42 +135,7 @@ defmodule Singyeong.Gateway do
     encoding = socket.assigns[:encoding]
     restricted = socket.assigns[:restricted]
     # Decode incoming packets based on the state of the socket
-    {status, msg} =
-      case {opcode, encoding} do
-        {:text, "json"} ->
-          # JSON can just be directly encoded
-          Jason.decode payload
-        {:binary, "msgpack"} ->
-          # MessagePack has to be unpacked and error-checked
-          {e, d} = Msgpax.unpack payload
-          case e do
-            :ok ->
-              {:ok, d}
-            :error ->
-              # We convert the exception into smth more useful
-              {:error, Exception.message(d)}
-          end
-        {:binary, "etf"} ->
-          case restricted do
-            true ->
-              # If the client is restricted, but is sending us ETF, make it go
-              # away
-              {:error, "restricted clients may not use ETF"}
-            false ->
-              # If the client is NOT restricted and sends ETF, decode it.
-              # In this particular case, we trust that the client isn't stupid
-              # about the ETF it's sending
-              term = :erlang.binary_to_term payload
-              {:ok, term}
-            nil ->
-              # If we don't yet know if the client will be restricted, decode
-              # it in safe mode
-              term = :erlang.binary_to_term payload, [:safe]
-              {:ok, term}
-          end
-        _ ->
-          {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
-      end
+    {status, msg} = decode_payload opcode, payload, encoding, restricted
 
     case status do
       :ok ->
@@ -183,6 +149,48 @@ defmodule Singyeong.Gateway do
           end
         Payload.close_with_payload(:invalid, %{"error" => error_msg})
         |> craft_response
+    end
+  end
+
+  defp decode_payload(opcode, payload, encoding, restricted) do
+    case {opcode, encoding} do
+      {:text, "json"} ->
+        # JSON can just be directly encoded
+        Jason.decode payload
+      {:binary, "msgpack"} ->
+        # MessagePack has to be unpacked and error-checked
+        {e, d} = Msgpax.unpack payload
+        case e do
+          :ok ->
+            {:ok, d}
+          :error ->
+            # We convert the exception into smth more useful
+            {:error, Exception.message(d)}
+        end
+      {:binary, "etf"} ->
+        decode_etf payload, restricted
+      _ ->
+        {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
+    end
+  end
+
+  defp decode_etf(payload, restricted) do
+    case restricted do
+      true ->
+        # If the client is restricted, but is sending us ETF, make it go
+        # away
+        {:error, "restricted clients may not use ETF"}
+      false ->
+        # If the client is NOT restricted and sends ETF, decode it.
+        # In this particular case, we trust that the client isn't stupid
+        # about the ETF it's sending
+        term = :erlang.binary_to_term payload
+        {:ok, term}
+      nil ->
+        # If we don't yet know if the client will be restricted, decode
+        # it in safe mode
+        term = :erlang.binary_to_term payload, [:safe]
+        {:ok, term}
     end
   end
 
@@ -207,7 +215,8 @@ defmodule Singyeong.Gateway do
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
-        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], Metadata.last_heartbeat_time()
+        {:ok, last} = Store.get_metadata socket.assigns[:app_id],
+            socket.assigns[:client_id], Metadata.last_heartbeat_time()
         last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
@@ -277,7 +286,7 @@ defmodule Singyeong.Gateway do
     Store.remove_socket_ip app_id, client_id
     Store.delete_tags app_id, client_id
 
-    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    queue_worker = UpdateQueue.name app_id, client_id
     pid = Process.whereis queue_worker
     DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
   end
@@ -317,9 +326,9 @@ defmodule Singyeong.Gateway do
   end
 
   defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
-    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
-      {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
+      {UpdateQueue, %{name: queue_worker}}
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do

@@ -17,59 +17,68 @@ defmodule Singyeong.Metadata.Query do
   Given a query, execute it and return a list of client IDs.
   """
   def run_query(q) when is_map(q) do
-    application =
-      cond do
-        is_binary q["application"] ->
-          # Normal case, just return the application name
-          q["application"]
-        is_list q["application"] ->
-          # If we're passed a list, try to discover the application id
-          {:ok, matches} = Singyeong.Discovery.discover_service q["application"]
-          if matches == [] do
-            nil
-          else
-            # Pick the first application id that actually has all tags.
-            hd matches
-          end
-      end
+    application = query_app_target q
     case application do
       nil ->
         {nil, []}
       _ ->
-        allow_restricted = q["restricted"]
-        ops =
-          if allow_restricted do
-            # If we allow restricted-mode clients, just run the query as-is
-            q["ops"]
-          else
-            # Otherwise, explicitly require clients to not be restricted
-            Utils.fast_list_concat q["ops"], [%{"restricted" => %{"$eq" => false}}]
-          end
-        {:ok, clients} = Store.get_clients application
-        res =
-          clients
-          |> Enum.map(fn(client) -> {client, reduce_query(application, client, ops)} end)
-          |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
-          |> Enum.map(fn({client, _}) -> client end)
-        cond do
-          Enum.empty?(res) and q["optional"] == true ->
-            # If the query is optional, and the query returned no nodes, just return
-            # all nodes and let the dispatcher figure it out
-            {application, clients}
-          not Enum.empty?(res) and q["key"] != nil ->
-            # If the query is "consistently hashed", do the best we can to
-            # ensure that it ends up on the same target client each time
-            hash = :erlang.phash2 q["key"]
-            # :erlang.phash2/1 will return a value on the range 0..2^27-1, so
-            # we just modulus it and we're done
-            idx = rem hash, length(res)
-            # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
-            # target client will always be the same
-            {application, [Enum.at(res, idx)]}
-          true ->
-            # Otherwise, just give back exactly what was asked for, even if it's nothing
-            {application, res}
+        do_run_query q, application
+    end
+  end
+
+  defp query_app_target(query) when is_map(query) do
+    cond do
+      is_binary query["application"] ->
+        # Normal case, just return the application name
+        query["application"]
+      is_list query["application"] ->
+        # If we're passed a list, try to discover the application id
+        {:ok, matches} = Singyeong.Discovery.discover_service query["application"]
+        if matches == [] do
+          nil
+        else
+          # Pick the first application id that actually has all tags.
+          hd matches
         end
+      true ->
+        raise "query.application is neither binary nor list, which is invalid!"
+    end
+  end
+
+  defp do_run_query(query, application) do
+    allow_restricted = query["restricted"]
+    ops =
+      if allow_restricted do
+        # If we allow restricted-mode clients, just run the query as-is
+        query["ops"]
+      else
+        # Otherwise, explicitly require clients to not be restricted
+        Utils.fast_list_concat query["ops"], [%{"restricted" => %{"$eq" => false}}]
+      end
+    {:ok, clients} = Store.get_clients application
+    res =
+      clients
+      |> Enum.map(fn(client) -> {client, reduce_query(application, client, ops)} end)
+      |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
+      |> Enum.map(fn({client, _}) -> client end)
+    cond do
+      Enum.empty?(res) and query["optional"] == true ->
+        # If the query is optional, and the query returned no nodes, just return
+        # all nodes and let the dispatcher figure it out
+        {application, clients}
+      not Enum.empty?(res) and query["key"] != nil ->
+        # If the query is "consistently hashed", do the best we can to
+        # ensure that it ends up on the same target client each time
+        hash = :erlang.phash2 query["key"]
+        # :erlang.phash2/1 will return a value on the range 0..2^27-1, so
+        # we just modulus it and we're done
+        idx = rem hash, length(res)
+        # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
+        # target client will always be the same
+        {application, [Enum.at(res, idx)]}
+      true ->
+        # Otherwise, just give back exactly what was asked for, even if it's nothing
+        {application, res}
     end
   end
 

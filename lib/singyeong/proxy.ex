@@ -117,26 +117,30 @@ defmodule Singyeong.Proxy do
         {:error, "no body required but one given (you probably wanted to send nil)"}
       true ->
         # Otherwise just do whatever
-        targets = Cluster.query request.query
-        valid_targets =
-          targets
-          |> Enum.filter(fn({_, {_, res}}) ->
-            res != []
-          end)
-          |> Enum.into(%{})
-        matched_client_ids =
-          valid_targets
-          |> Map.values
-          |> Enum.map(fn({_, res}) -> res end)
-          |> Enum.concat
-        if Enum.empty?(matched_client_ids) do
-          {:error, "no matches"}
-        else
-          # Pick a random node
-          {node, {target_application, clients}} = Enum.random valid_targets
-          client_id = Enum.random clients
-          Task.await run_proxied_request(node, target_application, client_id, request, headers)
-        end
+        query_and_proxy request, headers
+    end
+  end
+
+  defp query_and_proxy(request, headers) do
+    targets = Cluster.query request.query
+    valid_targets =
+      targets
+      |> Enum.filter(fn({_, {_, res}}) ->
+        res != []
+      end)
+      |> Enum.into(%{})
+    matched_client_ids =
+      valid_targets
+      |> Map.values
+      |> Enum.map(fn({_, res}) -> res end)
+      |> Enum.concat
+    if Enum.empty?(matched_client_ids) do
+      {:error, "no matches"}
+    else
+      # Pick a random node
+      {node, {target_application, clients}} = Enum.random valid_targets
+      client_id = Enum.random clients
+      Task.await run_proxied_request(node, target_application, client_id, request, headers)
     end
   end
 
