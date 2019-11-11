@@ -66,7 +66,7 @@ defmodule Singyeong.PluginManager do
     end)
   end
 
-  defp load_plugin_from_zip(path, allow_module_overrides \\ true) do
+  def load_plugin_from_zip(path, allow_module_overrides \\ true) do
     zip_name =
       path
       |> String.split("/")
