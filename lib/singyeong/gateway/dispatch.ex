@@ -6,11 +6,10 @@ defmodule Singyeong.Gateway.Dispatch do
   outgoing messages can take reasonably use.
   """
 
-  alias Singyeong.Cluster
+  alias Singyeong.{Cluster, MessageDispatcher}
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Metadata.{Query, UpdateQueue}
   alias Singyeong.MnesiaStore, as: Store
-  alias Singyeong.Metadata.Query
-  alias Singyeong.MessageDispatcher
   require Logger
 
   # TODO: Config option for this
@@ -35,30 +34,29 @@ defmodule Singyeong.Gateway.Dispatch do
 
   # Note: Dispatch handlers will return a list of response frames
 
-  @spec handle_dispatch(Phoenix.Socket.t(), Payload.t()) :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
+  @spec handle_dispatch(Phoenix.Socket.t(), Payload.t())
+    :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do
-    try do
-      {status, res} = Store.validate_metadata data
-      case status do
-        :ok ->
-          app_id = socket.assigns[:app_id]
-          client_id = socket.assigns[:client_id]
-          # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
-          queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
-          pid = Process.whereis queue_worker
-          send pid, {:queue, app_id, client_id, res}
-          {:ok, []}
-        :error ->
-          {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
-      end
-    rescue
-      # Ideally we won't reach this case, but clients can't be trusted :<
-      e ->
-        formatted =
-          Exception.format(:error, e, __STACKTRACE__)
-        Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
+    {status, res} = Store.validate_metadata data
+    case status do
+      :ok ->
+        app_id = socket.assigns[:app_id]
+        client_id = socket.assigns[:client_id]
+        # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
+        queue_worker = UpdateQueue.name app_id, client_id
+        pid = Process.whereis queue_worker
+        send pid, {:queue, app_id, client_id, res}
+        {:ok, []}
+      :error ->
+        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
     end
+  catch
+    # Ideally we won't reach this case, but clients can't be trusted :<
+    e ->
+      formatted =
+        Exception.format(:error, e, __STACKTRACE__)
+      Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
+      {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
 
   def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
