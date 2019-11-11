@@ -10,5 +10,5 @@ defmodule Singyeong.Utils do
   end
 
   # Check out https://stackoverflow.com/a/43881511
-  def module_compiled?(module), do: function_exported?(module, :__info__, 1)
+  def module_loaded?(module), do: function_exported?(module, :__info__, 1)
 end

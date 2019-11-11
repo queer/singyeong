@@ -111,7 +111,7 @@ defmodule Singyeong.PluginManager do
         if allow_module_overrides do
           true
         else
-          not Utils.module_compiled? module_name
+          not Utils.module_loaded? module_name
         end
 
       if can_load? do
