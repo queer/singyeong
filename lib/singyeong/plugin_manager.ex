@@ -53,6 +53,9 @@ defmodule Singyeong.PluginManager do
       event in manifest.events
     end)
     |> Enum.map(fn {plugin, _} -> plugin end)
+    |> Enum.filter(fn plugin ->
+      function_exported? plugin, :handle_event, 2
+    end)
   end
 
   @spec manifest(atom()) :: {:ok, Singyeong.Plugin.Manifest.t()} | {:error, :no_plugin}
