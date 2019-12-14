@@ -32,6 +32,7 @@ defmodule Singyeong.PluginManager do
     Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
   end
 
+  @spec plugins() :: [atom()]
   def plugins do
     :plugins
     |> :ets.tab2list
