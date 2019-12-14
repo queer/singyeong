@@ -26,6 +26,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that a TEST dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("TEST")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
@@ -69,6 +70,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that a HALT dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("HALT")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
@@ -100,6 +102,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that an ERROR dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("ERROR")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
