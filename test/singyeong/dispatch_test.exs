@@ -67,7 +67,7 @@ defmodule Singyeong.DispatchTest do
         },
         op: op,
         ts: now,
-        t: nil,
+        t: "SEND",
       }
 
     Process.sleep 100
@@ -82,8 +82,9 @@ defmodule Singyeong.DispatchTest do
     {:messages, msgs} = :erlang.process_info self(), :messages
     {opcode, msg} = hd msgs
     assert :text == opcode
-    assert msg.d == expected.d
-    assert msg.op == expected.op
+    assert expected.d == msg.d
+    assert expected.op == msg.op
+    assert expected.t == msg.t
     # Really this should be within ~1ms or so, but there's a host of possible
     # things that could make it not work out.
     assert 10 > abs(msg.ts - expected.ts)
@@ -157,7 +158,7 @@ defmodule Singyeong.DispatchTest do
         },
         op: op,
         ts: now,
-        t: nil,
+        t: "SEND",
       }
 
     Process.sleep 100
@@ -172,8 +173,9 @@ defmodule Singyeong.DispatchTest do
     {:messages, msgs} = :erlang.process_info self(), :messages
     {opcode, msg} = hd msgs
     assert :text == opcode
-    assert msg.d == expected.d
-    assert msg.op == expected.op
+    assert expected.d == msg.d
+    assert expected.op == msg.op
+    assert expected.t == msg.t
     # Really this should be within ~1ms or so, but there's a host of possible
     # things that could make it not work out.
     assert 10 > abs(msg.ts - expected.ts)
