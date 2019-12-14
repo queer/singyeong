@@ -1,6 +1,6 @@
-defmodule Singyeong.PluginDispatchTest do
+defmodule Singyeong.Plugin.DispatchTest do
   use SingyeongWeb.ChannelCase
-  alias Singyeong.Gateway
+  alias Singyeong.{Gateway, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.Payload
 
@@ -22,6 +22,7 @@ defmodule Singyeong.PluginDispatchTest do
 
   @tag capture_log: true
   test "that a TEST dispatch works", %{socket: socket} do
+    assert Utils.module_loaded? SingyeongPluginTest
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -63,6 +64,7 @@ defmodule Singyeong.PluginDispatchTest do
 
   @tag capture_log: true
   test "that a HALT dispatch works", %{socket: socket} do
+    assert Utils.module_loaded? SingyeongPluginTest
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -91,6 +93,7 @@ defmodule Singyeong.PluginDispatchTest do
 
   @tag capture_log: true
   test "that an ERROR dispatch works", %{socket: socket} do
+    assert Utils.module_loaded? SingyeongPluginTest
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
