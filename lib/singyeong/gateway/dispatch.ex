@@ -113,16 +113,16 @@ defmodule Singyeong.Gateway.Dispatch do
   # credo:disable-for-next-line
   defp run_pipeline([plugin | rest], event, data, frames, undo_states) do
     case plugin.handle_event(event, data) do
-      {:next, plugin_frames, plugin_undo_state} when is_list(plugin_frames) and not is_nil(plugin_undo_state) ->
+      {:next, plugin_frames, plugin_undo_state} when not is_nil(plugin_frames) and not is_nil(plugin_undo_state) ->
         out_frames = Utils.fast_list_concat frames, plugin_frames
         out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
         run_pipeline rest, event, data, out_frames, out_undo_states
 
-      {:next, plugin_frames, nil} when is_list(plugin_frames) ->
+      {:next, plugin_frames, nil} when not is_nil(plugin_frames) ->
         out_frames = Utils.fast_list_concat frames, plugin_frames
         run_pipeline rest, event, data, out_frames, undo_states
 
-      {:next, plugin_frames} when is_list(plugin_frames) ->
+      {:next, plugin_frames} when not is_nil(plugin_frames) ->
         out_frames = Utils.fast_list_concat frames, plugin_frames
         run_pipeline rest, event, data, out_frames, undo_states
 
