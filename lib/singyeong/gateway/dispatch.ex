@@ -106,7 +106,11 @@ defmodule Singyeong.Gateway.Dispatch do
     end
   end
 
-  @spec run_pipeline([atom()], binary(), any(), [Payload.t()], [any()]) :: {:ok, [Payload.t()]} | :halted | {:error, binary(), [{atom(), any()}]}
+  @spec run_pipeline([atom()], binary(), any(), [Payload.t()], [any()]) ::
+          {:ok, [Payload.t()]}
+          | :halted
+          | {:error, binary(), [{atom(), any()}]}
+  # credo:disable-for-next-line
   defp run_pipeline([plugin | rest], event, data, frames, undo_states) do
     case plugin.handle_event(event, data) do
       {:next, plugin_frames, plugin_undo_state} when is_list(plugin_frames) and not is_nil(plugin_undo_state) ->
