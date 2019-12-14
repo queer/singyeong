@@ -13,10 +13,11 @@ For a high-level overview of how 신경 works, check out DESIGN.md.
 
 ### Clients:
 
-Language | Author         | Link
----------|----------------|-----------------------------------------------
-Java     | @queer         | https://github.com/queer/singyeong-java-client
-Python   | @PendragonLore | https://github.com/PendragonLore/shinkei
+Language   | Author         | Link
+-----------|----------------|-----------------------------------------------
+Java       | @queer         | https://github.com/queer/singyeong-java-client
+Python     | @PendragonLore | https://github.com/PendragonLore/shinkei
+Typescript | @gabixdev      | https://github.com/KyokoBot/node-singyeong-client
 
 ### Credit
 
@@ -56,6 +57,27 @@ COOKIE="very long and secure cookie that nobody can guess"
 # Everything needed to connect to Redis. 신경 uses Redis for cluster member
 # discovery.
 REDIS_DSN="redis://:password@127.0.0.1:6379/0"
+```
+
+### Custom config files
+
+Sometimes, it's necessary to include custom configuration files - such as for
+something that the environment variables don't cover. In such a case, you can
+add a `custom.exs` file to `config/` that includes the custom configuration you
+want / need.
+
+Example: Prove that custom config works:
+```Elixir
+use Mix.Config
+
+IO.puts "Loading some cool custom config :blobcatcooljazz:"
+```
+
+Example: Always have debug-level logging, even in prod mode:
+```Elixir
+use Mix.Config
+
+config :logger, level: :debug
 ```
 
 ## Clustering

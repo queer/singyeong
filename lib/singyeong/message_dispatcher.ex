@@ -14,7 +14,7 @@ defmodule Singyeong.MessageDispatcher do
     MnesiaStore.remove_socket socket.assigns[:app_id], socket.assigns[:client_id]
   end
 
-  def send_dispatch(app_id, clients, msg) do
+  def send_dispatch(app_id, clients, type, msg) do
     clients
     |> Enum.map(fn client ->
       {:ok, pid} = MnesiaStore.get_socket app_id, client
@@ -27,7 +27,7 @@ defmodule Singyeong.MessageDispatcher do
       Process.alive? pid
     end)
     |> Enum.each(fn pid ->
-      send pid, Payload.create_payload(:dispatch, %{
+      send pid, Payload.create_payload(:dispatch, type, %{
         "nonce" => msg["nonce"],
         "payload" => msg["payload"],
       })
