@@ -3,19 +3,20 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.Payload
+  alias Singyeong.MnesiaStore
   import Phoenix.Socket, only: [assign: 3]
 
   @client_id "client-1"
   @app_id "test-app-1"
 
   setup do
-    Singyeong.MnesiaStore.initialize()
+    MnesiaStore.initialize()
 
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
     on_exit "cleanup", fn ->
       Gateway.cleanup socket, @app_id, @client_id
-      Singyeong.MnesiaStore.shutdown()
+      MnesiaStore.shutdown()
     end
 
     {:ok, socket: socket}
