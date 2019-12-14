@@ -3,7 +3,7 @@
 #
 # This configuration file is loaded before any dependency and
 # is restricted to this project.
-import Config
+use Mix.Config
 
 # Configures the endpoint
 config :singyeong, SingyeongWeb.Endpoint,
