@@ -9,27 +9,40 @@ defmodule Singyeong.PluginManager do
 
   @plugins "./plugins"
 
-  def init do
-    _table = :ets.new :plugins, [:named_table, :set, read_concurrency: true]
+  def init(files \\ nil) do
+    unless :ets.whereis(:plugins) == :undefined do
+      shutdown()
+    end
+    _table = :ets.new :plugins, [:named_table, :public, :set, read_concurrency: true]
     Logger.info "[PLUGIN] Loading plugins..."
     File.mkdir_p! @plugins
     plugin_mods =
-      @plugins
-      |> File.ls!
-      |> Enum.filter(fn file ->
-        # Only attempt to load ZIPs
-        file
-        |> String.downcase
-        |> String.ends_with?(".zip")
-      end)
-      |> Enum.map(fn file -> "#{@plugins}/#{file}" end)
-      |> Enum.flat_map(fn zip -> load_plugin_from_zip(zip, false) end)
+      if files == nil do
+        @plugins
+        |> File.ls!
+        |> Enum.filter(fn file ->
+          # Only attempt to load ZIPs
+          file
+          |> String.downcase
+          |> String.ends_with?(".zip")
+        end)
+        |> Enum.map(fn file -> "#{@plugins}/#{file}" end)
+        |> Enum.flat_map(fn zip -> load_plugin_from_zip(zip, false) end)
+      else
+        files
+        |> Enum.flat_map(fn zip -> load_plugin_from_zip(zip, false) end)
+      end
+
     plugin_mods
     |> Enum.each(fn mod ->
       Logger.debug "[PLUGIN] Loaded plugin #{mod} with manifest #{inspect mod.manifest(), pretty: true}"
       :ets.insert :plugins, {mod, mod.manifest()}
     end)
     Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
+  end
+
+  def shutdown do
+    :ets.delete :plugins
   end
 
   @spec plugins() :: [atom()]
@@ -147,11 +160,10 @@ defmodule Singyeong.PluginManager do
         Logger.debug "[PLUGIN] Loaded BEAM file #{beam_file_name}, #{byte_size(zip_data)} bytes"
         :code.load_binary module_name, beam_file_name, zip_data
         Logger.debug "[PLUGIN] Loaded new module: #{module_name}"
-        module_name
       else
         Logger.warn "[PLUGIN] Not redefining already-existing module #{module_name}"
-        nil
       end
+      module_name
     end)
     # The previous step returns nil if it can't redefine a mod, so we have to
     # make sure that we filter that out

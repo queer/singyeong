@@ -1,6 +1,6 @@
 defmodule Singyeong.Plugin.DispatchTest do
-  use SingyeongWeb.ChannelCase
-  alias Singyeong.{Gateway, PluginManager, Utils}
+  use SingyeongWeb.ChannelCase, async: false
+  alias Singyeong.{Gateway, MnesiaStore, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.Payload
 
@@ -10,14 +10,13 @@ defmodule Singyeong.Plugin.DispatchTest do
   @dispatch_op Gateway.opcodes_name()[:dispatch]
 
   setup do
-    Singyeong.MnesiaStore.initialize()
-
-    PluginManager.load_plugin_from_zip "priv/test/plugin/singyeong_plugin_test.zip"
+    MnesiaStore.initialize()
+    PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
     on_exit "cleanup", fn ->
       Gateway.cleanup socket, @app_id, @client_id
-      Singyeong.MnesiaStore.shutdown()
+      MnesiaStore.shutdown()
     end
 
     {:ok, socket: socket}

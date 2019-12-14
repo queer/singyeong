@@ -1,9 +1,11 @@
 defmodule Singyeong.PluginManagerTest do
   use ExUnit.Case
-  alias Singyeong.Utils
+  alias Singyeong.{PluginManager, Utils}
 
+  @tag capture_log: true
   test "that plugin loading works" do
-    Singyeong.PluginManager.load_plugin_from_zip "priv/test/plugin/singyeong_plugin_test.zip"
+    PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
     assert Utils.module_loaded? SingyeongPluginTest
+    PluginManager.shutdown()
   end
 end
