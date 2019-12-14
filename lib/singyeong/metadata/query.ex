@@ -21,6 +21,7 @@ defmodule Singyeong.Metadata.Query do
     case application do
       nil ->
         {nil, []}
+
       _ ->
         do_run_query q, application
     end
@@ -31,6 +32,7 @@ defmodule Singyeong.Metadata.Query do
       is_binary query["application"] ->
         # Normal case, just return the application name
         query["application"]
+
       is_list query["application"] ->
         # If we're passed a list, try to discover the application id
         {:ok, matches} = Singyeong.Discovery.discover_service query["application"]
@@ -40,6 +42,7 @@ defmodule Singyeong.Metadata.Query do
           # Pick the first application id that actually has all tags.
           hd matches
         end
+
       true ->
         raise "query.application is neither binary nor list, which is invalid!"
     end
@@ -61,21 +64,55 @@ defmodule Singyeong.Metadata.Query do
       |> Enum.map(fn(client) -> {client, reduce_query(application, client, ops)} end)
       |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
       |> Enum.map(fn({client, _}) -> client end)
+
     cond do
       Enum.empty?(res) and query["optional"] == true ->
         # If the query is optional, and the query returned no nodes, just return
         # all nodes and let the dispatcher figure it out
         {application, clients}
+
       not Enum.empty?(res) and query["key"] != nil ->
+        allow_restricted = query["restricted"]
+        ops =
+          if allow_restricted do
+            # If we allow restricted-mode clients, just run the query as-is
+            query["ops"]
+          else
+            # Otherwise, explicitly require clients to not be restricted
+            Utils.fast_list_concat query["ops"], [%{"restricted" => %{"$eq" => false}}]
+          end
+
+        {:ok, clients} = Store.get_clients application
+        clients
+        |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
+        |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
+        |> Enum.map(fn({client, _}) -> client end)
+        |> convert_to_dispatch_form(application, clients, query)
+
+      true ->
+        # Otherwise, just give back whatever we've got, even if it was empty
+        {application, clients}
+    end
+  end
+
+  defp convert_to_dispatch_form(res, application, clients, q) do
+    cond do
+      Enum.empty?(res) and q["optional"] == true ->
+        # If the query is optional, and the query returned no nodes, just return
+        # all nodes and let the dispatcher figure it out
+        {application, clients}
+
+      not Enum.empty?(res) and q["key"] != nil ->
         # If the query is "consistently hashed", do the best we can to
         # ensure that it ends up on the same target client each time
-        hash = :erlang.phash2 query["key"]
+        hash = :erlang.phash2 q["key"]
         # :erlang.phash2/1 will return a value on the range 0..2^27-1, so
         # we just modulus it and we're done
         idx = rem hash, length(res)
         # **ASSUMING THAT THE RESULTS OF THE QUERY HAVE NOT CHANGED**, the
         # target client will always be the same
         {application, [Enum.at(res, idx)]}
+
       true ->
         # Otherwise, just give back exactly what was asked for, even if it's nothing
         {application, res}
@@ -83,20 +120,21 @@ defmodule Singyeong.Metadata.Query do
   end
 
   @spec reduce_query(binary(), binary(), list()) :: [boolean()]
-  defp reduce_query(app_id, client_id, q) when is_binary(client_id) and is_list(q) do
-    if Enum.empty?(q) do
+  defp reduce_query(app_id, client_id, ops) when is_binary(client_id) and is_list(ops) do
+    if Enum.empty?(ops) do
       # If there's nothing to query, just return true
       [true]
     else
       # Otherwise, actually run it and see what comes out
-      # q = [%{key: %{$eq: "value"}}]
+      # ops = [%{key: %{$eq: "value"}}]
       {:ok, metadata} = Store.get_metadata app_id, client_id
-      do_reduce_query metadata, q
+      do_reduce_query metadata, ops
     end
   end
+
   @spec do_reduce_query(map(), list()) :: [boolean()]
-  defp do_reduce_query(metadata, q) when is_map(metadata) and is_list(q) do
-    q
+  defp do_reduce_query(metadata, ops) when is_map(metadata) and is_list(ops) do
+    ops
     |> Enum.map(fn(x) ->
       # x = %{key: %{$eq: "value"}}
       key = Map.keys(x) |> hd
@@ -110,9 +148,11 @@ defmodule Singyeong.Metadata.Query do
         case e do
           {:ok, res} ->
             res
+
           {:error, _} ->
             # TODO: Figure out how to warn the initiating client about errors
             false
+
           _ ->
             false
         end

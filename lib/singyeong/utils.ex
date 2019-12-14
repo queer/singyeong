@@ -5,8 +5,18 @@ defmodule Singyeong.Utils do
 
   @spec fast_list_concat(list(), list()) :: list()
   def fast_list_concat(a, b) do
-    # See https://github.com/devonestes/fast-elixir/blob/master/code/general/concat_vs_cons.exs
-    List.flatten [a | b]
+    # See #72 for why this check is needed
+    cond do
+      a == nil ->
+        b
+
+      b == nil ->
+        a
+
+      true ->
+        # See https://github.com/devonestes/fast-elixir/blob/master/code/general/concat_vs_cons.exs
+        List.flatten [a | b]
+    end
   end
 
   # Check out https://stackoverflow.com/a/43881511
