@@ -1,6 +1,6 @@
 defmodule Singyeong.Plugin.DispatchTest do
   use SingyeongWeb.ChannelCase
-  alias Singyeong.{Gateway, Utils}
+  alias Singyeong.{Gateway, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.Payload
 
@@ -12,6 +12,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   setup do
     Singyeong.MnesiaStore.initialize()
 
+    PluginManager.load_plugin_from_zip "priv/test/plugin/singyeong_plugin_test.zip"
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
     on_exit "cleanup", fn ->
@@ -25,6 +26,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that a TEST dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins_for_event("TEST")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -67,6 +69,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that a HALT dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins_for_event("HALT")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -97,6 +100,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @tag capture_log: true
   test "that an ERROR dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins_for_event("ERROR")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
