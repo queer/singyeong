@@ -39,13 +39,31 @@ defmodule Singyeong.PluginManager do
     |> Enum.map(fn {mod, _} -> mod end)
   end
 
+  @spec plugins_with_manifest() :: Keyword.t(Singyeong.Plugin.Manifest.t())
+  def plugins_with_manifest do
+    :plugins
+    |> :ets.tab2list
+    |> Keyword.new
+  end
+
+  @spec plugins_for_event(binary()) :: [atom()]
+  def plugins_for_event(event) do
+    plugins_with_manifest()
+    |> Enum.filter(fn {_, manifest} ->
+      event in manifest.events
+    end)
+    |> Enum.map(fn {plugin, _} -> plugin end)
+  end
+
   @spec manifest(atom()) :: {:ok, Singyeong.Plugin.Manifest.t()} | {:error, :no_plugin}
   def manifest(plugin) when is_atom(plugin) do
     case :ets.lookup(:plugins, plugin) do
       [] ->
         {:error, :no_plugin}
+
       [{^plugin, manifest}] ->
         {:ok, manifest}
+
       _ ->
         {:error, :no_plugin}
     end
@@ -58,8 +76,10 @@ defmodule Singyeong.PluginManager do
       case load_result do
         {:ok, children} when is_list(children) ->
           children
+
         {:ok, nil} ->
           []
+
         {:error, reason} ->
           Logger.error "[PLUGIN] Failed loading plugin #{plugin}: #{reason}"
           []
@@ -73,6 +93,7 @@ defmodule Singyeong.PluginManager do
       |> String.split("/")
       |> Enum.reverse
       |> hd
+
     path = to_charlist path
 
     Logger.debug "[PLUGIN] Loading plugin from: #{zip_name}"
@@ -85,6 +106,7 @@ defmodule Singyeong.PluginManager do
         tuple
         |> Tuple.to_list
         |> hd
+
       kind == :zip_file
     end)
     |> Enum.filter(fn file ->
@@ -103,6 +125,7 @@ defmodule Singyeong.PluginManager do
         |> String.split("/")
         |> Enum.reverse
         |> hd
+
       module_name =
         beam_file_name
         |> String.replace_trailing(".beam", "")

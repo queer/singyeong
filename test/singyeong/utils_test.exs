@@ -5,6 +5,8 @@ defmodule Singyeong.UtilsTest do
   test "that list concat works" do
     assert [1, 2] == Utils.fast_list_concat([1], [2])
     refute [2, 1] == Utils.fast_list_concat([1], [2])
+    assert [1, 2] == Utils.fast_list_concat(1, [2])
+    assert [1, 2] == Utils.fast_list_concat([1], 2)
   end
 
   test "that checking for modules existing works" do
