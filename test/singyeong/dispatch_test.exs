@@ -11,7 +11,7 @@ defmodule Singyeong.DispatchTest do
   setup do
     Singyeong.MnesiaStore.initialize()
 
-    socket = socket(SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id])
+    socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
     on_exit "cleanup", fn ->
       Gateway.cleanup socket, @app_id, @client_id
