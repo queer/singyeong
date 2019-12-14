@@ -7,6 +7,8 @@ defmodule Singyeong.Plugin.DispatchTest do
   @client_id "client-1"
   @app_id "test-app-1"
 
+  @dispatch_op Gateway.opcodes_name()[:dispatch]
+
   setup do
     Singyeong.MnesiaStore.initialize()
 
@@ -41,12 +43,12 @@ defmodule Singyeong.Plugin.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: @dispatch_op,
         t: "TEST",
         d: "test data"
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    dispatch_op = Gateway.opcodes_name()[:dispatch]
     [frame] = frames
     {ws_op, frame} = frame
     assert :text = ws_op
@@ -56,7 +58,7 @@ defmodule Singyeong.Plugin.DispatchTest do
       t: t,
       ts: ts,
     } = frame
-    assert dispatch_op == op
+    assert @dispatch_op == op
     assert "TEST" == t
     assert "some cool test data" == d
     assert ts <= :os.system_time(:millisecond)
@@ -83,6 +85,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: @dispatch_op,
         t: "HALT",
         d: "test data"
       }
@@ -112,6 +115,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: @dispatch_op,
         t: "ERROR",
         d: "test data"
       }
