@@ -60,7 +60,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
-    {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data)})}
+    {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})}
   end
 
   def handle_dispatch(socket, %Payload{t: "SEND", d: data} = _payload) do
@@ -166,7 +166,7 @@ defmodule Singyeong.Gateway.Dispatch do
 
   defp send_to_clients(socket, data, tries, broadcast \\ true) do
     %{"target" => target, "payload" => payload} = data
-    targets = Cluster.query target
+    targets = Cluster.query target, broadcast
     valid_targets =
       targets
       |> Enum.filter(fn({_, {_, res}}) ->
