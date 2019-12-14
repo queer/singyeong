@@ -156,9 +156,9 @@ defmodule Singyeong.Cluster do
   Run a metadata query across the entire cluster, and return a mapping of nodes
   to matching client ids.
   """
-  def query(query) do
+  def query(query, broadcast \\ false) do
     run_clustered fn ->
-      Query.run_query query
+      Query.run_query query, broadcast
     end
   end
 

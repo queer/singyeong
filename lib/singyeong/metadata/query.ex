@@ -16,16 +16,16 @@ defmodule Singyeong.Metadata.Query do
   @doc """
   Given a query, execute it and return a list of client IDs.
   """
-  def run_query(q) when is_map(q) do
+  def run_query(query, broadcast) when is_map(query) do
     application =
       cond do
-        is_binary q["application"] ->
+        is_binary query["application"] ->
           # Normal case, just return the application name
-          q["application"]
+          query["application"]
 
-        is_list q["application"] ->
+        is_list query["application"] ->
           # If we're passed a list, try to discover the application id
-          {:ok, matches} = Singyeong.Discovery.discover_service q["application"]
+          {:ok, matches} = Singyeong.Discovery.discover_service query["application"]
           if matches == [] do
             nil
           else
@@ -37,14 +37,14 @@ defmodule Singyeong.Metadata.Query do
       nil ->
         {nil, []}
       _ ->
-        allow_restricted = q["restricted"]
+        allow_restricted = query["restricted"]
         ops =
           if allow_restricted do
             # If we allow restricted-mode clients, just run the query as-is
-            q["ops"]
+            query["ops"]
           else
             # Otherwise, explicitly require clients to not be restricted
-            Utils.fast_list_concat q["ops"], [%{"restricted" => %{"$eq" => false}}]
+            Utils.fast_list_concat query["ops"], [%{"restricted" => %{"$eq" => false}}]
           end
 
         {:ok, clients} = Store.get_clients application
@@ -52,21 +52,21 @@ defmodule Singyeong.Metadata.Query do
         |> Enum.map(fn(x) -> {x, reduce_query(application, x, ops)} end)
         |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
         |> Enum.map(fn({client, _}) -> client end)
-        |> convert_to_dispatch_form(application, clients, q)
+        |> convert_to_dispatch_form(application, clients, query, broadcast)
     end
   end
 
-  defp convert_to_dispatch_form(res, application, clients, q) do
+  defp convert_to_dispatch_form(res, application, clients, query, broadcast) do
     cond do
-      Enum.empty?(res) and q["optional"] == true ->
+      Enum.empty?(res) and query["optional"] == true ->
         # If the query is optional, and the query returned no nodes, just return
         # all nodes and let the dispatcher figure it out
         {application, clients}
 
-      not Enum.empty?(res) and q["key"] != nil ->
+      not Enum.empty?(res) and query["key"] != nil and not broadcast ->
         # If the query is "consistently hashed", do the best we can to
         # ensure that it ends up on the same target client each time
-        hash = :erlang.phash2 q["key"]
+        hash = :erlang.phash2 query["key"]
         # :erlang.phash2/1 will return a value on the range 0..2^27-1, so
         # we just modulus it and we're done
         idx = rem hash, length(res)
@@ -122,11 +122,12 @@ defmodule Singyeong.Metadata.Query do
   end
 
   @spec do_run_query(map(), binary(), map()) :: [query_op_result()]
-  defp do_run_query(metadata, key, q) when is_map(metadata) and is_map(q) do
+  defp do_run_query(metadata, key, query) when is_map(metadata) and is_map(query) do
     value = metadata[key]
-    Map.keys(q)
+    query
+    |> Map.keys
     |> Enum.map(fn(op_atom) ->
-      # > q = %{$eq: "value"}
+      # > query = %{$eq: "value"}
       # which ultimately becomes
       # > op_eq metadata, key, value
       #
@@ -141,8 +142,8 @@ defmodule Singyeong.Metadata.Query do
         # The value of the metadata
         value,
         # The incoming value to compare to the client's metadata,
-        # ie op(value, q[op_atom])
-        q[op_atom],
+        # ie op(value, query[op_atom])
+        query[op_atom],
       ]
       apply Singyeong.Metadata.Query, atom, args
     end)
