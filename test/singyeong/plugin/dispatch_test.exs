@@ -23,7 +23,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   end
 
   @tag capture_log: true
-  test "that a TEST dispatch works", %{socket: socket} do
+  test "that a :ok dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("TEST")
@@ -67,7 +67,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   end
 
   @tag capture_log: true
-  test "that a HALT dispatch works", %{socket: socket} do
+  test "that a :halt dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("HALT")
@@ -99,7 +99,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   end
 
   @tag capture_log: true
-  test "that an ERROR dispatch works", %{socket: socket} do
+  test "that an :error dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event("ERROR")
@@ -138,6 +138,92 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert "Error processing plugin event ERROR" == msg
     assert "Manually requested error" == reason
     assert [] == undo_errors
+    assert ts <= :os.system_time(:millisecond)
+  end
+
+  @tag capture_log: true
+  test "that an :error with undo dispatch works", %{socket: socket} do
+    assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins()
+    refute [] == PluginManager.plugins_for_event("ERROR_WITH_UNDO")
+    # IDENTIFY with the gateway so that we have everything we need set up
+    # This is tested in another location
+    Gateway.handle_identify socket, %{
+      op: Gateway.opcodes_name()[:identify],
+      d: %{
+        "client_id" => @client_id,
+        "application_id" => @app_id,
+        "reconnect" => false,
+        "auth" => nil,
+        "tags" => ["test", "webscale"]
+      },
+      ts: :os.system_time(:millisecond),
+      t: nil,
+    }
+
+    # Actually do and test the dispatch
+    dispatch =
+      %Payload{
+        op: @dispatch_op,
+        t: "ERROR_WITH_UNDO",
+        d: "test data"
+      }
+
+    {:error, frames} = Dispatch.handle_dispatch socket, dispatch
+    {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
+    assert Gateway.opcodes_name()[:invalid] == op
+    assert nil == t
+    %{
+      message: msg,
+      reason: reason,
+      undo_errors: undo_errors,
+    } = d
+    assert "Error processing plugin event ERROR_WITH_UNDO" == msg
+    assert "Manually requested error" == reason
+    assert [] == undo_errors
+    assert ts <= :os.system_time(:millisecond)
+  end
+
+  @tag capture_log: true
+  test "that an :error with undo error dispatch works", %{socket: socket} do
+    assert Utils.module_loaded? SingyeongPluginTest
+    refute [] == PluginManager.plugins()
+    refute [] == PluginManager.plugins_for_event("ERROR_WITH_UNDO")
+    # IDENTIFY with the gateway so that we have everything we need set up
+    # This is tested in another location
+    Gateway.handle_identify socket, %{
+      op: Gateway.opcodes_name()[:identify],
+      d: %{
+        "client_id" => @client_id,
+        "application_id" => @app_id,
+        "reconnect" => false,
+        "auth" => nil,
+        "tags" => ["test", "webscale"]
+      },
+      ts: :os.system_time(:millisecond),
+      t: nil,
+    }
+
+    # Actually do and test the dispatch
+    dispatch =
+      %Payload{
+        op: @dispatch_op,
+        t: "ERROR_WITH_UNDO_ERROR",
+        d: "test data"
+      }
+
+    {:error, frames} = Dispatch.handle_dispatch socket, dispatch
+    {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
+    assert Gateway.opcodes_name()[:invalid] == op
+    assert nil == t
+    %{
+      message: msg,
+      reason: reason,
+      undo_errors: undo_errors,
+    } = d
+    assert "Error processing plugin event ERROR_WITH_UNDO_ERROR" == msg
+    assert "Manually requested error" == reason
+    assert ["undo error"] == undo_errors
     assert ts <= :os.system_time(:millisecond)
   end
 end
