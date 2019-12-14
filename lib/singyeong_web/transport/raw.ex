@@ -90,8 +90,9 @@ defmodule SingyeongWeb.Transport.Raw do
       [] ->
         {:ok, {channels, socket}}
       frames when is_list(frames) ->
-        # A list of frames to send
-        Logger.error "[TRANSPORT] Was asked to send a frame list, but I don't know how to do that!"
+        for frame <- frames do
+          send self(), frame
+        end
         {:ok, {channels, socket}}
     end
   end

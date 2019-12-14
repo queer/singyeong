@@ -13,9 +13,15 @@ defmodule Singyeong.Utils do
       b == nil ->
         a
 
-      true ->
+      is_list(a) and is_list(b) ->
         # See https://github.com/devonestes/fast-elixir/blob/master/code/general/concat_vs_cons.exs
         List.flatten [a | b]
+
+      is_list(a) and not is_list(b) ->
+        fast_list_concat a, [b]
+
+      not is_list(a) and is_list(b) ->
+        fast_list_concat [a], b
     end
   end
 

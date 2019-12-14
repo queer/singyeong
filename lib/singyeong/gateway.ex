@@ -355,12 +355,14 @@ defmodule Singyeong.Gateway do
     if Dispatch.can_dispatch?(socket, dispatch_type) do
       res = Dispatch.handle_dispatch socket, payload
       case res do
-        {:ok, frames} ->
-          frames
-          |> craft_response
+        {:ok, %Payload{} = frame} ->
+          craft_response [frame]
+
+        {:ok, frames} when is_list(frames) ->
+          craft_response frames
+
         {:error, error} ->
-          error
-          |> craft_response
+          craft_response error
       end
     else
       Payload.create_payload(:invalid, %{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
