@@ -26,7 +26,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that a :ok dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
-    refute [] == PluginManager.plugins_for_event("TEST")
+    refute [] == PluginManager.plugins_for_event(:custom_events, "TEST")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -70,7 +70,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that a :halt dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
-    refute [] == PluginManager.plugins_for_event("HALT")
+    refute [] == PluginManager.plugins_for_event(:custom_events, "HALT")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -102,7 +102,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that an :error dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
-    refute [] == PluginManager.plugins_for_event("ERROR")
+    refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -145,7 +145,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that an :error with undo dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
-    refute [] == PluginManager.plugins_for_event("ERROR_WITH_UNDO")
+    refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{
@@ -188,7 +188,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that an :error with undo error dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
-    refute [] == PluginManager.plugins_for_event("ERROR_WITH_UNDO")
+    refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
     Gateway.handle_identify socket, %{

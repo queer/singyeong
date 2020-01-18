@@ -74,7 +74,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(_socket, %Payload{t: t, d: data} = payload) do
-    plugins = PluginManager.plugins_for_event t
+    plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->
         {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
