@@ -116,23 +116,35 @@ defmodule Singyeong.PluginManager do
     {:ok, handle} = :zip.zip_open path, [:memory]
     {:ok, dir_list} = :zip.zip_list_dir handle
 
+    File.mkdir_p! "#{System.tmp_dir!()}/natives"
     dir_list
-    |> Enum.filter(fn tuple ->
-      kind =
-        tuple
-        |> Tuple.to_list
-        |> hd
-
-      kind == :zip_file
-    end)
+    |> get_files
+    |> Enum.map(&zip_file_name/1)
     |> Enum.filter(fn file ->
-      {:zip_file, file_name, _metadata, _, _, _} = file
-      file_name
+      file
+      |> to_string
+      |> String.starts_with?("natives/")
+    end)
+    |> Enum.each(fn file ->
+      unless to_string(file) == "natives/" do
+        Logger.debug "[PLUGIN] Attempting native extraction: #{file}"
+        {:ok, {_, zip_data}} = :zip.zip_get file, handle
+        native_path = "#{System.tmp_dir!()}/#{file}"
+        File.write! native_path, zip_data
+        Logger.debug "[PLUGIN] Extracted new native file to #{native_path}"
+      end
+    end)
+
+    dir_list
+    |> get_files
+    |> Enum.filter(fn file ->
+      file
+      |> zip_file_name
       |> to_string
       |> String.ends_with?(".beam")
     end)
     |> Enum.map(fn file ->
-      {:zip_file, file_name, _metadata, _, _, _} = file
+      file_name = zip_file_name file
       {:ok, {zip_file_name, zip_data}} = :zip.zip_get file_name, handle
 
       beam_file_name =
@@ -172,5 +184,21 @@ defmodule Singyeong.PluginManager do
     |> Enum.map(fn mod -> {mod, mod.module_info()[:attributes][:behaviour]} end)
     |> Enum.filter(fn {_, behaviours} -> behaviours != nil and Singyeong.Plugin in behaviours end)
     |> Enum.map(fn {mod, _} -> mod end)
+  end
+
+  defp zip_file_name({:zip_file, file_name, _metadata, _, _, _}) do
+    file_name
+  end
+
+  defp get_files(zip_list) do
+    zip_list
+    |> Enum.filter(fn tuple ->
+      kind =
+        tuple
+        |> Tuple.to_list
+        |> hd
+
+      kind == :zip_file
+    end)
   end
 end
