@@ -1,4 +1,4 @@
-FROM elixir:alpine
+FROM elixir:slim
 
 RUN mix local.hex --force
 RUN mix local.rebar --force
@@ -6,8 +6,8 @@ RUN mix local.rebar --force
 RUN mkdir /app
 WORKDIR /app
 
-RUN apk update
-RUN apk add git curl bash libgcc gcompat
+RUN apt-get update
+RUN apt-get install -y git curl bash libgcc
 
 COPY . /app
 
