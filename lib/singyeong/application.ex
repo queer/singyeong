@@ -2,7 +2,7 @@ defmodule Singyeong.Application do
   @moduledoc false
 
   use Application
-  alias Singyeong.{Env, PluginManager}
+  alias Singyeong.{Env, PluginManager, Utils}
   require Logger
 
   # See https://hexdocs.pm/elixir/Application.html
@@ -37,20 +37,20 @@ defmodule Singyeong.Application do
         children
       end
     # Load plugins and add their behaviours to the supervision tree
-    children = children ++ PluginManager.load_plugins()
+    children = Utils.fast_list_concat children, PluginManager.load_plugins()
     # Finally, add endpoint supervisor
-    children = children ++ [supervisor(SingyeongWeb.Endpoint, [])]
+    children = Utils.fast_list_concat children, [supervisor(SingyeongWeb.Endpoint, [])]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Singyeong.Supervisor]
-    Supervisor.start_link(children, opts)
+    Supervisor.start_link children, opts
   end
 
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
   def config_change(changed, _new, removed) do
-    SingyeongWeb.Endpoint.config_change(changed, removed)
+    SingyeongWeb.Endpoint.config_change changed, removed
     :ok
   end
 end
