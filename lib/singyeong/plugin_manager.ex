@@ -4,16 +4,21 @@ defmodule Singyeong.PluginManager do
   runtime, as well as for providing an interface for interaction with plugins.
   """
 
+  alias Singyeong.Plugin.{Capabilities, Manifest}
   alias Singyeong.Utils
   require Logger
 
   @plugins "./plugins"
+  @ets_opts [:named_table, :public, :set, read_concurrency: true]
 
   def init(files \\ nil) do
     unless :ets.whereis(:plugins) == :undefined do
       shutdown()
     end
-    _table = :ets.new :plugins, [:named_table, :public, :set, read_concurrency: true]
+    :ets.new :plugins, @ets_opts
+    for capability <- Capabilities.capabilities() do
+      :ets.new capability, @ets_opts
+    end
     Logger.info "[PLUGIN] Loading plugins..."
     File.mkdir_p! @plugins
     plugin_mods =
@@ -35,33 +40,69 @@ defmodule Singyeong.PluginManager do
 
     plugin_mods
     |> Enum.each(fn mod ->
-      Logger.debug "[PLUGIN] Loaded plugin #{mod} with manifest #{inspect mod.manifest(), pretty: true}"
-      :ets.insert :plugins, {mod, mod.manifest()}
+      manifest = mod.manifest()
+      Logger.debug "[PLUGIN] Loaded plugin #{mod} with manifest #{inspect manifest, pretty: true}"
+      :ets.insert :plugins, {mod, manifest}
+      for capability <- manifest.capabilities do
+        if Capabilities.is_capability?(capability) do
+          :ets.insert capability, {mod, manifest}
+        else
+          Logger.warn "[PLUGIN] Plugin #{manifest.name} attempted to register capability #{capability}, but it's not real!"
+        end
+      end
     end)
     Logger.debug "[PLUGIN] Loaded plugin modules: #{inspect plugin_mods, pretty: true}"
   end
 
   def shutdown do
     :ets.delete :plugins
+    for capability <- Capabilities.capabilities() do
+      :ets.delete capability
+    end
   end
 
-  @spec plugins() :: [atom()]
+  @spec plugins() :: [atom()] | []
   def plugins do
     :plugins
     |> :ets.tab2list
     |> Enum.map(fn {mod, _} -> mod end)
   end
 
-  @spec plugins_with_manifest() :: Keyword.t(Singyeong.Plugin.Manifest.t())
+  @spec plugins(atom()) :: [atom()] | []
+  def plugins(capability) do
+    if Capabilities.is_capability?(capability) do
+      capability
+      |> :ets.tab2list
+      |> Enum.map(fn {mod, _} -> mod end)
+    else
+      # TODO: Throw?
+      []
+    end
+  end
+
+  @spec plugins_with_manifest() :: Keyword.t(Manifest.t())
   def plugins_with_manifest do
     :plugins
     |> :ets.tab2list
     |> Keyword.new
   end
 
-  @spec plugins_for_event(binary()) :: [atom()]
-  def plugins_for_event(event) do
-    plugins_with_manifest()
+  @spec plugins_with_manifest(atom()) :: Keyword.t(Manifest.t())
+  def plugins_with_manifest(capability) do
+    if Capabilities.is_capability?(capability) do
+      capability
+      |> :ets.tab2list
+      |> Keyword.new
+    else
+      # TODO: Throw?
+      []
+    end
+  end
+
+  @spec plugins_for_event(atom(), binary()) :: [atom()]
+  def plugins_for_event(capability, event) do
+    capability
+    |> plugins_with_manifest
     |> Enum.filter(fn {_, manifest} ->
       event in manifest.events
     end)
@@ -71,7 +112,7 @@ defmodule Singyeong.PluginManager do
     end)
   end
 
-  @spec manifest(atom()) :: {:ok, Singyeong.Plugin.Manifest.t()} | {:error, :no_plugin}
+  @spec manifest(atom()) :: {:ok, Manifest.t()} | {:error, :no_plugin}
   def manifest(plugin) when is_atom(plugin) do
     case :ets.lookup(:plugins, plugin) do
       [] ->
