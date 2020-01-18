@@ -16,6 +16,10 @@ defmodule Singyeong.PluginManager do
       shutdown()
     end
     :ets.new :plugins, @ets_opts
+    if :ets.whereis(:loaded_so_cache) == :undefined do
+      Logger.debug "[PLUGIN] Created new so cache"
+      :ets.new :loaded_so_cache, @ets_opts
+    end
     for capability <- Capabilities.capabilities() do
       :ets.new capability, @ets_opts
     end
@@ -55,6 +59,12 @@ defmodule Singyeong.PluginManager do
   end
 
   def shutdown do
+    plugins_with_manifest()
+    |> Enum.each(fn {mod, manifest} ->
+      if manifest.native_modules != [] do
+        :code.purge mod
+      end
+    end)
     :ets.delete :plugins
     for capability <- Capabilities.capabilities() do
       :ets.delete capability
@@ -168,11 +178,17 @@ defmodule Singyeong.PluginManager do
     end)
     |> Enum.each(fn file ->
       unless to_string(file) == "natives/" do
-        Logger.debug "[PLUGIN] Attempting native extraction: #{file}"
-        {:ok, {_, zip_data}} = :zip.zip_get file, handle
-        native_path = "#{System.tmp_dir!()}/#{file}"
-        File.write! native_path, zip_data
-        Logger.debug "[PLUGIN] Extracted new native file to #{native_path}"
+        case :ets.lookup(:loaded_so_cache, file) do
+          [{file, true}] ->
+            Logger.debug "[PLUGIN] Skipping native #{file}, load cached"
+          _ ->
+            Logger.debug "[PLUGIN] Attempting native extraction: #{file}"
+            {:ok, {_, zip_data}} = :zip.zip_get file, handle
+            native_path = "#{System.tmp_dir!()}/#{file}"
+            File.write! native_path, zip_data
+            Logger.debug "[PLUGIN] Extracted new native file to #{native_path}"
+            :ets.insert :loaded_so_cache, {file, true}
+        end
       end
     end)
 
