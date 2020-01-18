@@ -155,23 +155,32 @@ defmodule Singyeong.Gateway do
   defp decode_payload(opcode, payload, encoding, restricted) do
     case {opcode, encoding} do
       {:text, "json"} ->
-        # JSON can just be directly encoded
-        Jason.decode payload
+        # JSON has to be error-checked for error conversion properly
+        {status, data} = Jason.decode payload
+        case status do
+          :ok ->
+            {:ok, data}
+          :error ->
+            {:error, Exception.message(data)}
+        end
       {:binary, "msgpack"} ->
         # MessagePack has to be unpacked and error-checked
-        {e, d} = Msgpax.unpack payload
-        case e do
+        {status, data} = Msgpax.unpack payload
+        case status do
           :ok ->
-            {:ok, d}
+            {:ok, data}
           :error ->
             # We convert the exception into smth more useful
-            {:error, Exception.message(d)}
+            {:error, Exception.message(data)}
         end
       {:binary, "etf"} ->
         decode_etf payload, restricted
       _ ->
         {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
     end
+  rescue
+    _ ->
+      {:error, "Couldn't decode payload"}
   end
 
   defp decode_etf(payload, restricted) do
