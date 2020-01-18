@@ -7,7 +7,7 @@ RUN mkdir /app
 WORKDIR /app
 
 RUN apk update
-RUN apk add git curl bash
+RUN apk add git curl bash libgcc
 
 COPY . /app
 
