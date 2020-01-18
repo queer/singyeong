@@ -7,7 +7,7 @@ RUN mkdir /app
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y git curl bash libgcc
+RUN apt-get install -y git curl bash libgcc1
 
 COPY . /app
 
