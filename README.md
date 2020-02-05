@@ -17,7 +17,7 @@ Language   | Author         | Link
 -----------|----------------|-----------------------------------------------
 Java       | @queer         | https://github.com/queer/singyeong-java-client
 Python     | @PendragonLore | https://github.com/PendragonLore/shinkei
-Typescript | @gabixdev      | https://github.com/KyokoBot/node-singyeong-client
+Typescript | @alula         | https://github.com/KyokoBot/node-singyeong-client
 
 ### Credit
 
