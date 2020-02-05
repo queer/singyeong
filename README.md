@@ -14,11 +14,11 @@ For a high-level overview of how 신경 works, check out DESIGN.md.
 ### Clients:
 
 Language   | Author         | Link
------------|----------------|-----------------------------------------------
+-----------|----------------|--------------------------------------------------
 Java       | @queer         | https://github.com/queer/singyeong-java-client
 Python     | @PendragonLore | https://github.com/PendragonLore/shinkei
 Typescript | @alula         | https://github.com/KyokoBot/node-singyeong-client
-
+.NET       | @FiniteReality | https://github.com/finitereality/singyeong.net
 ### Credit
 
 신경 was **heavily** inspired by the [Ayana](https://ayana.io/) developers who
