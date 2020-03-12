@@ -111,6 +111,7 @@ defmodule Singyeong.PluginManager do
 
   @spec plugins_for_event(atom(), binary()) :: [atom()]
   def plugins_for_event(capability, event) do
+    # TODO: Convert this to be cleaner
     capability
     |> plugins_with_manifest
     |> Enum.filter(fn {_, manifest} ->
@@ -119,6 +120,14 @@ defmodule Singyeong.PluginManager do
     |> Enum.map(fn {plugin, _} -> plugin end)
     |> Enum.filter(fn plugin ->
       function_exported? plugin, :handle_event, 2
+    end)
+  end
+
+  def plugins_for_auth do
+    :auth
+    |> plugins
+    |> Enum.filter(fn plugin ->
+      function_exported? plugin, :auth, 2
     end)
   end
 
