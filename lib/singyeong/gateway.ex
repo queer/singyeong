@@ -11,6 +11,7 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
   alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.PluginManager
   require Logger
 
   ## STATIC DATA ##
@@ -310,23 +311,59 @@ defmodule Singyeong.Gateway do
 
     tags = Map.get d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
-      # Check app/client IDs to ensure validity
-      restricted = Env.auth() != d["auth"]
-      encoding = socket.assigns[:encoding]
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
       ip = d["ip"] || socket.assigns[:ip]
-      cond do
-        not Store.client_exists?(app_id, client_id) ->
-          # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-        Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
-          # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-        true ->
-          # If we already have a client, reject outright
-          Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+      auth_status =
+        case PluginManager.plugins_for_auth() do
+          [] ->
+            if Env.auth() == d["auth"] do
+              :ok
+            else
+              :restricted
+            end
+          plugins when is_list(plugins) ->
+            plugin_auth_results =
+              plugins
+              |> Enum.map(fn plugin -> plugin.auth(d["auth"], ip) end)
+
+            errors =
+              plugin_auth_results
+              |> Enum.filter(fn res -> {:error, _} = res end)
+              |> Enum.map(fn {:error, msg} -> msg end)
+
+            cond do
+              length(errors) > 0 ->
+                {:error, errors}
+
+              Enum.any?(plugin_auth_results, fn elem -> elem == :restricted end) ->
+                :restricted
+
+              true ->
+                :ok
+            end
+        end
+
+      case auth_status do
+        status when status in [:ok, :restricted] ->
+          restricted = status == :restricted
+          encoding = socket.assigns[:encoding]
+          cond do
+            not Store.client_exists?(app_id, client_id) ->
+              # Client doesn't exist, add to store and okay it
+              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+            Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
+              # Client does exist, but this is a reconnect, so add to store and okay it
+              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+            true ->
+              # If we already have a client, reject outright
+              Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+              |> craft_response
+          end
+
+        {:error, errors} ->
+          Payload.close_with_payload(:invalid, %{"errors" => errors})
           |> craft_response
       end
     else

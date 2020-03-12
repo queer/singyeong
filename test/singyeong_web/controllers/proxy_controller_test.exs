@@ -3,6 +3,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
   alias Singyeong.MnesiaStore
+  alias Singyeong.PluginManager
   alias SingyeongWeb.Router.Helpers, as: Routes
 
   doctest Singyeong.Proxy
@@ -11,6 +12,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
   @client_id "client-1"
 
   setup do
+    PluginManager.init()
     MnesiaStore.initialize()
 
     on_exit "cleanup", fn ->
@@ -39,6 +41,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
     Gateway.cleanup socket, @app_id, @client_id
   end
 
+  @tag capture_log: true
   test "that proxying GET requests works", %{socket: socket} do
     if System.get_env("DISABLE_PROXY_TESTS") do
       assert true
@@ -76,6 +79,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
     end
   end
 
+  @tag capture_log: true
   test "that proxying POST requests works", %{socket: socket} do
     if System.get_env("DISABLE_PROXY_TESTS") do
       assert true

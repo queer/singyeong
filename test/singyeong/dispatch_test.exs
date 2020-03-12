@@ -4,6 +4,7 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore
+  alias Singyeong.PluginManager
   import Phoenix.Socket, only: [assign: 3]
 
   @client_id "client-1"
@@ -11,6 +12,7 @@ defmodule Singyeong.DispatchTest do
 
   setup do
     MnesiaStore.initialize()
+    PluginManager.init()
 
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
@@ -22,6 +24,7 @@ defmodule Singyeong.DispatchTest do
     {:ok, socket: socket}
   end
 
+  @tag capture_log: true
   test "that SEND dispatch query to a socket works", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
@@ -91,6 +94,7 @@ defmodule Singyeong.DispatchTest do
     assert 10 > abs(msg.ts - expected.ts)
   end
 
+  @tag capture_log: true
   test "that SEND with nil ops in the query works as expected", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
@@ -160,6 +164,7 @@ defmodule Singyeong.DispatchTest do
     assert 10 > abs(msg.ts - expected.ts)
   end
 
+  @tag capture_log: true
   test "that metadata updates work as expected", %{socket: socket} do
     @client_id = "client-1"
     @app_id = "test-app-1"
