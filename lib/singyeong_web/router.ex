@@ -1,8 +1,11 @@
 defmodule SingyeongWeb.Router do
   use SingyeongWeb, :router
   alias Singyeong.Env
+  alias Singyeong.PluginManager
+  alias Singyeong.Utils
 
   pipeline :api do
+    plug :add_ip
     plug :accepts, ["json"]
 
     plug Plug.Parsers,
@@ -23,6 +26,30 @@ defmodule SingyeongWeb.Router do
       scope "/discovery" do
         get "/tags", DiscoveryController, :by_tags
       end
+      forward "/plugin", Plugs.PluginRouter
+      # scope "/plugin" do
+      #   for plugin <- PluginManager.plugins(:rest) do
+      #     manifest = PluginManager.manifest plugin
+      #     for route <- manifest.rest_routes do
+      #       case route.method do
+      #         :get ->
+      #           get route.route, route.module, route.function
+
+      #         :post ->
+      #           post route.route, route.module, route.function
+
+      #         :put ->
+      #           put route.route, route.module, route.function
+
+      #         :patch ->
+      #           patch route.route, route.module, route.function
+
+      #         :delete ->
+      #           delete route.route, route.module, route.function
+      #       end
+      #     end
+      #   end
+      # end
       post "/proxy", ProxyController, :proxy
     end
 
@@ -45,6 +72,11 @@ defmodule SingyeongWeb.Router do
     trace   "/*path", GenericController, :not_found
   end
 
+  def add_ip(conn, _) do
+    ip = Utils.ip_to_string conn.remote_ip
+    assign conn, :ip, ip
+  end
+
   def authenticate(conn, _) do
     auth =
       case get_req_header(conn, "authorization") do
@@ -53,13 +85,32 @@ defmodule SingyeongWeb.Router do
         _ ->
           nil
       end
-    if Env.auth() != nil and auth != Env.auth() do
-      conn
-      |> put_status(401)
-      |> json(%{"status" => "error", "error" => "not authorized"})
-      |> halt()
-    else
-      conn
+
+    cond do
+      PluginManager.plugins_for_auth() == [] and Env.auth() == nil ->
+        conn
+
+      PluginManager.plugins_for_auth() == [] and Env.auth() != nil ->
+        if auth == Env.auth() do
+          conn
+        else
+          conn
+          |> put_status(401)
+          |> json(%{"status" => "error", "error" => "not authorized"})
+          |> halt()
+        end
+
+      PluginManager.plugins_for_auth() != [] ->
+        case PluginManager.plugin_auth(auth, conn.assigns.ip) do
+          :ok ->
+            conn
+
+          _ ->
+            conn
+            |> put_status(401)
+            |> json(%{"status" => "error", "error" => "not authorized"})
+            |> halt()
+        end
     end
   end
 end
