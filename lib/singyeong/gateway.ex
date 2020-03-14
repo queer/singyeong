@@ -5,7 +5,6 @@ defmodule Singyeong.Gateway do
   preprocessing, authentication, and other things.
   """
 
-  alias Singyeong.Env
   alias Singyeong.Gateway.{Dispatch, Payload}
   alias Singyeong.MessageDispatcher
   alias Singyeong.Metadata
@@ -315,7 +314,7 @@ defmodule Singyeong.Gateway do
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
       ip = d["ip"] || socket.assigns[:ip]
-      auth_status = PluginManager.plugin_auth(d["auth"], ip)
+      auth_status = PluginManager.plugin_auth d["auth"], ip
 
       case auth_status do
         status when status in [:ok, :restricted] ->

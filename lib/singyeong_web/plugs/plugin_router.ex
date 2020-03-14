@@ -1,14 +1,13 @@
 defmodule SingyeongWeb.Plugs.PluginRouter do
   @behaviour Plug
 
-  import Plug.Conn
   alias Singyeong.Plugin.RestRoute
   alias Singyeong.PluginManager
   alias Singyeong.Utils
 
   def init(opts), do: opts
 
-  def call(%Plug.Conn{path_info: path_info, params: params, method: conn_method} = conn, _opts) do
+  def call(%Plug.Conn{path_info: path_info, method: conn_method} = conn, _opts) do
     path = "/#{Enum.join(path_info, "/")}"
     method =
       conn_method
@@ -17,7 +16,7 @@ defmodule SingyeongWeb.Plugs.PluginRouter do
 
     :rest
     |> PluginManager.plugins_with_manifest
-    |> Enum.filter(fn {plugin, manifest} ->
+    |> Enum.filter(fn {_, manifest} ->
       Enum.any? manifest.rest_routes, fn %RestRoute{route: route, method: plugin_method} ->
         route_parses? =
           case Utils.parse_route(route, path) do
