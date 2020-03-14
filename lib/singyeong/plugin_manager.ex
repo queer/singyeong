@@ -4,6 +4,7 @@ defmodule Singyeong.PluginManager do
   runtime, as well as for providing an interface for interaction with plugins.
   """
 
+  alias Singyeong.Env
   alias Singyeong.Plugin.{Capabilities, Manifest}
   alias Singyeong.Utils
   require Logger
@@ -129,6 +130,37 @@ defmodule Singyeong.PluginManager do
     |> Enum.filter(fn plugin ->
       function_exported? plugin, :auth, 2
     end)
+  end
+
+  def plugin_auth(auth, ip) do
+    case plugins_for_auth() do
+      [] ->
+        if Env.auth() == auth do
+          :ok
+        else
+          :restricted
+        end
+      plugins when is_list(plugins) ->
+        plugin_auth_results =
+          plugins
+          |> Enum.map(fn plugin -> plugin.auth(auth, ip) end)
+
+        errors =
+          plugin_auth_results
+          |> Enum.filter(fn res -> {:error, _} = res end)
+          |> Enum.map(fn {:error, msg} -> msg end)
+
+        cond do
+          length(errors) > 0 ->
+            {:error, errors}
+
+          Enum.any?(plugin_auth_results, fn elem -> elem == :restricted end) ->
+            :restricted
+
+          true ->
+            :ok
+        end
+    end
   end
 
   @spec manifest(atom()) :: {:ok, Manifest.t()} | {:error, :no_plugin}

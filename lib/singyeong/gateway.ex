@@ -315,35 +315,7 @@ defmodule Singyeong.Gateway do
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
       ip = d["ip"] || socket.assigns[:ip]
-      auth_status =
-        case PluginManager.plugins_for_auth() do
-          [] ->
-            if Env.auth() == d["auth"] do
-              :ok
-            else
-              :restricted
-            end
-          plugins when is_list(plugins) ->
-            plugin_auth_results =
-              plugins
-              |> Enum.map(fn plugin -> plugin.auth(d["auth"], ip) end)
-
-            errors =
-              plugin_auth_results
-              |> Enum.filter(fn res -> {:error, _} = res end)
-              |> Enum.map(fn {:error, msg} -> msg end)
-
-            cond do
-              length(errors) > 0 ->
-                {:error, errors}
-
-              Enum.any?(plugin_auth_results, fn elem -> elem == :restricted end) ->
-                :restricted
-
-              true ->
-                :ok
-            end
-        end
+      auth_status = PluginManager.plugin_auth(d["auth"], ip)
 
       case auth_status do
         status when status in [:ok, :restricted] ->
