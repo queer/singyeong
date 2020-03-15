@@ -78,3 +78,11 @@ Requires authorization.
 <   "username": "test"
 < }
 ```
+
+## Plugin routes
+
+Plugins may register REST routes of their own. These routes will be appended to
+`/api/v1/plugin`, ex. a plugin route of `/my-plugin/test` will end up being
+`/api/v1/plugin/my-plugin/test`.
+
+Plugin routes **require** authentication.

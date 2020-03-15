@@ -11,6 +11,7 @@ defmodule SingyeongWeb.Transport.Raw do
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Utils
   import Phoenix.Socket, only: [assign: 3]
   require Logger
 
@@ -35,13 +36,7 @@ defmodule SingyeongWeb.Transport.Raw do
 
     # Convert the ip
     peer_data = map[:connect_info][:peer_data]
-    ip =
-      case peer_data[:address] do
-        {a, b, c, d} ->
-          "#{a}.#{b}.#{c}.#{d}"
-        {a, b, c, d, e, f, g, h} ->
-          "#{hex a}:#{hex b}:#{hex c}:#{hex d}:#{hex e}:#{hex f}:#{hex g}:#{hex h}"
-      end
+    ip = Utils.ip_to_string peer_data[:address]
 
     # Check querystring for ex. requested encoding
     %URI{query: query} = map[:connect_info][:uri]
@@ -90,15 +85,17 @@ defmodule SingyeongWeb.Transport.Raw do
       [] ->
         {:ok, {channels, socket}}
       frames when is_list(frames) ->
-        # A list of frames to send
-        Logger.error "[TRANSPORT] Was asked to send a frame list, but I don't know how to do that!"
+        for frame <- frames do
+          send self(), frame
+        end
         {:ok, {channels, socket}}
     end
   end
 
   def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
-    new_payload = Gateway.encode socket, payload
-    {:push, new_payload, state}
+    outgoing = Gateway.process_outgoing_event payload
+    encoded_payload = Gateway.encode socket, outgoing
+    {:push, encoded_payload, state}
   end
 
   def handle_info({:stop, reason} = _msg, state) do
@@ -117,9 +114,5 @@ defmodule SingyeongWeb.Transport.Raw do
       <> " closed with code #{inspect code}: #{inspect reason}"
     Gateway.handle_close socket
     :ok
-  end
-
-  defp hex(v) do
-    Integer.to_string(v, 16)
   end
 end

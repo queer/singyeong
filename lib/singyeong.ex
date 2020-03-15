@@ -8,5 +8,5 @@ defmodule Singyeong do
   """
 
   @version Mix.Project.config[:version]
-  def version(), do: @version
+  def version, do: @version
 end

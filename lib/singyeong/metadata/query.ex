@@ -17,26 +17,61 @@ defmodule Singyeong.Metadata.Query do
   Given a query, execute it and return a list of client IDs.
   """
   def run_query(query, broadcast) when is_map(query) do
-    application =
-      cond do
-        is_binary query["application"] ->
-          # Normal case, just return the application name
-          query["application"]
-
-        is_list query["application"] ->
-          # If we're passed a list, try to discover the application id
-          {:ok, matches} = Singyeong.Discovery.discover_service query["application"]
-          if matches == [] do
-            nil
-          else
-            # Pick the first application id that actually has all tags.
-            hd matches
-          end
-      end
+    application = query_app_target query
     case application do
       nil ->
         {nil, []}
+
       _ ->
+        process_query query, application, broadcast
+    end
+  end
+
+  defp query_app_target(query) when is_map(query) do
+    cond do
+      is_binary query["application"] ->
+        # Normal case, just return the application name
+        query["application"]
+
+      is_list query["application"] ->
+        # If we're passed a list, try to discover the application id
+        {:ok, matches} = Singyeong.Discovery.discover_service query["application"]
+        if matches == [] do
+          nil
+        else
+          # Pick the first application id that actually has all tags.
+          hd matches
+        end
+
+      true ->
+        raise "query.application is neither binary nor list, which is invalid!"
+    end
+  end
+
+  defp process_query(query, application, broadcast) do
+    allow_restricted = query["restricted"]
+    ops =
+      if allow_restricted do
+        # If we allow restricted-mode clients, just run the query as-is
+        query["ops"]
+      else
+        # Otherwise, explicitly require clients to not be restricted
+        Utils.fast_list_concat query["ops"], [%{"restricted" => %{"$eq" => false}}]
+      end
+    {:ok, clients} = Store.get_clients application
+    res =
+      clients
+      |> Enum.map(fn(client) -> {client, reduce_query(application, client, ops)} end)
+      |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
+      |> Enum.map(fn({client, _}) -> client end)
+
+    cond do
+      Enum.empty?(res) and query["optional"] == true ->
+        # If the query is optional, and the query returned no nodes, just return
+        # all nodes and let the dispatcher figure it out
+        {application, clients}
+
+      not Enum.empty?(res) and query["key"] != nil ->
         allow_restricted = query["restricted"]
         ops =
           if allow_restricted do
@@ -53,6 +88,10 @@ defmodule Singyeong.Metadata.Query do
         |> Enum.filter(fn({_, out}) -> Enum.all?(out) end)
         |> Enum.map(fn({client, _}) -> client end)
         |> convert_to_dispatch_form(application, clients, query, broadcast)
+
+      true ->
+        # Otherwise, just give back whatever we've got, even if it was empty
+        {application, clients}
     end
   end
 
@@ -101,7 +140,7 @@ defmodule Singyeong.Metadata.Query do
       key = Map.keys(x) |> hd
       query = x[key]
       # do_run_query(metadata, key, %{$eq: "value"})
-      do_run_query(metadata, key, query)
+      do_run_query metadata, key, query
     end)
     |> Enum.map(fn(x) ->
       # x = [{:ok, true}, {:error, false}, ...]

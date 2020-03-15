@@ -2,20 +2,24 @@ defmodule Singyeong.GatewayTest do
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.MnesiaStore
+  alias Singyeong.PluginManager
 
   @app_id "test-app-1"
   @client_id "client-1"
 
   setup do
-    Singyeong.MnesiaStore.initialize()
+    PluginManager.init()
+    MnesiaStore.initialize()
 
     on_exit "cleanup", fn ->
-      Singyeong.MnesiaStore.shutdown()
+      MnesiaStore.shutdown()
     end
 
     {:ok, []}
   end
 
+  @tag capture_log: true
   test "that identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "json"}
 
@@ -54,6 +58,7 @@ defmodule Singyeong.GatewayTest do
     Gateway.cleanup socket, @app_id, @client_id
   end
 
+  @tag capture_log: true
   test "that ETF identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "etf"}
 
@@ -93,6 +98,7 @@ defmodule Singyeong.GatewayTest do
     Gateway.cleanup socket, @app_id, @client_id
   end
 
+  @tag capture_log: true
   test "that msgpack identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "msgpack"}
     incoming_payload = %{
