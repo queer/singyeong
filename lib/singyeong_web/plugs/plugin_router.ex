@@ -1,9 +1,19 @@
 defmodule SingyeongWeb.Plugs.PluginRouter do
-  @behaviour Plug
+  @moduledoc """
+  A plug that routes requests to plugins.
+
+  Since plugins dynamically define routes, we can't actually have them baked
+  into the Phoenix router -- at least, not without some runtime bullshit with
+  code loading that I honestly really don't wanna do. Instead, we can just
+  forward all requests to this route and do some fuckery to properly parse out
+  URL params and whatnot.
+  """
 
   alias Singyeong.Plugin.RestRoute
   alias Singyeong.PluginManager
   alias Singyeong.Utils
+
+  @behaviour Plug
 
   def init(opts), do: opts
 
