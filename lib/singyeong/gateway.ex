@@ -302,7 +302,7 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  @spec handle_identify(Phoenix.Socket.t(), Payload.t) :: GatewayResponse.t
+  @spec handle_identify(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
   def handle_identify(socket, payload) do
     d = payload.d
     client_id = d["client_id"]
