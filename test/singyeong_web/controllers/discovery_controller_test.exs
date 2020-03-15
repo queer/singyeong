@@ -1,14 +1,18 @@
 defmodule SingyeongWeb.DiscoveryControllerTest do
   use SingyeongWeb.ConnCase
-  alias SingyeongWeb.Router.Helpers, as: Routes
   alias Singyeong.MnesiaStore
+  alias Singyeong.PluginManager
+  alias SingyeongWeb.Router.Helpers, as: Routes
 
   setup do
+    PluginManager.init()
+
     on_exit fn ->
       System.delete_env "AUTH"
     end
   end
 
+  @tag capture_log: true
   test "that discovering services via querystring tags works", %{conn: conn} do
     # ugly boring gross setup stuff qwq
     MnesiaStore.initialize()
@@ -46,6 +50,7 @@ defmodule SingyeongWeb.DiscoveryControllerTest do
     MnesiaStore.shutdown()
   end
 
+  @tag capture_log: true
   test "that discovering services with authentication works", %{conn: conn} do
     # ugly boring gross setup stuff qwq
     MnesiaStore.initialize()

@@ -40,7 +40,7 @@ defmodule Singyeong.Redis do
     Redix.command :"redix_#{random_index()}", command
   end
 
-  defp random_index() do
+  defp random_index do
     [:positive]
     |> System.unique_integer
     |> rem(@pool_size)

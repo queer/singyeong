@@ -5,12 +5,13 @@ defmodule Singyeong.Gateway do
   preprocessing, authentication, and other things.
   """
 
-  alias Singyeong.Gateway.Payload
-  alias Singyeong.Gateway.Dispatch
-  alias Singyeong.Metadata
-  alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.Gateway.{Dispatch, Payload}
   alias Singyeong.MessageDispatcher
-  alias Singyeong.Env
+  alias Singyeong.Metadata
+  alias Singyeong.Metadata.UpdateQueue
+  alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.PluginManager
+  alias Singyeong.Utils
   require Logger
 
   ## STATIC DATA ##
@@ -93,7 +94,8 @@ defmodule Singyeong.Gateway do
   @spec validate_encoding(binary()) :: boolean()
   def validate_encoding(encoding) when is_binary(encoding), do: encoding in @valid_encodings
 
-  @spec encode(Phoenix.Socket.t(), {any(), any()} | Singyeong.Gateway.Payload.t()) :: {:binary, any()} | {:text, binary()}
+  @spec encode(Phoenix.Socket.t(), {any(), any()} | Singyeong.Gateway.Payload.t())
+    :: {:binary, any()} | {:text, binary()}
   def encode(socket, data) do
     encoding = socket.assigns[:encoding] || "json"
     case data do
@@ -134,42 +136,7 @@ defmodule Singyeong.Gateway do
     encoding = socket.assigns[:encoding]
     restricted = socket.assigns[:restricted]
     # Decode incoming packets based on the state of the socket
-    {status, msg} =
-      case {opcode, encoding} do
-        {:text, "json"} ->
-          # JSON can just be directly encoded
-          Jason.decode payload
-        {:binary, "msgpack"} ->
-          # MessagePack has to be unpacked and error-checked
-          {e, d} = Msgpax.unpack payload
-          case e do
-            :ok ->
-              {:ok, d}
-            :error ->
-              # We convert the exception into smth more useful
-              {:error, Exception.message(d)}
-          end
-        {:binary, "etf"} ->
-          case restricted do
-            true ->
-              # If the client is restricted, but is sending us ETF, make it go
-              # away
-              {:error, "restricted clients may not use ETF"}
-            false ->
-              # If the client is NOT restricted and sends ETF, decode it.
-              # In this particular case, we trust that the client isn't stupid
-              # about the ETF it's sending
-              term = :erlang.binary_to_term payload
-              {:ok, term}
-            nil ->
-              # If we don't yet know if the client will be restricted, decode
-              # it in safe mode
-              term = :erlang.binary_to_term payload, [:safe]
-              {:ok, term}
-          end
-        _ ->
-          {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
-      end
+    {status, msg} = decode_payload opcode, payload, encoding, restricted
 
     case status do
       :ok ->
@@ -183,6 +150,57 @@ defmodule Singyeong.Gateway do
           end
         Payload.close_with_payload(:invalid, %{"error" => error_msg})
         |> craft_response
+    end
+  end
+
+  defp decode_payload(opcode, payload, encoding, restricted) do
+    case {opcode, encoding} do
+      {:text, "json"} ->
+        # JSON has to be error-checked for error conversion properly
+        {status, data} = Jason.decode payload
+        case status do
+          :ok ->
+            {:ok, data}
+          :error ->
+            {:error, Exception.message(data)}
+        end
+      {:binary, "msgpack"} ->
+        # MessagePack has to be unpacked and error-checked
+        {status, data} = Msgpax.unpack payload
+        case status do
+          :ok ->
+            {:ok, data}
+          :error ->
+            # We convert the exception into smth more useful
+            {:error, Exception.message(data)}
+        end
+      {:binary, "etf"} ->
+        decode_etf payload, restricted
+      _ ->
+        {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
+    end
+  rescue
+    _ ->
+      {:error, "Couldn't decode payload"}
+  end
+
+  defp decode_etf(payload, restricted) do
+    case restricted do
+      true ->
+        # If the client is restricted, but is sending us ETF, make it go
+        # away
+        {:error, "restricted clients may not use ETF"}
+      false ->
+        # If the client is NOT restricted and sends ETF, decode it.
+        # In this particular case, we trust that the client isn't stupid
+        # about the ETF it's sending
+        term = :erlang.binary_to_term payload
+        {:ok, term}
+      nil ->
+        # If we don't yet know if the client will be restricted, decode
+        # it in safe mode
+        term = :erlang.binary_to_term payload, [:safe]
+        {:ok, term}
     end
   end
 
@@ -207,7 +225,8 @@ defmodule Singyeong.Gateway do
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
         # If both are NOT nil, then we need to check last heartbeat
-        {:ok, last} = Store.get_metadata socket.assigns[:app_id], socket.assigns[:client_id], Metadata.last_heartbeat_time()
+        {:ok, last} = Store.get_metadata socket.assigns[:app_id],
+            socket.assigns[:client_id], Metadata.last_heartbeat_time()
         last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
@@ -277,14 +296,14 @@ defmodule Singyeong.Gateway do
     Store.remove_socket_ip app_id, client_id
     Store.delete_tags app_id, client_id
 
-    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    queue_worker = UpdateQueue.name app_id, client_id
     pid = Process.whereis queue_worker
     DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
   end
 
   ## OP HANDLING ##
 
-  @spec handle_identify(Phoenix.Socket.t(), Payload.t) :: GatewayResponse.t
+  @spec handle_identify(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
   def handle_identify(socket, payload) do
     d = payload.d
     client_id = d["client_id"]
@@ -292,23 +311,31 @@ defmodule Singyeong.Gateway do
 
     tags = Map.get d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
-      # Check app/client IDs to ensure validity
-      restricted = Env.auth() != d["auth"]
-      encoding = socket.assigns[:encoding]
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
       # derived from peer data in the transport.
       ip = d["ip"] || socket.assigns[:ip]
-      cond do
-        not Store.client_exists?(app_id, client_id) ->
-          # Client doesn't exist, add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-        Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
-          # Client does exist, but this is a reconnect, so add to store and okay it
-          finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-        true ->
-          # If we already have a client, reject outright
-          Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+      auth_status = PluginManager.plugin_auth d["auth"], ip
+
+      case auth_status do
+        status when status in [:ok, :restricted] ->
+          restricted = status == :restricted
+          encoding = socket.assigns[:encoding]
+          cond do
+            not Store.client_exists?(app_id, client_id) ->
+              # Client doesn't exist, add to store and okay it
+              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+            Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
+              # Client does exist, but this is a reconnect, so add to store and okay it
+              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+            true ->
+              # If we already have a client, reject outright
+              Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+              |> craft_response
+          end
+
+        {:error, errors} ->
+          Payload.close_with_payload(:invalid, %{"errors" => errors})
           |> craft_response
       end
     else
@@ -317,9 +344,9 @@ defmodule Singyeong.Gateway do
   end
 
   defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
-    queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
+    queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
-      {Singyeong.Metadata.UpdateQueue, %{name: queue_worker}}
+      {UpdateQueue, %{name: queue_worker}}
     # Add client to the store and update its tags if possible
     Store.add_client app_id, client_id
     unless restricted do
@@ -344,19 +371,152 @@ defmodule Singyeong.Gateway do
   def handle_dispatch(socket, payload) do
     dispatch_type = payload.t
     if Dispatch.can_dispatch?(socket, dispatch_type) do
-      res = Dispatch.handle_dispatch socket, payload
-      case res do
-        {:ok, frames} ->
-          frames
-          |> craft_response
-        {:error, error} ->
-          error
-          |> craft_response
+      processed_payload = process_event_via_pipeline payload, :server
+      case processed_payload do
+        {:ok, processed} ->
+          socket
+          |> Dispatch.handle_dispatch(processed)
+          |> handle_dispatch_response
+
+        :halted ->
+          craft_response []
+
+        {:error, close_payload} ->
+          craft_response [close_payload]
       end
     else
       Payload.create_payload(:invalid, %{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
       |> craft_response
     end
+  end
+
+  defp handle_dispatch_response(dispatch_result) do
+    case dispatch_result do
+      {:ok, %Payload{} = frame} ->
+        [frame]
+        |> process_outgoing_event
+        |> craft_response
+
+      {:ok, frames} when is_list(frames) ->
+        frames
+        |> process_outgoing_event
+        |> craft_response
+
+      {:error, error} ->
+        craft_response error
+    end
+  end
+
+  def process_outgoing_event(%Payload{} = payload) do
+    case process_event_via_pipeline(payload, :client) do
+      {:ok, frame} ->
+        frame
+
+      :halted ->
+        []
+
+      {:error, close_frame} ->
+        close_frame
+    end
+  end
+  def process_outgoing_event(payloads) when is_list(payloads) do
+    res = Enum.map payloads, &process_outgoing_event/1
+    invalid_filter = fn {:text, frame} -> frame.op == @opcodes_name[:invalid] end
+
+    cond do
+      Enum.any?(res, &is_nil/1) ->
+        []
+
+      Enum.any?(res, invalid_filter) ->
+        Enum.filter res, invalid_filter
+
+      true ->
+        res
+    end
+  end
+
+  defp process_event_via_pipeline(%Payload{t: type} = payload, direction) when not is_nil(type) do
+    plugins = PluginManager.plugins :all_events
+    case plugins do
+      [] ->
+        {:ok, payload}
+
+      plugins when is_list(plugins) ->
+        case run_pipeline(plugins, type, direction, payload, []) do
+          {:ok, _frame} = res ->
+            res
+
+          :halted ->
+            :halted
+
+          {:error, reason, undo_states} ->
+            undo_errors =
+              undo_states
+              # TODO: This should really just append undo states in reverse...
+              |> Enum.reverse
+              |> unwind_global_undo_stack(direction, type)
+
+            error_payload =
+              %{
+                message: "Error processing plugin event #{type}",
+                reason: reason,
+                undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
+              }
+
+            {:error, Payload.close_with_payload(:invalid, error_payload)}
+        end
+    end
+  end
+
+  # credo:disable-for-next-line
+  defp run_pipeline([plugin | rest], event, direction, data, undo_states) do
+    case plugin.handle_global_event(event, direction, data) do
+      {:next, out_frame, plugin_undo_state} when not is_nil(out_frame) and not is_nil(plugin_undo_state) ->
+        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
+        run_pipeline rest, event, data, out_frame, out_undo_states
+
+      {:next, out_frame, nil} when not is_nil(out_frame) ->
+        run_pipeline rest, event, data, out_frame, undo_states
+
+      {:next, out_frame} when not is_nil(out_frame) ->
+        run_pipeline rest, event, data, out_frame, undo_states
+
+      {:halt, _} ->
+        # Halts do not return execution to the pipeline, nor do they return any
+        # side-effects (read: frames) to the client.
+        :halted
+
+      :halt ->
+        :halted
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason, undo_states}
+
+      {:error, reason, plugin_undo_state} when is_binary(reason) and not is_nil(plugin_undo_state) ->
+        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
+        {:error, reason, out_undo_states}
+
+      {:error, reason, nil} when is_binary(reason) ->
+        {:error, reason, undo_states}
+    end
+  end
+  defp run_pipeline([], _event, _direction, payload, _undo_states) do
+    {:ok, payload}
+  end
+
+  defp unwind_global_undo_stack(undo_states, direction, event) do
+    undo_states
+    |> Enum.filter(fn {_, state} -> state != nil end)
+    |> Enum.map(fn undo_state -> global_undo(undo_state, direction, event) end)
+    # We only want the :error tuple results so that we can report them to the
+    # client; successful undos don't need to be reported.
+    |> Enum.filter(fn res -> res != :ok end)
+  end
+  defp global_undo({plugin, undo_state}, direction, event) do
+    # We don't just take a list of the undo states here, because really we do
+    # not want to halt undo when one encounters an error; instead, we want to
+    # continue the undo and then report all errors to the client.
+    apply plugin, :global_undo, [event, direction, undo_state]
   end
 
   def handle_heartbeat(socket, _payload) do

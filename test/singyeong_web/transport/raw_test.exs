@@ -4,7 +4,7 @@ defmodule SingyeongWeb.Transport.RawTest do
 
   @connect_json %{
     connect_info: %{
-      peer_data: %{address: {127, 0, 0, 1}, port: 65432, ssl_cert: nil},
+      peer_data: %{address: {127, 0, 0, 1}, port: 65_432, ssl_cert: nil},
       uri: %URI{
         authority: "localhost",
         fragment: nil,
@@ -25,7 +25,7 @@ defmodule SingyeongWeb.Transport.RawTest do
         {Phoenix.Socket.V1.JSONSerializer, "~> 1.0.0"},
         {Phoenix.Socket.V2.JSONSerializer, "~> 2.0.0"}
       ],
-      timeout: 60000,
+      timeout: 60_000,
       transport_log: false,
       compress: false
     ],
@@ -35,7 +35,7 @@ defmodule SingyeongWeb.Transport.RawTest do
 
   @connect_etf %{
     connect_info: %{
-      peer_data: %{address: {127, 0, 0, 1}, port: 65432, ssl_cert: nil},
+      peer_data: %{address: {127, 0, 0, 1}, port: 65_432, ssl_cert: nil},
       uri: %URI{
         authority: "localhost",
         fragment: nil,
@@ -56,7 +56,7 @@ defmodule SingyeongWeb.Transport.RawTest do
         {Phoenix.Socket.V1.JSONSerializer, "~> 1.0.0"},
         {Phoenix.Socket.V2.JSONSerializer, "~> 2.0.0"}
       ],
-      timeout: 60000,
+      timeout: 60_000,
       transport_log: false,
       compress: false
     ],
@@ -66,7 +66,7 @@ defmodule SingyeongWeb.Transport.RawTest do
 
   @connect_msgpack %{
     connect_info: %{
-      peer_data: %{address: {127, 0, 0, 1}, port: 65432, ssl_cert: nil},
+      peer_data: %{address: {127, 0, 0, 1}, port: 65_432, ssl_cert: nil},
       uri: %URI{
         authority: "localhost",
         fragment: nil,
@@ -87,7 +87,7 @@ defmodule SingyeongWeb.Transport.RawTest do
         {Phoenix.Socket.V1.JSONSerializer, "~> 1.0.0"},
         {Phoenix.Socket.V2.JSONSerializer, "~> 2.0.0"}
       ],
-      timeout: 60000,
+      timeout: 60_000,
       transport_log: false,
       compress: false
     ],

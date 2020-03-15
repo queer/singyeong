@@ -364,10 +364,10 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Add a socket ip to the store. Used for proxying HTTP requests.
   """
-  @spec add_socket_ip(binary(), binary(), pid()) :: :ok
-  def add_socket_ip(app_id, client_id, pid) do
+  @spec add_socket_ip(binary(), binary(), binary()) :: :ok
+  def add_socket_ip(app_id, client_id, ip) do
     :mnesia.transaction(fn ->
-      :mnesia.write {@socket_ips, {app_id, client_id}, pid}
+      :mnesia.write {@socket_ips, {app_id, client_id}, ip}
     end)
     :ok
   end
@@ -375,7 +375,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Return the socket ip with the given composite id, or `nil` if there is none.
   """
-  @spec get_socket_ip(binary(), binary()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  @spec get_socket_ip(binary(), binary()) :: {:ok, binary()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_socket_ip(app_id, client_id) do
     res =
       :mnesia.transaction(fn ->
@@ -383,8 +383,8 @@ defmodule Singyeong.MnesiaStore do
       end)
     case res do
       {:atomic, [out]} ->
-        {@socket_ips, {^app_id, ^client_id}, pid} = out
-        {:ok, pid}
+        {@socket_ips, {^app_id, ^client_id}, ip} = out
+        {:ok, ip}
       {:atomic, []} ->
         {:ok, nil}
       {:aborted, reason} ->

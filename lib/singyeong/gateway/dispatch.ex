@@ -6,11 +6,10 @@ defmodule Singyeong.Gateway.Dispatch do
   outgoing messages can take reasonably use.
   """
 
-  alias Singyeong.Cluster
+  alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Utils}
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Metadata.{Query, UpdateQueue}
   alias Singyeong.MnesiaStore, as: Store
-  alias Singyeong.Metadata.Query
-  alias Singyeong.MessageDispatcher
   require Logger
 
   # TODO: Config option for this
@@ -35,34 +34,33 @@ defmodule Singyeong.Gateway.Dispatch do
 
   # Note: Dispatch handlers will return a list of response frames
 
-  @spec handle_dispatch(Phoenix.Socket.t(), Payload.t()) :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
+  @spec handle_dispatch(Phoenix.Socket.t(), Payload.t())
+    :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do
-    try do
-      {status, res} = Store.validate_metadata data
-      case status do
-        :ok ->
-          app_id = socket.assigns[:app_id]
-          client_id = socket.assigns[:client_id]
-          # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
-          queue_worker = Singyeong.Metadata.UpdateQueue.name app_id, client_id
-          pid = Process.whereis queue_worker
-          send pid, {:queue, app_id, client_id, res}
-          {:ok, []}
-        :error ->
-          {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
-      end
-    rescue
-      # Ideally we won't reach this case, but clients can't be trusted :<
-      e ->
-        formatted =
-          Exception.format(:error, e, __STACKTRACE__)
-        Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
+    {status, res} = Store.validate_metadata data
+    case status do
+      :ok ->
+        app_id = socket.assigns[:app_id]
+        client_id = socket.assigns[:client_id]
+        # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
+        queue_worker = UpdateQueue.name app_id, client_id
+        pid = Process.whereis queue_worker
+        send pid, {:queue, app_id, client_id, res}
+        {:ok, []}
+      :error ->
+        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
     end
+  catch
+    # Ideally we won't reach this case, but clients can't be trusted :<
+    e ->
+      formatted =
+        Exception.format(:error, e, __STACKTRACE__)
+      Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
+      {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
 
   def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
-    {:ok, [Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})]}
+    {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})}
   end
 
   def handle_dispatch(socket, %Payload{t: "SEND", d: data} = _payload) do
@@ -75,8 +73,95 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, []}
   end
 
-  def handle_dispatch(_socket, payload) do
-    {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
+  def handle_dispatch(_socket, %Payload{t: t, d: data} = payload) do
+    plugins = PluginManager.plugins_for_event :custom_events, t
+    case plugins do
+      [] ->
+        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
+
+      plugins when is_list(plugins) ->
+        case run_pipeline(plugins, t, data, [], []) do
+          {:ok, _frames} = res ->
+            res
+
+          :halted ->
+            {:ok, []}
+
+          {:error, reason, undo_states} ->
+            undo_errors =
+              undo_states
+              # TODO: This should really just append undo states in reverse...
+              |> Enum.reverse
+              |> unwind_undo_stack(t)
+
+            error_payload =
+              %{
+                message: "Error processing plugin event #{t}",
+                reason: reason,
+                undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
+              }
+
+            {:error, Payload.close_with_payload(:invalid, error_payload)}
+        end
+    end
+  end
+
+  @spec run_pipeline([atom()], binary(), any(), [Payload.t()], [any()]) ::
+          {:ok, [Payload.t()]}
+          | :halted
+          | {:error, binary(), [{atom(), any()}]}
+  # credo:disable-for-next-line
+  defp run_pipeline([plugin | rest], event, data, frames, undo_states) do
+    case plugin.handle_event(event, data) do
+      {:next, plugin_frames, plugin_undo_state} when not is_nil(plugin_frames) and not is_nil(plugin_undo_state) ->
+        out_frames = Utils.fast_list_concat frames, plugin_frames
+        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
+        run_pipeline rest, event, data, out_frames, out_undo_states
+
+      {:next, plugin_frames, nil} when not is_nil(plugin_frames) ->
+        out_frames = Utils.fast_list_concat frames, plugin_frames
+        run_pipeline rest, event, data, out_frames, undo_states
+
+      {:next, plugin_frames} when not is_nil(plugin_frames) ->
+        out_frames = Utils.fast_list_concat frames, plugin_frames
+        run_pipeline rest, event, data, out_frames, undo_states
+
+      {:halt, _} ->
+        # Halts do not return execution to the pipeline, nor do they return any
+        # side-effects (read: frames) to the client.
+        :halted
+
+      :halt ->
+        :halted
+
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason, undo_states}
+
+      {:error, reason, plugin_undo_state} when is_binary(reason) and not is_nil(plugin_undo_state) ->
+        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
+        {:error, reason, out_undo_states}
+
+      {:error, reason, nil} when is_binary(reason) ->
+        {:error, reason, undo_states}
+    end
+  end
+  defp run_pipeline([], _, _, frames, _undo_states) do
+    {:ok, frames}
+  end
+
+  defp unwind_undo_stack(undo_states, event) do
+    undo_states
+    |> Enum.filter(fn {_, state} -> state != nil end)
+    |> Enum.map(fn undo_state -> undo(undo_state, event) end)
+    # We only want the :error tuple results so that we can report them to the
+    # client; successful undos don't need to be reported.
+    |> Enum.filter(fn res -> res != :ok end)
+  end
+  defp undo({plugin, undo_state}, event) do
+    # We don't just take a list of the undo states here, because really we do
+    # not want to halt undo when one encounters an error; instead, we want to
+    # continue the undo and then report all errors to the client.
+    apply plugin, :undo, [event, undo_state]
   end
 
   defp send_to_clients(socket, data, tries, broadcast \\ true) do

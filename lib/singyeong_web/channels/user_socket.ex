@@ -1,8 +1,7 @@
 defmodule SingyeongWeb.UserSocket do
   use Phoenix.Socket
   alias Singyeong.Gateway
-  alias Singyeong.Gateway.Payload
-  alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.Gateway.{GatewayResponse, Payload}
   require Logger
 
   # transport :websocket, SingyeongWeb.Transport.RawWs
