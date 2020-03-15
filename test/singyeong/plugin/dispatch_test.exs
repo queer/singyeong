@@ -290,7 +290,8 @@ defmodule Singyeong.Plugin.DispatchTest do
     # match.
     {:messages, msgs} = :erlang.process_info self(), :messages
     outgoing_payload = hd msgs
-    {:push, {:text, encoded_payload}, _} = Transport.Raw.handle_info outgoing_payload, {%{channels: %{}, channels_inverse: %{}}, socket}
+    {:push, {:text, encoded_payload}, _} = Transport.Raw.handle_info outgoing_payload,
+        {%{channels: %{}, channels_inverse: %{}}, socket}
     decoded_payload = Jason.decode! encoded_payload
     assert expected.d == decoded_payload["d"]
     assert expected.op == decoded_payload["op"]
