@@ -80,6 +80,12 @@ use Mix.Config
 config :logger, level: :debug
 ```
 
+## Plugins
+
+Plugins belong in a directory named `plugins` at the root directory. See the
+[plugin API](https://github.com/queer/singyeong_plugin) and the 
+[example plugin](https://github.com/queer/singyeong-test-plugin) for more info.
+
 ## Clustering
 
 신경 is capable of bootstrapping the Erlang node and discovering cluster
