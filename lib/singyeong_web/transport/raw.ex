@@ -93,8 +93,9 @@ defmodule SingyeongWeb.Transport.Raw do
   end
 
   def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
-    new_payload = Gateway.encode socket, payload
-    {:push, new_payload, state}
+    outgoing = Gateway.process_outgoing_event payload
+    encoded_payload = Gateway.encode socket, outgoing
+    {:push, encoded_payload, state}
   end
 
   def handle_info({:stop, reason} = _msg, state) do

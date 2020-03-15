@@ -2,7 +2,9 @@ defmodule Singyeong.Plugin.DispatchTest do
   use SingyeongWeb.ChannelCase, async: false
   alias Singyeong.{Gateway, MnesiaStore, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
+  alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
+  alias SingyeongWeb.Transport
 
   @client_id "client-1"
   @app_id "test-app-1"
@@ -225,5 +227,76 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert "Manually requested error" == reason
     assert ["undo error"] == undo_errors
     assert ts <= :os.system_time(:millisecond)
+  end
+
+  @tag capture_log: true
+  test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
+    # IDENTIFY with the gateway so that we have everything we need set up
+    # This is tested in another location
+    Gateway.handle_identify socket, %{
+      op: Gateway.opcodes_name()[:identify],
+      d: %{
+        "client_id" => @client_id,
+        "application_id" => @app_id,
+        "reconnect" => false,
+        "auth" => nil,
+        "tags" => ["test", "webscale"]
+      },
+      ts: :os.system_time(:millisecond),
+      t: nil,
+    }
+
+    target = %{
+      "application" => @app_id,
+      "optional" => true,
+      "ops" => nil
+    }
+    payload = %{}
+    nonce = "1"
+    # Actually do and test the dispatch
+    dispatch =
+      %Payload{
+        t: "SEND",
+        d: %{
+          "target" => target,
+          "payload" => payload,
+          "nonce" => nonce,
+        }
+      }
+
+    %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
+    now = :os.system_time :millisecond
+    op = Gateway.opcodes_name()[:dispatch]
+    assert [] == frames
+    expected =
+      %Payload{
+        d: %{
+          "payload" => payload,
+          "nonce" => nonce
+        },
+        op: op,
+        ts: now,
+        t: "SEND",
+      }
+
+    Process.sleep 100
+    # assert_receive / assert_received exist, but we have the issue that
+    # waiting for a message to be received may actually take longer than 1ms -
+    # especially if we "send" the initial message near the end of a millisecond
+    # - meaning that we could have timestamp variance between the expected
+    # ts and the ts that the gateway sends back. We can get around this by
+    # pulling the message from the process' mailbox ourselves, and do the
+    # "pattern matching" manually with == instead of doing a real pattern
+    # match.
+    {:messages, msgs} = :erlang.process_info self(), :messages
+    outgoing_payload = hd msgs
+    {:push, {:text, encoded_payload}, _} = Transport.Raw.handle_info outgoing_payload, {%{channels: %{}, channels_inverse: %{}}, socket}
+    decoded_payload = Jason.decode! encoded_payload
+    assert expected.d == decoded_payload["d"]
+    assert expected.op == decoded_payload["op"]
+    assert expected.t == decoded_payload["t"]
+    # Really this should be within ~1ms or so, but there's a host of possible
+    # things that could make it not work out.
+    assert 10 > abs(expected.ts - decoded_payload["ts"])
   end
 end
