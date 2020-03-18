@@ -182,7 +182,7 @@ defmodule Singyeong.Proxy do
           "#{dest_with_protocol}/#{request.route}",
           encoded_body,
           headers,
-          [timeout: 5_000]
+          [timeout: 5_000, follow_redirect: true, max_redirects: 10]
         )
         case status do
           :ok ->
