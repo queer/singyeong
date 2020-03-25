@@ -7,7 +7,8 @@ providing a metadata-oriented message bus for IPC, service discovery, dynamic
 request proxying, and more. 신경 aims to be simple to use, but still provide
 powerful features.
 
-For a high-level overview of how 신경 works, check out DESIGN.md.
+For a high-level overview of how 신경 works, check out
+[DESIGN.md](https://github.com/queer/singyeong/blob/master/DESIGN.md).
 
 신경 can be discussed in the amyware Discord server: https://discord.gg/aJSRXdd
 
