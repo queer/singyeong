@@ -1,6 +1,6 @@
 # Design
 
-For a more in-depth explanation, see PROTOCOL.md.
+For a more in-depth explanation, see [PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md).
 
 신경 tries to be stupidly easy to run - outside of port, password, and
 clustering, there isn't any configuration. In line with this goal is the fact
@@ -81,10 +81,11 @@ For more information about Mnesia, see the following links:
 ### Metadata queries
 
 신경 uses metadata queries to determine how to route messages / requests 
-around. A description of how it works can be found in PROTOCOL.md, but suffice
-to say, 신경 queries follow a MongoDB-inspired syntax. Metadata queries are the
-fundamental thing that lets 신경 work. Fundamentally though, metadata queries
-are very simple. 
+around. A description of how it works can be found in
+[PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md), but
+suffice to say, 신경 queries follow a MongoDB-inspired syntax. Metadata queries
+are the fundamental thing that lets 신경 work. Fundamentally though, metadata
+queries are very simple. 
 
 ### Reconnects
 
