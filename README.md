@@ -99,20 +99,19 @@ supported eventually.
 Someday it might be cool to support gossip protocol, kube api, ... to allow for
 automatically forming clusters w/o external dependencies, I guess.
 
-See CLUSTERING.md for more information.
+See [CLUSTERING.md](https://github.com/queer/singyeong/blob/master/CLUSTERING.md)
+for more information.
 
 ### Why not using swarm / libcluster?
 
-Meh.
-
-To be serious, swarm doesn't do certain things that I want, and I'm too lazy to
-write a libcluster strategy that does what I want. Maybe Someday:tm:
+Swarm doesn't do certain things that I want, and I don't see the value in
+writing a libcluster strategy that does what I want.
 
 ## What exactly is it?
 
 신경 is a metadata-oriented service mesh. Clients connect over a websocket
-(protocol defined in PROTOCOL.md), and can send messages that can be routed to
-clients based on client metadata.
+(protocol defined in [PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md)),
+and can send messages that can be routed to clients based on client metadata.
 
 ### Metadata-oriented?
 
@@ -152,8 +151,8 @@ should be expressing a metadata query that will send to the client you want.
 
 No. When clients connect to 신경, they can choose to set some tags describing 
 WHAT they are; consumers of 신경 can then use the HTTP API to discover service
-names based on tags. Check out the "Service discovery" section in DESIGN.md for
-more. 
+names based on tags. Check out the "Service discovery" section in
+[DESIGN.md](https://github.com/queer/singyeong/blob/master/DESIGN.md) for more.
 
 ### Do I need sidecar containers if I'm running in Kubernetes?
 
@@ -162,7 +161,8 @@ Nope.
 ### Does it support clustering / multi-master / ...?
 
 신경 has basic masterless clustering support. See "Clustering" above, or
-CLUSTERING.md for more information on how it works.
+[CLUSTERING.md](https://github.com/queer/singyeong/blob/master/CLUSTERING.md)
+for more information on how it works.
 
 ## Why should I use this?
 
@@ -219,7 +219,7 @@ plumbing.
 
 ## How do I write my own client for it? How does it work internally? etc.
 
-Check out PROTOCOL.md.
+Check out [PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md).
 
 ## How do I run the tests?
 

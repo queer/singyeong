@@ -361,8 +361,9 @@ if and only if the set of clients returned by the query does not change.**
 
 The `application` key in a query does not have to only be a string! You can 
 also send an array of tags, and 신경 will attempt to find a service matching 
-the provided tag query. See "Service discovery" in API.md for more information,
-as well as the description of tags under the `identify` payload. 
+the provided tag query. See "Service discovery" in
+[API.md](https://github.com/queer/singyeong/blob/master/API.md) for more
+information, as well as the description of tags under the `identify` payload. 
 
 ### Optional queries
 
