@@ -435,6 +435,7 @@ defmodule Singyeong.Gateway do
     end
   end
 
+  defp process_event_via_pipeline(%Payload{t: type} = payload, _) when is_nil(type), do: {:ok, payload}
   defp process_event_via_pipeline(%Payload{t: type} = payload, direction) when not is_nil(type) do
     plugins = PluginManager.plugins :all_events
     case plugins do
