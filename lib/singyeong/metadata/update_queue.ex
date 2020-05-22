@@ -1,10 +1,10 @@
 defmodule Singyeong.Metadata.UpdateQueue do
   @moduledoc """
   A non-WS-pid worker that processes metadata updates for connected clients.
-  A metadata queue worker will only process 50 updates per second, at most, for
-  the sake of not abusing the CPU. This means that, if a single client is
-  sending many metadata updates at once, said updates may not be visible for
-  several seconds.
+  A metadata queue worker will only process max(50, queue_size / 10) updates
+  per second, at most, for the sake of not abusing the CPU. This means that if
+  a single client is sending many metadata updates at once, said updates may
+  not be visible for several seconds.
   """
 
   alias Singyeong.MnesiaStore, as: Store
@@ -24,6 +24,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
       # doesn't store this as part of the queue itself, but rather recomputes
       # it each time you call :queue.len/1.
       |> Map.put(:queue_size, 0)
+
     Process.send_after self(), :process, 1000
     {:ok, state}
   end
@@ -34,33 +35,36 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {:noreply, %{state | queue: new_queue, queue_size: queue_size}}
   end
 
-  def handle_info(:process, state) do
-    new_state = process_updates state, 50
+  def handle_info(:process, %{queue_size: queue_size} = state) do
+    new_state = process_updates state, max(50, div(queue_size, 10))
     Process.send_after self(), :process, 1000
     {:noreply, new_state}
   end
 
-  defp process_updates(state, count) do
-    if state[:queue_size] > 0 and count > 0 do
-      res = :queue.out state[:queue]
-      {new_queue, queue_size} =
+  defp process_updates(%{queue_size: queue_size, queue: queue} = state, count) do
+    if queue_size > 0 and count > 0 do
+      res = :queue.out queue
+      {new_queue, new_queue_size} =
         case res do
           {{:value, item}, new_queue} ->
             # If we get a value out of the queue, deconstruct it and do a
             # metadata update.
             {app_id, client_id, metadata} = item
             Store.update_metadata app_id, client_id, metadata
-            {new_queue, state[:queue_size] - 1}
+            {new_queue, queue_size - 1}
+
           {:empty, new_queue} ->
             # If the queue is actually empty but we were out of sync, then we
             # reset the queue size.
             {new_queue, 0}
+
           _ ->
             # If, for some reason, we get something unexpected, just return the
             # queue itself. This *shouldn't* happen, but who knows.
-            {state[:queue], state[:queue_size]}
+            {queue, queue_size}
         end
-      process_updates %{state | queue: new_queue, queue_size: queue_size}, count - 1
+
+      process_updates %{state | queue: new_queue, queue_size: new_queue_size}, count - 1
     else
       state
     end
