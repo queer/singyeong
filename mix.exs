@@ -45,7 +45,7 @@ defmodule Singyeong.Mixfile do
       {:plug_cowboy, "~> 2.0"},
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.1"},
-      {:nimble_parsec, "~> 0.5.0"},
+      {:nimble_parsec, "~> 0.6.0"},
       {:fuse, "~> 2.4"},
       {:httpoison, "~> 1.6"},
       {:redix, ">= 0.0.0"},
@@ -53,7 +53,7 @@ defmodule Singyeong.Mixfile do
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.4.0", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.12.0", only: :test},
+      {:excoveralls, "~> 0.13.0", only: :test},
 
       # {:singyeong_plugin, github: "queer/singyeong_plugin"},
       {:singyeong_plugin, "~> 0.1.1"},
