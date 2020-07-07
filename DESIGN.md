@@ -35,8 +35,6 @@ The 신경 connection lifecycle is heavily inspired by the
   - What application is this client a part of?
   - What is the client's id?
   - What tags is the client identifying itself with?
-  - Is the client reconnecting? If yes, allow it to reuse app name/id 
-    combinations, **if and only if** the client is not restricted.
   - Sending the password to authenticate with. The password must **exactly**
     match what the server has configured as a password! That is, if the server
     does not have a password configured, the client must **not** send a 

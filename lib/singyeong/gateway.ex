@@ -321,17 +321,13 @@ defmodule Singyeong.Gateway do
         status when status in [:ok, :restricted] ->
           restricted = status == :restricted
           encoding = socket.assigns[:encoding]
-          cond do
-            not Store.client_exists?(app_id, client_id) ->
-              # Client doesn't exist, add to store and okay it
-              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-            Store.client_exists?(app_id, client_id) and d["reconnect"] and not restricted ->
-              # Client does exist, but this is a reconnect, so add to store and okay it
-              finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
-            true ->
-              # If we already have a client, reject outright
-              Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
-              |> craft_response
+          unless Store.client_exists?(app_id, client_id) do
+            # Client doesn't exist, add to store and okay it
+            finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+          else
+            # If we already have a client, reject outright
+            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+            |> craft_response
           end
 
         {:error, errors} ->
@@ -353,7 +349,7 @@ defmodule Singyeong.Gateway do
       Store.set_tags app_id, client_id, tags
       Store.add_socket_ip app_id, client_id, ip
     end
-    # Last heartbeat time is the current time to avoid incorrect disconnects
+    # Last heartbeat time is the current time to avoid incorret disconnects
     Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
     Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
     Store.update_metadata app_id, client_id, Metadata.encoding(), encoding

@@ -34,7 +34,6 @@ defmodule Singyeong.DispatchTest do
       d: %{
         "client_id" => @client_id,
         "application_id" => @app_id,
-        "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"]
       },
@@ -104,7 +103,6 @@ defmodule Singyeong.DispatchTest do
       d: %{
         "client_id" => @client_id,
         "application_id" => @app_id,
-        "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"]
       },
@@ -178,7 +176,6 @@ defmodule Singyeong.DispatchTest do
       d: %{
         "client_id" => @client_id,
         "application_id" => @app_id,
-        "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"]
       },
@@ -266,7 +263,6 @@ defmodule Singyeong.DispatchTest do
       d: %{
         "client_id" => @client_id,
         "application_id" => @app_id,
-        "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"]
       },

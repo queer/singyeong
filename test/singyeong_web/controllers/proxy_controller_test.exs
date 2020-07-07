@@ -28,7 +28,6 @@ defmodule SingyeongWeb.ProxyControllerTest do
       d: %{
         "client_id" => @client_id,
         "application_id" => @app_id,
-        "reconnect" => false,
         "auth" => nil,
         "tags" => ["test", "webscale"],
         "ip" => "https://echo.amy.gg",
