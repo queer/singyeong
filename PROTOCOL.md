@@ -333,6 +333,7 @@ For a more-compact example:
   "application": "application id here",
   "key": "1234567890",
   "restricted": true,
+  "droppable": true,
   "ops": [
     {"key": {"$eq": "value"}},
     {"key2": {"$lte": 1234}},
@@ -352,6 +353,11 @@ dynamic nature of 신경, the clients being hashed against cannot be guaranteed
 to be the same. Because of this, 신경 "consistent hashes" are BEST-EFFORT. That
 is, **a "consistently-hashed" message's target will always be the same client
 if and only if the set of clients returned by the query does not change.**
+
+The `droppable` key explicitly sets whether a specific message can be dropped
+if it cannot be routed. Specifically, if a message's routing query returns no
+results, and the value of `droppable` is `true`, the message will be silently
+dropped.
 
 ### Application queries
 
