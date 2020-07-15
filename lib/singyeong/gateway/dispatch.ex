@@ -24,6 +24,7 @@ defmodule Singyeong.Gateway.Dispatch do
       case event do
         "UPDATE_METADATA" ->
           true
+
         _ ->
           false
       end
@@ -47,14 +48,14 @@ defmodule Singyeong.Gateway.Dispatch do
         pid = Process.whereis queue_worker
         send pid, {:queue, app_id, client_id, res}
         {:ok, []}
+
       :error ->
         {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
     end
   catch
     # Ideally we won't reach this case, but clients can't be trusted :<
     e ->
-      formatted =
-        Exception.format(:error, e, __STACKTRACE__)
+      formatted = Exception.format :error, e, __STACKTRACE__
       Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
       {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
