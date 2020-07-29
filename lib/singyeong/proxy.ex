@@ -100,21 +100,26 @@ defmodule Singyeong.Proxy do
         value = request.headers[header]
         [{header, value} | acc]
       end)
+
     headers = [{"X-Forwarded-For", client_ip} | headers]
     # Verify body + method
     cond do
       not valid_method?(request.method) ->
         # Can't proxy stuff that doesn't exist in the HTTP standard
         {:error, "#{request.method} is not a valid method! (valid methods: #{inspect @methods})"}
+
       not supported_method?(request.method) ->
         # Some stuff is just useless to support (imo)...
         {:error, "#{request.method} is not a supported method! (not supported: #{inspect @unsupported_methods})"}
+
       requires_body?(request.method) and is_nil(request.body) ->
         # If it requires a body and we don't have one, give up and cry.
         {:error, "requires body but none given (you probably wanted to send empty-string)"}
+
       not requires_body?(request.method) and not (is_nil(request.body) or request.body == "") ->
         # If it doesn't require a body and we have one, give up and cry.
         {:error, "no body required but one given (you probably wanted to send nil)"}
+
       true ->
         # Otherwise just do whatever
         query_and_proxy request, headers
@@ -129,11 +134,13 @@ defmodule Singyeong.Proxy do
         res != []
       end)
       |> Enum.into(%{})
+
     matched_client_ids =
       valid_targets
       |> Map.values
       |> Enum.map(fn({_, res}) -> res end)
       |> Enum.concat
+
     if Enum.empty?(matched_client_ids) do
       {:error, "no matches"}
     else
@@ -152,6 +159,7 @@ defmodule Singyeong.Proxy do
         request.method
         |> String.downcase
         |> String.to_atom
+
       {ip_status, target_ip} = MnesiaStore.get_socket_ip app_id, client
       send_proxied_request request, method_atom, headers, ip_status, target_ip
     end
@@ -159,6 +167,7 @@ defmodule Singyeong.Proxy do
     case node do
       ^fake_local_node ->
         Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+
       _ ->
         Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
     end
@@ -172,11 +181,14 @@ defmodule Singyeong.Proxy do
           case target_ip do
             "http://" <> _ip_or_domain ->
               target_ip
+
             "https://" <> _ip_or_domain ->
               target_ip
+
             _ ->
               "http://#{target_ip}"
           end
+
         {status, response} = HTTPoison.request(
           method_atom,
           "#{dest_with_protocol}/#{request.route}",
@@ -191,9 +203,11 @@ defmodule Singyeong.Proxy do
               body: response.body,
               headers: response.headers,
             }}
+
           :error ->
             {:error, Exception.message(response)}
         end
+
       :error ->
         {:error, "no target ip"}
     end
@@ -203,10 +217,13 @@ defmodule Singyeong.Proxy do
     cond do
       is_map(body) ->
         Jason.encode! body
+
       is_list(body) ->
         Jason.encode! body
+
       is_binary(body) ->
         body
+
       true ->
         Jason.encode! body
     end

@@ -116,16 +116,18 @@ defmodule Singyeong.Cluster do
         run_clustered fn ->
           MnesiaStore.count_sockets()
         end
+
       average =
         counts
         |> Map.drop([@fake_local_node])
         |> Map.values
         |> Enum.sum
         |> :erlang./(threshold)
+
       goal = threshold / 2
       if count > average + goal do
         to_disconnect = Kernel.trunc count - (average + goal + 1)
-        Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
+        Logger.info "[CLUSTER] Disconnecting #{to_disconnect} sockets to load balance!"
         {status, result} = MnesiaStore.get_first_sockets to_disconnect
         case status do
           :ok ->
@@ -133,11 +135,13 @@ defmodule Singyeong.Cluster do
               payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
               send socket, payload
             end
+
           :error ->
-            Logger.error "Couldn't get sockets to load-balance away: #{result}"
+            Logger.error "[CLUSTER] Couldn't get sockets to load-balance away: #{result}"
         end
       end
     end
+
     {:noreply, state}
   end
 
@@ -162,11 +166,13 @@ defmodule Singyeong.Cluster do
     end
   end
 
-  defp run_clustered(func) do
+  @spec run_clustered(function()) :: %{required(node()) => term()}
+  def run_clustered(func) do
     # Wrap the local function into an "awaitable" fn
     local_func = fn ->
       res = func.()
       {@fake_local_node, res}
+
     end
     local_task = Task.Supervisor.async Singyeong.TaskSupervisor, local_func
     tasks = [local_task]
@@ -177,6 +183,7 @@ defmodule Singyeong.Cluster do
           res = func.()
           {node, res}
         end
+
       Utils.fast_list_concat acc, [task]
     end)
     |> Enum.map(&Task.await/1)
@@ -197,7 +204,7 @@ defmodule Singyeong.Cluster do
   end
 
   @spec get_network_state() :: %{hostname: binary(), hostaddr: binary()}
-  defp get_network_state do
+  def get_network_state do
     {:ok, hostname} = :inet.gethostname()
     {:ok, hostaddr} = :inet.getaddr(hostname, :inet)
     hostaddr =
@@ -219,6 +226,9 @@ defmodule Singyeong.Cluster do
   def get_hostaddr do
     get_network_state()[:hostaddr]
   end
+
+  @spec members() :: [node()] | []
+  def members, do: Node.list() |> Enum.reject(fn node -> node == Node.self() end)
 
   # Read all members of the registry
   defp registry_read(state) do
