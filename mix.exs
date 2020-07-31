@@ -50,7 +50,7 @@ defmodule Singyeong.Mixfile do
       {:httpoison, "~> 1.6"},
       {:redix, ">= 0.0.0"},
       {:msgpax, "~> 2.2"},
-      #{:ra, "~> 1.1"},
+      {:ra, "~> 1.1"},
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.4.0", only: [:dev, :test], runtime: false},

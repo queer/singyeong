@@ -16,6 +16,8 @@ defmodule Singyeong.Cluster do
   @start_delay 50
   @connect_interval 1000
   @fake_local_node :singyeong_local_node
+  @ra_cluster "singyeong_ra_cluster"
+  @ra_cluster_atom String.to_atom @ra_cluster
 
   # GENSERVER CALLBACKS #
 
@@ -43,6 +45,7 @@ defmodule Singyeong.Cluster do
         hash: hash,
       }
 
+    Application.ensure_all_started :ra
     # Start clustering after a smol delay
     Process.send_after self(), :start_connect, @start_delay
     {:ok, state}
@@ -66,6 +69,7 @@ defmodule Singyeong.Cluster do
 
       Logger.info "[CLUSTER] All done! Starting clustering..."
       Process.send_after self(), :connect, @start_delay
+      start_ra_cluster()
 
       {:noreply, new_state}
     else
@@ -93,6 +97,7 @@ defmodule Singyeong.Cluster do
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
+            # TODO: Handle ra cluster changes
             delete_node state, hash, longname
 
           :ignored ->
@@ -105,6 +110,15 @@ defmodule Singyeong.Cluster do
     # This should probably be a TRACE, but Elixir doesn't seem to have that :C
     # Could be useful for debuggo I guess?
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
+    ra_cluster_nodes =
+      :ra.members({@ra_cluster_atom, node()})
+      |> Enum.map(fn {@ra_cluster_atom, node} -> node end)
+
+    # TODO: Error checking
+    members()
+    |> Enum.reject(& &1 in ra_cluster_nodes)
+    |> Enum.map(&{@ra_cluster_atom, &1})
+    |> Enum.each(&:ra.add_member(&1, {@ra_cluster_atom, node()}))
 
     send self(), :load_balance
     # Do this again, forever.
@@ -202,6 +216,17 @@ defmodule Singyeong.Cluster do
   end
 
   # CLUSTERING HELPERS #
+
+  defp start_ra_cluster do
+    members =
+      members()
+      |> Enum.map(&{@ra_cluster_atom, &1})
+
+    # TODO: Other config?
+    config = %{}
+    machine = {:module, Singyeong.Cluster.StateMachine, config}
+    :ra.start_cluster @ra_cluster, machine, members
+  end
 
   defp delete_node(state, hash, longname) do
     Logger.debug "[CLUSTER] [WARN] Couldn't connect to #{longname} (#{hash}), deleting..."
