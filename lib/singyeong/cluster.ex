@@ -16,11 +16,12 @@ defmodule Singyeong.Cluster do
   @start_delay 50
   @connect_interval 1000
   @fake_local_node :singyeong_local_node
+  @ets_opts [:named_table, :public, :set, read_concurrency: true]
 
   # GENSERVER CALLBACKS #
 
   def start_link(opts) do
-    GenServer.start_link __MODULE__, opts
+    GenServer.start_link __MODULE__, opts, name: __MODULE__
   end
 
   def init(_) do
@@ -31,15 +32,21 @@ defmodule Singyeong.Cluster do
       |> Integer.to_string)
       |> Base.encode16
       |> String.downcase
-    state = %{
-      name: "singyeong_#{get_hostname()}_#{Env.port()}",
-      group: "singyeong",
-      cookie: Env.cookie(),
-      longname: nil,
-      hostname: hostname,
-      ip: ip,
-      hash: hash,
-    }
+
+    table = :ets.new :cluster_crdts, @ets_opts
+
+    state =
+      %{
+        name: "singyeong_#{get_hostname()}_#{Env.port()}",
+        group: "singyeong",
+        cookie: Env.cookie(),
+        longname: nil,
+        hostname: hostname,
+        ip: ip,
+        hash: hash,
+        table: table,
+      }
+
     # Start clustering after a smol delay
     Process.send_after self(), :start_connect, @start_delay
     {:ok, state}
@@ -86,10 +93,12 @@ defmodule Singyeong.Cluster do
             # This is NOT logged at :info to avoid spamme
             # Logger.debug "[CLUSTER] Connected to #{longname}"
             nil
+
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
             delete_node state, hash, longname
+
           :ignored ->
             # In general we shouldn't reach it, so...
             # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
@@ -102,6 +111,7 @@ defmodule Singyeong.Cluster do
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
     send self(), :load_balance
+    send self(), :refresh_crdts
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
@@ -145,8 +155,33 @@ defmodule Singyeong.Cluster do
     {:noreply, state}
   end
 
+  def handle_info(:refresh_crdts, %{table: table} = state) do
+    table
+    |> :ets.tab2list
+    |> Enum.each(fn {name, crdt} ->
+      neighbours =
+        members()
+        |> Enum.map(fn node -> {name, node} end)
+
+      DeltaCrdt.set_neighbours crdt, neighbours
+    end)
+    {:noreply, state}
+  end
+
+  def handle_cast({:register_crdt, name, crdt}, %{table: table} = state) do
+    :ets.insert table, {name, crdt}
+    {:noreply, state}
+  end
+
+  # LOCAL-NODE FUNCTIONS #
+
+  def register_crdt(name, crdt) do
+    GenServer.call __MODULE__, {:register_crdt, name, crdt}
+  end
+
   # CLUSTER-WIDE FUNCTIONS #
 
+  @spec discover([String.t()]) :: %{optional(atom) => any}
   @doc """
   Discover a service name based off of tags across the entire 신경 cluster.
   """
@@ -156,6 +191,7 @@ defmodule Singyeong.Cluster do
     end
   end
 
+  @spec query(map(), boolean()) :: %{optional(atom) => any}
   @doc """
   Run a metadata query across the entire cluster, and return a mapping of nodes
   to matching client ids.
@@ -166,7 +202,7 @@ defmodule Singyeong.Cluster do
     end
   end
 
-  @spec run_clustered(function()) :: %{required(node()) => term()}
+  @spec run_clustered(function()) :: %{optional(node()) => term()}
   def run_clustered(func) do
     # Wrap the local function into an "awaitable" fn
     local_func = fn ->
@@ -211,6 +247,7 @@ defmodule Singyeong.Cluster do
       hostaddr
       |> Tuple.to_list
       |> Enum.join(".")
+
     %{
       hostname: to_string(hostname),
       hostaddr: hostaddr

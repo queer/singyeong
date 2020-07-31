@@ -140,6 +140,7 @@ defmodule Singyeong.PluginManager do
         else
           :restricted
         end
+
       plugins when is_list(plugins) ->
         plugin_auth_results =
           plugins
@@ -222,6 +223,7 @@ defmodule Singyeong.PluginManager do
         case :ets.lookup(:loaded_so_cache, file) do
           [{file, true}] ->
             Logger.debug "[PLUGIN] Skipping native #{file}, load cached"
+
           _ ->
             Logger.debug "[PLUGIN] Attempting native extraction: #{file}"
             {:ok, {_, zip_data}} = :zip.zip_get file, handle
@@ -273,6 +275,7 @@ defmodule Singyeong.PluginManager do
       else
         Logger.warn "[PLUGIN] Not redefining already-existing module #{module_name}"
       end
+
       module_name
     end)
     # The previous step returns nil if it can't redefine a mod, so we have to
