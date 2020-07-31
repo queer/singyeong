@@ -16,7 +16,6 @@ defmodule Singyeong.Cluster do
   @start_delay 50
   @connect_interval 1000
   @fake_local_node :singyeong_local_node
-  @ets_opts [:named_table, :public, :set, read_concurrency: true]
 
   # GENSERVER CALLBACKS #
 
@@ -33,8 +32,6 @@ defmodule Singyeong.Cluster do
       |> Base.encode16
       |> String.downcase
 
-    table = :ets.new :cluster_crdts, @ets_opts
-
     state =
       %{
         name: "singyeong_#{get_hostname()}_#{Env.port()}",
@@ -44,7 +41,6 @@ defmodule Singyeong.Cluster do
         hostname: hostname,
         ip: ip,
         hash: hash,
-        table: table,
       }
 
     # Start clustering after a smol delay
@@ -111,7 +107,6 @@ defmodule Singyeong.Cluster do
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
     send self(), :load_balance
-    send self(), :refresh_crdts
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
@@ -153,30 +148,6 @@ defmodule Singyeong.Cluster do
     end
 
     {:noreply, state}
-  end
-
-  def handle_info(:refresh_crdts, %{table: table} = state) do
-    table
-    |> :ets.tab2list
-    |> Enum.each(fn {name, crdt} ->
-      neighbours =
-        members()
-        |> Enum.map(fn node -> {name, node} end)
-
-      DeltaCrdt.set_neighbours crdt, neighbours
-    end)
-    {:noreply, state}
-  end
-
-  def handle_cast({:register_crdt, name, crdt}, %{table: table} = state) do
-    :ets.insert table, {name, crdt}
-    {:noreply, state}
-  end
-
-  # LOCAL-NODE FUNCTIONS #
-
-  def register_crdt(name, crdt) do
-    GenServer.call __MODULE__, {:register_crdt, name, crdt}
   end
 
   # CLUSTER-WIDE FUNCTIONS #

@@ -3,7 +3,7 @@ defmodule Singyeong.Utils do
   Some utility functions that don't really belong in any one place
   """
 
-  @spec fast_list_concat(list(), list()) :: list()
+  @spec fast_list_concat(list() | term(), list() | term()) :: list()
   def fast_list_concat(a, b) do
     # See #72 for why this check is needed
     cond do

@@ -15,6 +15,7 @@ defmodule Singyeong.Plugin.RestRouteTest do
     end
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that plugin route proxying works" do
     conn = call Router, :get, "/api/v1/plugin/test"
@@ -22,6 +23,7 @@ defmodule Singyeong.Plugin.RestRouteTest do
     assert "Henlo world" == conn.resp_body
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that plugin route proxying works with params" do
     conn = call Router, :get, "/api/v1/plugin/test/test-param"

@@ -24,6 +24,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     {:ok, socket: socket}
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that a :ok dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
@@ -67,6 +68,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert ts <= :os.system_time(:millisecond)
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that a :halt dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
@@ -98,6 +100,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert [] = frames
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that an :error dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
@@ -140,6 +143,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert ts <= :os.system_time(:millisecond)
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that an :error with undo dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
@@ -182,6 +186,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert ts <= :os.system_time(:millisecond)
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that an :error with undo error dispatch works", %{socket: socket} do
     assert Utils.module_loaded? SingyeongPluginTest
@@ -224,6 +229,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert ts <= :os.system_time(:millisecond)
   end
 
+  @tag :plugin
   @tag capture_log: true
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
