@@ -217,6 +217,15 @@ defmodule Singyeong.Cluster do
 
   # CLUSTERING HELPERS #
 
+  @spec ra_cluster :: binary()
+  def ra_cluster, do: @ra_cluster
+
+  @spec ra_cluster_atom :: atom()
+  def ra_cluster_atom, do: @ra_cluster_atom
+
+  @spec ra_server_id :: {atom(), node()}
+  def ra_server_id, do: {@ra_cluster_atom, node()}
+
   defp start_ra_cluster do
     members =
       members()
