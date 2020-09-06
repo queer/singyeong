@@ -2,11 +2,23 @@ defmodule Singyeong.GatewayTest do
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
+  alias Singyeong.Utils
 
   @app_id "test-app-1"
   @client_id "client-1"
+  @incoming_payload %Payload{
+    op: Gateway.opcodes_name()[:identify],
+    d: %{
+      "client_id" => @client_id,
+      "application_id" => @app_id,
+      "auth" => nil,
+      "tags" => ["test", "webscale"],
+    },
+    t: :os.system_time(:millisecond),
+  }
 
   setup do
     PluginManager.init()
@@ -23,23 +35,11 @@ defmodule Singyeong.GatewayTest do
   test "that identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "json"}
 
-    incoming_payload =
-      %{
-        "op" => Gateway.opcodes_name()[:identify],
-        "d" => %{
-          "client_id" => @client_id,
-          "application_id" => @app_id,
-          "auth" => nil,
-          "tags" => ["test", "webscale"],
-        },
-        "t" => :os.system_time(:millisecond),
-      }
-
     %GatewayResponse{
       response: response,
       assigns: assigns
     } =
-      Gateway.handle_incoming_payload socket, {:text, Jason.encode!(incoming_payload)}
+      Gateway.handle_incoming_payload socket, {:text, Jason.encode!(@incoming_payload)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "json"} == assigns
 
@@ -60,25 +60,18 @@ defmodule Singyeong.GatewayTest do
   @tag capture_log: true
   test "that ETF identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "etf"}
-
-    incoming_payload =
-      %{
-        "op" => Gateway.opcodes_name()[:identify],
-        "d" => %{
-          "client_id" => @client_id,
-          "application_id" => @app_id,
-          "auth" => nil,
-          "tags" => ["test", "webscale"],
-        },
-        "t" => :os.system_time(:millisecond),
-      }
+    identify =
+      @incoming_payload
+      |> Map.from_struct
+      |> Utils.stringify_keys
+      |> :erlang.term_to_binary
 
     # Test actually setting ETF mode
     %GatewayResponse{
       response: response,
       assigns: assigns
     } =
-      Gateway.handle_incoming_payload socket, {:binary, :erlang.term_to_binary(incoming_payload)}
+      Gateway.handle_incoming_payload socket, {:binary, identify}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "etf"} == assigns
 
@@ -99,23 +92,13 @@ defmodule Singyeong.GatewayTest do
   @tag capture_log: true
   test "that msgpack identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "msgpack"}
-    incoming_payload = %{
-      "op" => Gateway.opcodes_name()[:identify],
-      "d" => %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"],
-      },
-      "t" => :os.system_time(:millisecond),
-    }
 
     # Test actually setting msgpack mode
     %GatewayResponse{
       response: _response,
       assigns: assigns
     } =
-      Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(incoming_payload)}
+      Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(@incoming_payload)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "msgpack"} == assigns
 

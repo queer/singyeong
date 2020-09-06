@@ -7,7 +7,10 @@ defmodule Singyeong.Gateway.Payload do
 
   @type t :: %__MODULE__{op: integer(), d: any(), t: binary() | nil, ts: number() | nil}
 
+  @derive [Jason.Encoder, Msgpax.Packer]
   defstruct op: -1, d: %{}, t: nil, ts: -1
+
+  def from_map(map) when is_map(map), do: %__MODULE__{op: map["op"], d: map["d"], t: map["t"], ts: map["ts"]}
 
   @spec create_payload(op :: atom() | integer(), data :: any()) :: {:text, %__MODULE__{}}
   def create_payload(op, data) when is_atom(op) do

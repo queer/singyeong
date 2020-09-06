@@ -11,6 +11,18 @@ defmodule Singyeong.DispatchTest do
   @client_id "client-1"
   @app_id "test-app-1"
 
+  @identify %{
+    op: Gateway.opcodes_name()[:identify],
+    d: %{
+      "client_id" => @client_id,
+      "application_id" => @app_id,
+      "auth" => nil,
+      "tags" => ["test", "webscale"]
+    },
+    ts: :os.system_time(:millisecond),
+    t: nil,
+  }
+
   setup do
     MnesiaStore.initialize()
     PluginManager.init()
@@ -29,17 +41,7 @@ defmodule Singyeong.DispatchTest do
   test "that SEND dispatch query to a socket works", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     target = %{
       "application" => @app_id,
@@ -98,17 +100,7 @@ defmodule Singyeong.DispatchTest do
   test "that SEND with nil ops in the query works as expected", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     target = %{
       "application" => @app_id,
@@ -171,17 +163,7 @@ defmodule Singyeong.DispatchTest do
     socket = assign socket, :client_id, @client_id
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %Payload{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      t: nil,
-      ts: :os.system_time(:millisecond),
-    }
+    Gateway.handle_identify socket, @identify
 
     # Send a fake metadata update and pray
     payload = %Payload{
@@ -258,17 +240,7 @@ defmodule Singyeong.DispatchTest do
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     target = %{
       "application" => @app_id,
