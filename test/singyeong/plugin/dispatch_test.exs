@@ -11,6 +11,18 @@ defmodule Singyeong.Plugin.DispatchTest do
 
   @dispatch_op Gateway.opcodes_name()[:dispatch]
 
+  @identify %{
+    op: Gateway.opcodes_name()[:identify],
+    d: %{
+      "client_id" => @client_id,
+      "application_id" => @app_id,
+      "auth" => nil,
+      "tags" => ["test", "webscale"]
+    },
+    ts: :os.system_time(:millisecond),
+    t: nil,
+  }
+
   setup do
     MnesiaStore.initialize()
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
@@ -31,17 +43,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     refute [] == PluginManager.plugins_for_event(:custom_events, "TEST")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     # Actually do and test the dispatch
     dispatch =
@@ -74,17 +76,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     refute [] == PluginManager.plugins_for_event(:custom_events, "HALT")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     # Actually do and test the dispatch
     dispatch =
@@ -105,17 +97,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     # Actually do and test the dispatch
     dispatch =
@@ -147,17 +129,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     # Actually do and test the dispatch
     dispatch =
@@ -189,17 +161,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     # Actually do and test the dispatch
     dispatch =
@@ -228,17 +190,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
+    Gateway.handle_identify socket, @identify
 
     target = %{
       "application" => @app_id,
