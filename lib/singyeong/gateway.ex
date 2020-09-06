@@ -68,7 +68,10 @@ defmodule Singyeong.Gateway do
     A packet being sent from the gateway to a client.
     """
 
-    @type t :: %__MODULE__{response: [] | [Payload.t()] | {:text, Payload.t()} | {:close, {:text, Payload.t()}}, assigns: map()}
+    @type t :: %__MODULE__{
+      response: [] | [Payload.t()] | {:text, Payload.t()} | {:close, {:text, Payload.t()}},
+      assigns: map()
+    }
 
     # The empty map for response is effectively just a noop
     # If the assigns map isn't empty, everything in it will be assigned to the socket
