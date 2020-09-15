@@ -4,7 +4,7 @@ Some notes to myself so I don't forget
 
 ## Basic 신경 Lifecycle
 
-1.  Open a websocket connection to `/gateway/websocket`. The server will 
+1.  Open a websocket connection to `/gateway/websocket`. The server will
     immediately reply with a packet like this:
     ```Javascript
     {
@@ -14,10 +14,10 @@ Some notes to myself so I don't forget
       },
     }
     ```
-    Your client should start sending a heartbeat packet every 
-    `heartbeat_interval` milliseconds (more on this later). 
+    Your client should start sending a heartbeat packet every
+    `heartbeat_interval` milliseconds (more on this later).
     If you want to use ETF or MessagePack, append an `encoding` query param to
-    the URL you connect to. Valid encoding values can be seen in the table below. 
+    the URL you connect to. Valid encoding values can be seen in the table below.
 2.  Send the gateway a packet like this to identify:
     ```Javascript
     {
@@ -28,13 +28,13 @@ Some notes to myself so I don't forget
       }
     }
     ```
-    Your `client_id` should be unique among all clients that you connect to 
+    Your `client_id` should be unique among all clients that you connect to
     신경. If you don't know how to do this nicely, look into UUID or snowflake
-    libraries for your language of choice. 
+    libraries for your language of choice.
     
     Your `application_id` can - and should be - shared among many clients. This
-    is because the `application_id` is what's used for actually doing by-app 
-    routing queries within 신경. 
+    is because the `application_id` is what's used for actually doing by-app
+    routing queries within 신경.
 3.  The gateway will respond with a packet like this:
     ```Javascript
     {
@@ -44,7 +44,7 @@ Some notes to myself so I don't forget
       }
     }
     ```
-    and you will be considered connected. Be sure to heartbeat so that the 
+    and you will be considered connected. Be sure to heartbeat so that the
     gateway doesn't disconnect you!
 
 ## 신경 websocket encodings
@@ -70,7 +70,7 @@ encoding is assumed.
   "d": {
     // Whatever data the packet needs to send you
   },
-  // Timestamp of the packet when it was sent on the server. Can be used for 
+  // Timestamp of the packet when it was sent on the server. Can be used for
   // ex. latency calculations
   "ts": 0,
   // Type of the event. This only sent for `dispatch` events
@@ -94,7 +94,7 @@ encoding is assumed.
 ## 신경 events, the right way
 
 Beyond the structure described a few sections above this, the structure of the
-inner payload of 신경 events is quite important. The correct structure for 
+inner payload of 신경 events is quite important. The correct structure for
 these is described below:
 
 ### hello
@@ -102,7 +102,7 @@ these is described below:
 The initial payload you receive after connecting to 신경.
 ```Javascript
 {
-  // Send a heartbeat every `heartbeat_interval` milliseconds. 
+  // Send a heartbeat every `heartbeat_interval` milliseconds.
   // This value may change at any time, so don't hard-code it.
   "heartbeat_interval": 45000
 }
@@ -113,22 +113,22 @@ The initial payload you receive after connecting to 신경.
 The payload you send to tell the gateway who you are.
 ```Javascript
 {
-  // A unique client ID. If there is already a *healthy* client with this 
+  // A unique client ID. If there is already a *healthy* client with this
   // client id, your connection will be terminated with op 3.
   // If you don't know what to use for this, you should use something like a
   // UUID or snowflake.
   // This value may *not* contain spaces.
   "client_id": "19274eyuholdis3vhynurtlofkbhndvhvqkl34wjgyhnewri",
-  // The name of the client application. This field is required, as it's the 
-  // main thing used for routing queries. 
+  // The name of the client application. This field is required, as it's the
+  // main thing used for routing queries.
   // This value may *not* contain spaces.
   "application_id": "my-cool-application",
   // Optional value. If you specify a password in the env. vars, you must send
   // the same password here, otherwise you get placed into restricted mode.
   "auth": "your long complicated password here",
-  // Optional value. Any tags passed here will be used for service discovery, 
+  // Optional value. Any tags passed here will be used for service discovery,
   // ie. allowing other services to discover your app id without needing to
-  // hardcode it. 
+  // hardcode it.
   // Clients that are placed into restricted mode are NOT able to set tags.
   "tags": ["thing", "cool", "webscale"],
   // Optional value. If you specify an IP here, the server will use this as the
@@ -156,7 +156,7 @@ complicated, and gets its own section(s) below.
 
 ### heartbeat
 
-The payload you send the gateway to keep your connection alive. 
+The payload you send the gateway to keep your connection alive.
 ```Javascript
 {
   "client_id": "the same client id you sent in :identify"
@@ -176,8 +176,8 @@ The payload the gateway sends you when it receives your heartbeat.
 
 Dispatch packets are the most complicated packets that your client can send or
 recv., so it gets a special section documenting it. Specifically, a dispatch
-packet will have a very specific `d` field structure, which any compliant 
-clients must follow. 
+packet will have a very specific `d` field structure, which any compliant
+clients must follow.
 
 ### 신경 dispatch events
 
@@ -240,7 +240,7 @@ When receiving:
 ```
 
 The main difference is the presence of the `target` field in the payload when
-sending a dispatch event. 
+sending a dispatch event.
 
 ### `QUERY_NODES`
 
@@ -248,7 +248,7 @@ The inner payload is a node query as described below.
 
 ## 신경 node queries
 
-신경 implements a MongoDB-inspired query language. Specifically, 신경 supports 
+신경 implements a MongoDB-inspired query language. Specifically, 신경 supports
 the following query selectors:
 
 Comparison:
@@ -268,14 +268,14 @@ Logical:
 - `$or`
 - `$nor`
 
-Element "operators" are not supported mainly because 신경 will enforce types 
+Element "operators" are not supported mainly because 신경 will enforce types
 and value existence automatically, and return errors if your query is invalid.
 
-Basically, you should be interpreting this section as "It works sorta kinda 
+Basically, you should be interpreting this section as "It works sorta kinda
 like the MongoDB query language if you squint a little and look at it sideways,
 but expect some weird things."
 
-For more about MongoDB, see the following: 
+For more about MongoDB, see the following:
 
 - https://docs.mongodb.com/manual/tutorial/query-documents/
 - https://docs.mongodb.com/manual/reference/operator/query/
@@ -344,11 +344,11 @@ For a more-compact example:
 The `restricted` key sets whether or not the query can select a restricted-mode
 client as the target of the query. The default is `false` and this will be
 assumed if the value is not provided in the query. That is, if `restricted` is
-`true`, **any client of the given application that is in restricted-mode may 
+`true`, **any client of the given application that is in restricted-mode may
 receive the data being sent.** If you use 신경 as a websocket gateway, be sure
 that you handle restrictions correctly!
 
-The `key` key is the value used for consistent hashing. However, due to the 
+The `key` key is the value used for consistent hashing. However, due to the
 dynamic nature of 신경, the clients being hashed against cannot be guaranteed
 to be the same. Because of this, 신경 "consistent hashes" are BEST-EFFORT. That
 is, **a "consistently-hashed" message's target will always be the same client
@@ -361,16 +361,16 @@ dropped.
 
 ### Application queries
 
-The `application` key in a query does not have to only be a string! You can 
-also send an array of tags, and 신경 will attempt to find a service matching 
+The `application` key in a query does not have to only be a string! You can
+also send an array of tags, and 신경 will attempt to find a service matching
 the provided tag query. See "Service discovery" in
 [API.md](https://github.com/queer/singyeong/blob/master/API.md) for more
-information, as well as the description of tags under the `identify` payload. 
+information, as well as the description of tags under the `identify` payload.
 
 ### Optional queries
 
 Sometimes, it is desirable to have a message be routed even if the query fails.
-To make a routing query optional, simply add the `optional` key and set its 
+To make a routing query optional, simply add the `optional` key and set its
 value to `true`:
 
 ```Javascript
@@ -386,7 +386,7 @@ value to `true`:
 
 ### Why invent a new-ish query language?
 
-I didn't want to tie the querying functionality to any specific datastore, 
+I didn't want to tie the querying functionality to any specific datastore,
 didn't want to invent something silly like a new SQL dialect, and also had the
 constraint of clients that connect not necessarily having consistent metadata
 layouts or similar, so anything more complicated than a key-value store becomes
@@ -394,22 +394,22 @@ rather difficult to work with in terms of actually storing and retrieving data.
 
 ## 신경 metadata store
 
-신경 stores metadata in Mnesia. By storing metadata in 신경 you're able to 
-take advantage of target queries for message routing. 
+신경 stores metadata in Mnesia. By storing metadata in 신경 you're able to
+take advantage of target queries for message routing.
 
 When connecting to the 신경 websocket gateway, the identify payload that your
 client sends must include `application_id` and `client_id` fields; these fields
 are a requirement as they're the main keys used for the majority of routing
-queries. 
+queries.
 
 ### Important things to consider
 
-**Client metadata is NOT persisted across server restarts!** Your client is 
+**Client metadata is NOT persisted across server restarts!** Your client is
 responsible for caching whatever metadata needs to be set so that it can be
-restored on reconnect, as a client's metadata is always cleared when it 
+restored on reconnect, as a client's metadata is always cleared when it
 disconnects.
 
-**Client metadata updates are applied lazily.** This is done to make sure that 
+**Client metadata updates are applied lazily.** This is done to make sure that
 a single client's connection PID cannot be crushed by a flood of updates all at
 once. Currently, a single metadata queue worker will process 50 updates/second,
 and anything beyond that is left in the queue to be processed later.

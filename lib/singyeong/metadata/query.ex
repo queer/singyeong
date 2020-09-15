@@ -184,7 +184,7 @@ defmodule Singyeong.Metadata.Query do
         # ie op(value, query[op_atom])
         query[op_atom],
       ]
-      apply Singyeong.Metadata.Query, atom, args
+      apply __MODULE__, atom, args
     end)
   end
 
@@ -195,6 +195,7 @@ defmodule Singyeong.Metadata.Query do
     |> as_op
     |> String.to_atom
   end
+
   defp as_op(s) when is_binary(s) do
     "op_" <> s
   end
@@ -205,26 +206,32 @@ defmodule Singyeong.Metadata.Query do
   def op_eq(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value == value}
   end
+
   @spec op_ne(binary(), map(), any(), any()) :: query_op_result()
   def op_ne(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value != value}
   end
+
   @spec op_gt(binary(), map(), any(), any()) :: query_op_result()
   def op_gt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value > value}
   end
+
   @spec op_gte(binary(), map(), any(), any()) :: query_op_result()
   def op_gte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value >= value}
   end
+
   @spec op_lt(binary(), map(), any(), any()) :: query_op_result()
   def op_lt(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value < value}
   end
+
   @spec op_lte(binary(), map(), any(), any()) :: query_op_result()
   def op_lte(_key, _client_metadata, metadata_value, value) do
     {:ok, metadata_value <= value}
   end
+
   @spec op_in(binary(), map(), any(), list()) :: query_op_result()
   def op_in(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
@@ -233,6 +240,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
+
   @spec op_nin(binary(), map(), any(), list()) :: query_op_result()
   def op_nin(_key, _client_metadata, metadata_value, value) do
     if is_list(value) do
@@ -241,6 +249,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "value not a list"}
     end
   end
+
   @spec op_contains(binary(), map(), list(), any()) :: query_op_result()
   def op_contains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
@@ -249,6 +258,7 @@ defmodule Singyeong.Metadata.Query do
       {:error, "metadata not a list"}
     end
   end
+
   @spec op_ncontains(binary(), map(), list(), any()) :: query_op_result()
   def op_ncontains(_key, _client_metadata, metadata_value, value) do
     if is_list(metadata_value) do
@@ -297,6 +307,7 @@ defmodule Singyeong.Metadata.Query do
     case op_or(key, client_metadata, metadata_value, value) do
       {:ok, res} ->
         {:ok, not res}
+
       {:error, err} ->
         {:error, err}
     end
