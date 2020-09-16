@@ -5,7 +5,7 @@ defmodule Singyeong.Gateway.Payload do
   """
 
   use TypedStruct
-  alias Singyeong.Gateway
+  alias Singyeong.{Gateway, Utils}
 
   typedstruct do
     field :op, non_neg_integer(), enforced: true
@@ -15,7 +15,8 @@ defmodule Singyeong.Gateway.Payload do
   end
 
   @spec from_map(map()) :: __MODULE__.t()
-  def from_map(map) do
+  def from_map(map) when is_map(map) do
+    map = Utils.stringify_keys map
     %__MODULE__{
       op: map["op"],
       d: map["d"],

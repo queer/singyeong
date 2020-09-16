@@ -2,21 +2,21 @@ defmodule Singyeong.GatewayTest do
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.Gateway.Payload
   alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
 
   @app_id "test-app-1"
   @client_id "client-1"
-
-  @identify %{
-    "op" => Gateway.opcodes_name()[:identify],
-    "d" => %{
+  @identify %Payload{
+    op: Gateway.opcodes_name()[:identify],
+    d: %{
       "client_id" => @client_id,
       "application_id" => @app_id,
       "auth" => nil,
       "tags" => ["test", "webscale"],
     },
-    "t" => :os.system_time(:millisecond),
+    t: :os.system_time(:millisecond),
   }
 
   setup do
@@ -37,8 +37,7 @@ defmodule Singyeong.GatewayTest do
     %GatewayResponse{
       response: response,
       assigns: assigns
-    } =
-      Gateway.handle_incoming_payload socket, {:text, Jason.encode!(@identify)}
+    } = Gateway.handle_incoming_payload socket, {:text, Jason.encode!(@identify)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "json"} == assigns
 
@@ -60,13 +59,16 @@ defmodule Singyeong.GatewayTest do
   test "that ETF identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "etf"}
 
+    identify =
+      @identify
+      |> Map.from_struct
+      |> :erlang.term_to_binary
+
     # Test actually setting ETF mode
     %GatewayResponse{
       response: response,
       assigns: assigns
-    } =
-      Gateway.handle_incoming_payload socket, {:binary, :erlang.term_to_binary(@identify)}
-
+    } = Gateway.handle_incoming_payload socket, {:binary, identify}
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "etf"} == assigns
 
     # Destructure it
@@ -91,8 +93,7 @@ defmodule Singyeong.GatewayTest do
     %GatewayResponse{
       response: _response,
       assigns: assigns
-    } =
-      Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(@identify)}
+    } = Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(@identify)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "msgpack"} == assigns
 

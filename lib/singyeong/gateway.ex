@@ -69,10 +69,8 @@ defmodule Singyeong.Gateway do
     A packet being sent from the gateway to a client.
     """
 
-    @type t :: %__MODULE__{response: []
-                                     | [Payload.t()]
-                                     | {:text, Payload.t()}
-                                     | {:close, {:text, Payload.t()}},
+    @type t :: %__MODULE__{
+      response: [] | [Payload.t()] | {:text, Payload.t()} | {:close, {:text, Payload.t()}},
       assigns: map()
     }
 
@@ -152,8 +150,7 @@ defmodule Singyeong.Gateway do
 
     case status do
       :ok ->
-        payload_struct = Payload.from_map msg
-        handle_payload socket, payload_struct
+        handle_payload socket, msg
 
       :error ->
         error_msg =
@@ -176,7 +173,7 @@ defmodule Singyeong.Gateway do
         {status, data} = Jason.decode payload
         case status do
           :ok ->
-            {:ok, data}
+            {:ok, Payload.from_map(data)}
 
           :error ->
             {:error, Exception.message(data)}
@@ -187,7 +184,7 @@ defmodule Singyeong.Gateway do
         {status, data} = Msgpax.unpack payload
         case status do
           :ok ->
-            {:ok, data}
+            {:ok, Payload.from_map(data)}
 
           :error ->
             # We convert the exception into smth more useful
@@ -216,13 +213,23 @@ defmodule Singyeong.Gateway do
         # If the client is NOT restricted and sends ETF, decode it.
         # In this particular case, we trust that the client isn't stupid
         # about the ETF it's sending
-        term = :erlang.binary_to_term payload
+        term =
+          payload
+          |> :erlang.binary_to_term
+          |> Utils.stringify_keys
+          |> Payload.from_map
+
         {:ok, term}
 
       nil ->
         # If we don't yet know if the client will be restricted, decode
         # it in safe mode
-        term = :erlang.binary_to_term payload, [:safe]
+        term =
+          payload
+          |> :erlang.binary_to_term([:safe])
+          |> Utils.stringify_keys
+          |> Payload.from_map
+
         {:ok, term}
     end
   end
@@ -231,10 +238,11 @@ defmodule Singyeong.Gateway do
   def handle_payload(socket, %Payload{} = payload) do
     # Check if we need to disconnect the client for taking too long to heartbeat
     should_disconnect =
-      unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
+      unless socket.assigns[:app_id] == nil and socket.assigns[:client_id] == nil do
         # If both are NOT nil, then we need to check last heartbeat
         {:ok, last} = Store.get_metadata socket.assigns[:app_id],
             socket.assigns[:client_id], Metadata.last_heartbeat_time()
+
         last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
       else
         false
@@ -339,7 +347,9 @@ defmodule Singyeong.Gateway do
           else
             # If we already have a client, reject outright
             :invalid
-            |> Payload.close_with_payload(%{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+            |> Payload.close_with_payload(%{
+              "error" => "client id #{client_id} already registered for application id #{app_id}"
+            })
             |> craft_response
           end
 
@@ -374,7 +384,8 @@ defmodule Singyeong.Gateway do
     else
       Logger.info "[GATEWAY] Got new socket #{app_id}:#{client_id} @ #{ip}"
     end
-    Payload.create_payload(:ready, %{"client_id" => client_id, "restricted" => restricted})
+    :ready
+    |> Payload.create_payload(%{"client_id" => client_id, "restricted" => restricted})
     |> craft_response(%{app_id: app_id, client_id: client_id, restricted: restricted, encoding: encoding})
   end
 
@@ -395,7 +406,8 @@ defmodule Singyeong.Gateway do
           craft_response [close_payload]
       end
     else
-      Payload.create_payload(:invalid, %{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
+      :invalid
+      |> Payload.create_payload(%{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
       |> craft_response
     end
   end
