@@ -158,7 +158,9 @@ defmodule Singyeong.Cluster do
   """
   def query(query, broadcast \\ false) do
     run_clustered fn ->
-      Query.run_query query, broadcast
+      query
+      |> Query.json_to_query
+      |> Query.run_query(broadcast)
     end
   end
 

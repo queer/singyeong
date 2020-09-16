@@ -294,6 +294,11 @@ object like the following:
   "restricted": true,
   // The key used for consistent-hashing when choosing a client from the output
   "key": "1234567890",
+  // Whether or not this payload can be dropped if it isn't routable
+  "droppable": true,
+  // Whether or not this query is optional, ie. will be ignored and a client
+  // will be chosen randomly if it matches nothing.
+  "optional": true,
   // The ops used for querying. See the description(s) above
   "ops": [
     {
@@ -334,6 +339,7 @@ For a more-compact example:
   "key": "1234567890",
   "restricted": true,
   "droppable": true,
+  "optional": true,
   "ops": [
     {"key": {"$eq": "value"}},
     {"key2": {"$lte": 1234}},
