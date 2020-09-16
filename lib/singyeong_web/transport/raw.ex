@@ -75,6 +75,7 @@ defmodule SingyeongWeb.Transport.Raw do
       |> Enum.reduce(socket, fn(x, acc) ->
         assign acc, x, assigns[x]
       end)
+
     case response do
       {:text, payload} ->
         {:push, Gateway.encode(socket, payload), {channels, socket}}

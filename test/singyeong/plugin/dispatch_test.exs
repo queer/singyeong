@@ -1,5 +1,6 @@
 defmodule Singyeong.Plugin.DispatchTest do
   use SingyeongWeb.ChannelCase, async: false
+  import Phoenix.Socket, only: [assign: 3]
   alias Singyeong.{Gateway, MnesiaStore, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
@@ -16,6 +17,25 @@ defmodule Singyeong.Plugin.DispatchTest do
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
+    %GatewayResponse{assigns: assigns} = Gateway.handle_identify socket, %{
+      op: Gateway.opcodes_name()[:identify],
+      d: %{
+        "client_id" => @client_id,
+        "application_id" => @app_id,
+        "auth" => nil,
+        "tags" => ["test", "webscale"]
+      },
+      ts: :os.system_time(:millisecond),
+      t: nil,
+    }
+
+    socket =
+      assigns
+      |> Map.keys
+      |> Enum.reduce(socket, fn(x, acc) ->
+        assign acc, x, assigns[x]
+      end)
+
     on_exit "cleanup", fn ->
       Gateway.cleanup socket, @app_id, @client_id
       MnesiaStore.shutdown()
@@ -29,19 +49,6 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event(:custom_events, "TEST")
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     # Actually do and test the dispatch
     dispatch =
@@ -72,19 +79,6 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event(:custom_events, "HALT")
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     # Actually do and test the dispatch
     dispatch =
@@ -103,19 +97,6 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR")
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     # Actually do and test the dispatch
     dispatch =
@@ -145,19 +126,6 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     # Actually do and test the dispatch
     dispatch =
@@ -187,19 +155,6 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert Utils.module_loaded? SingyeongPluginTest
     refute [] == PluginManager.plugins()
     refute [] == PluginManager.plugins_for_event(:custom_events, "ERROR_WITH_UNDO")
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     # Actually do and test the dispatch
     dispatch =
@@ -226,19 +181,6 @@ defmodule Singyeong.Plugin.DispatchTest do
 
   @tag capture_log: true
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in another location
-    Gateway.handle_identify socket, %{
-      op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
-        "tags" => ["test", "webscale"]
-      },
-      ts: :os.system_time(:millisecond),
-      t: nil,
-    }
 
     target = %{
       "application" => @app_id,
@@ -273,7 +215,17 @@ defmodule Singyeong.Plugin.DispatchTest do
         t: "SEND",
       }
 
-    Process.sleep 100
+    outgoing_payload = await_receive_message()
+    {:push, {:text, encoded_payload}, _} = Transport.Raw.handle_info outgoing_payload,
+        {%{channels: %{}, channels_inverse: %{}}, socket}
+    decoded_payload = Jason.decode! encoded_payload
+    assert expected.d == decoded_payload["d"]
+    assert expected.op == decoded_payload["op"]
+    assert expected.t == decoded_payload["t"]
+    assert 10 > abs(expected.ts - decoded_payload["ts"])
+  end
+
+  defp await_receive_message do
     # assert_receive / assert_received exist, but we have the issue that
     # waiting for a message to be received may actually take longer than 1ms -
     # especially if we "send" the initial message near the end of a millisecond
@@ -282,16 +234,10 @@ defmodule Singyeong.Plugin.DispatchTest do
     # pulling the message from the process' mailbox ourselves, and do the
     # "pattern matching" manually with == instead of doing a real pattern
     # match.
-    {:messages, msgs} = :erlang.process_info self(), :messages
-    outgoing_payload = hd msgs
-    {:push, {:text, encoded_payload}, _} = Transport.Raw.handle_info outgoing_payload,
-        {%{channels: %{}, channels_inverse: %{}}, socket}
-    decoded_payload = Jason.decode! encoded_payload
-    assert expected.d == decoded_payload["d"]
-    assert expected.op == decoded_payload["op"]
-    assert expected.t == decoded_payload["t"]
-    # Really this should be within ~1ms or so, but there's a host of possible
-    # things that could make it not work out.
-    assert 10 > abs(expected.ts - decoded_payload["ts"])
+    receive do
+      msg -> msg
+    after
+      5000 -> raise "couldn't recv message in time!"
+    end
   end
 end

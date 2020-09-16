@@ -16,7 +16,16 @@ defmodule Singyeong.UtilsTest do
 
   test "that IP-to-string works as expected" do
     assert "127.0.0.1" == Utils.ip_to_string({127, 0, 0, 1})
-    assert "2001:0db8:0000:0000:0000:8a2e:0370:7334" == Utils.ip_to_string({0x2001, 0x0db8, 0x0000, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334})
+    assert "2001:0db8:0000:0000:0000:8a2e:0370:7334" == Utils.ip_to_string({
+        0x2001,
+        0x0db8,
+        0x0000,
+        0x0000,
+        0x0000,
+        0x8a2e,
+        0x0370,
+        0x7334,
+      })
   end
 
   test "that route parsing works" do
