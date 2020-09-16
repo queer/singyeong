@@ -20,22 +20,23 @@ defmodule Singyeong.Gateway do
 
   @opcodes_name %{
     # recv
-    :hello          => 0,
+    :hello         => 0,
     # send
-    :identify       => 1,
+    :identify      => 1,
     # recv
-    :ready          => 2,
+    :ready         => 2,
     # recv
-    :invalid        => 3,
+    :invalid       => 3,
     # both
-    :dispatch       => 4,
+    :dispatch      => 4,
     # send
-    :heartbeat      => 5,
+    :heartbeat     => 5,
     # recv
-    :heartbeat_ack  => 6,
+    :heartbeat_ack => 6,
     # recv
-    :goodbye        => 7,
+    :goodbye       => 7,
   }
+
   @opcodes_id %{
     # recv
     0 => :hello,
@@ -68,20 +69,26 @@ defmodule Singyeong.Gateway do
     A packet being sent from the gateway to a client.
     """
 
-    @type t :: %__MODULE__{response: [] | [any()] | {:text, any()} | {:close, {:text, any()}}, assigns: map()}
+    @type t :: %__MODULE__{response: []
+                                     | [Payload.t()]
+                                     | {:text, Payload.t()}
+                                     | {:close, {:text, Payload.t()}},
+      assigns: map()
+    }
 
     # The empty map for response is effectively just a noop
     # If the assigns map isn't empty, everything in it will be assigned to the socket
-    defstruct response: [],
-      assigns: %{}
+    defstruct response: [], assigns: %{}
   end
 
   ## HELPERS ##
 
   @spec heartbeat_interval() :: integer()
   def heartbeat_interval, do: @heartbeat_interval
+
   @spec opcodes_name() :: %{atom() => integer()}
   def opcodes_name, do: @opcodes_name
+
   @spec opcodes_id() :: %{integer() => atom()}
   def opcodes_id, do: @opcodes_id
 
@@ -101,6 +108,7 @@ defmodule Singyeong.Gateway do
     case data do
       {_, payload} ->
         encode_real encoding, payload
+
       _ ->
         encode_real encoding, data
     end
@@ -113,18 +121,22 @@ defmodule Singyeong.Gateway do
       "json" ->
         {:ok, term} = Jason.encode payload
         {:text, term}
+
       "msgpack" ->
         {:ok, term} = Msgpax.pack payload
         # msgpax returns iodata, so we convert it to binary for consistency
         {:binary, IO.iodata_to_binary(term)}
+
       "etf" ->
         term = :erlang.term_to_binary payload
         {:binary, term}
     end
   end
+
   defp to_outgoing(%{__struct__: _} = payload) do
     Map.from_struct payload
   end
+
   defp to_outgoing(payload) do
     payload
   end
@@ -140,7 +152,9 @@ defmodule Singyeong.Gateway do
 
     case status do
       :ok ->
-        handle_payload socket, msg
+        payload_struct = Payload.from_map msg
+        handle_payload socket, payload_struct
+
       :error ->
         error_msg =
           if msg do
@@ -148,7 +162,9 @@ defmodule Singyeong.Gateway do
           else
             "cannot decode payload"
           end
-        Payload.close_with_payload(:invalid, %{"error" => error_msg})
+
+        :invalid
+        |> Payload.close_with_payload(%{"error" => error_msg})
         |> craft_response
     end
   end
@@ -161,21 +177,26 @@ defmodule Singyeong.Gateway do
         case status do
           :ok ->
             {:ok, data}
+
           :error ->
             {:error, Exception.message(data)}
         end
+
       {:binary, "msgpack"} ->
         # MessagePack has to be unpacked and error-checked
         {status, data} = Msgpax.unpack payload
         case status do
           :ok ->
             {:ok, data}
+
           :error ->
             # We convert the exception into smth more useful
             {:error, Exception.message(data)}
         end
+
       {:binary, "etf"} ->
         decode_etf payload, restricted
+
       _ ->
         {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
     end
@@ -190,12 +211,14 @@ defmodule Singyeong.Gateway do
         # If the client is restricted, but is sending us ETF, make it go
         # away
         {:error, "restricted clients may not use ETF"}
+
       false ->
         # If the client is NOT restricted and sends ETF, decode it.
         # In this particular case, we trust that the client isn't stupid
         # about the ETF it's sending
         term = :erlang.binary_to_term payload
         {:ok, term}
+
       nil ->
         # If we don't yet know if the client will be restricted, decode
         # it in safe mode
@@ -205,22 +228,7 @@ defmodule Singyeong.Gateway do
   end
 
   @spec handle_payload(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
-  def handle_payload(socket, %{"op" => op, "d" => d} = payload) when is_integer(op) and is_map(d) do
-    handle_payload_internal socket, %{
-      "op" => op,
-      "d" => d,
-      "t" => payload["t"] || "",
-    }
-  end
-
-  # Handle malformed packets
-  # This SHOULDN'T be called, but clients can't be trusted smh >:I
-  def handle_payload(_socket, _payload) do
-    Payload.close_with_payload(:invalid, %{"error" => "bad payload"})
-    |> craft_response
-  end
-
-  defp handle_payload_internal(socket, %{"op" => op, "d" => d, "t" => t} = _payload) do
+  def handle_payload(socket, %Payload{} = payload) do
     # Check if we need to disconnect the client for taking too long to heartbeat
     should_disconnect =
       unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
@@ -233,11 +241,11 @@ defmodule Singyeong.Gateway do
       end
 
     if should_disconnect do
-      Payload.close_with_payload(:invalid, %{"error" => "heartbeat took too long"})
+      :invalid
+      |> Payload.close_with_payload(%{"error" => "heartbeat took too long"})
       |> craft_response
     else
-      payload_obj = %Payload{op: op, d: d, t: t}
-      try_handle_event socket, payload_obj
+      try_handle_event socket, payload
     end
   end
 
@@ -249,30 +257,34 @@ defmodule Singyeong.Gateway do
       # identified itself yet and as such shouldn't be allowed to do anything
       # BUT identify
       # We try to halt it as soon as possible so that we don't waste time on it
-      Payload.close_with_payload(:invalid, %{"error" => "sent payload with non-identify opcode without identifying first"})
+      :invalid
+      |> Payload.close_with_payload(%{"error" => "sent payload with non-identify opcode without identifying first"})
       |> craft_response
     else
       try do
         case named do
           :identify ->
             handle_identify socket, payload
+
           :dispatch ->
             handle_dispatch socket, payload
+
           :heartbeat ->
             # We only really do heartbeats to keep clients alive.
             # The cowboy server will automatically disconnect after some period
             # if no messages come over the socket, so the client is responsible
             # for keeping itself alive.
             handle_heartbeat socket, payload
+
           _ ->
             handle_invalid_op socket, op
         end
       rescue
         e ->
-          formatted =
-            Exception.format(:error, e, __STACKTRACE__)
+          formatted = Exception.format :error, e, __STACKTRACE__
           Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
-          Payload.close_with_payload(:invalid, %{"error" => "internal server error"})
+          :invalid
+          |> Payload.close_with_payload(%{"error" => "internal server error"})
           |> craft_response
       end
     end
@@ -326,12 +338,14 @@ defmodule Singyeong.Gateway do
             finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
           else
             # If we already have a client, reject outright
-            Payload.close_with_payload(:invalid, %{"error" => "client id #{client_id} already registered for application id #{app_id}"})
+            :invalid
+            |> Payload.close_with_payload(%{"error" => "client id #{client_id} already registered for application id #{app_id}"})
             |> craft_response
           end
 
         {:error, errors} ->
-          Payload.close_with_payload(:invalid, %{"errors" => errors})
+          :invalid
+          |> Payload.close_with_payload(%{"errors" => errors})
           |> craft_response
       end
     else
@@ -497,6 +511,7 @@ defmodule Singyeong.Gateway do
         {:error, reason, undo_states}
     end
   end
+
   defp run_pipeline([], _event, _direction, payload, _undo_states) do
     {:ok, payload}
   end
@@ -509,6 +524,7 @@ defmodule Singyeong.Gateway do
     # client; successful undos don't need to be reported.
     |> Enum.filter(fn res -> res != :ok end)
   end
+
   defp global_undo({plugin, undo_state}, direction, event) do
     # We don't just take a list of the undo states here, because really we do
     # not want to halt undo when one encounters an error; instead, we want to
@@ -530,12 +546,14 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_missing_data do
-    Payload.close_with_payload(:invalid, %{"error" => "payload has no data"})
+    :invalid
+    |> Payload.close_with_payload(%{"error" => "payload has no data"})
     |> craft_response
   end
 
   defp handle_invalid_op(_socket, op) do
-    Payload.close_with_payload(:invalid, %{"error" => "invalid client op #{inspect op}"})
+    :invalid
+    |> Payload.close_with_payload(%{"error" => "invalid client op #{inspect op}"})
     |> craft_response
   end
 
