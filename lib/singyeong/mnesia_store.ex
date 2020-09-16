@@ -79,6 +79,7 @@ defmodule Singyeong.MnesiaStore do
           [data] ->
             {@clients, ^app_id, clients} = data
             :mnesia.write {@clients, app_id, MapSet.put(clients, client_id)}
+
           _ ->
             :mnesia.write {@clients, app_id, MapSet.new([client_id])}
         end
@@ -98,12 +99,15 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.wread {@clients, app_id}
       end)
+
     case res do
       {:atomic, [data]} ->
         {@clients, ^app_id, clients} = data
         {:ok, clients}
+
       {:atomic, []} ->
         {:ok, MapSet.new()}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -139,6 +143,7 @@ defmodule Singyeong.MnesiaStore do
           |> Enum.each(fn key ->
             :mnesia.delete {@metadata, {app_id, client_id, key}}
           end)
+
         _ ->
           ""
       end
@@ -181,6 +186,7 @@ defmodule Singyeong.MnesiaStore do
         end
       end)
       |> Enum.all?
+
     if res do
       # If it's valid, we reduce the input to a simple key => value map
       cleaned =
@@ -207,9 +213,11 @@ defmodule Singyeong.MnesiaStore do
         :mnesia.transaction(fn ->
           :mnesia.write {@metadata, {app_id, client_id, key}, value}
         end)
+
       case res do
         {:atomic, _} ->
           :ok
+
         {:aborted, reason} ->
           {:error, {"mnesia transaction aborted", reason}}
       end
@@ -234,9 +242,11 @@ defmodule Singyeong.MnesiaStore do
             :mnesia.write {@metadata, {app_id, client_id, key}, metadata[key]}
           end)
         end)
+
       case res do
         {:atomic, _} ->
           :ok
+
         {:aborted, reason} ->
           {:error, {"mnesia transaction aborted", reason}}
       end
@@ -255,6 +265,7 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.match_object {@metadata, {app_id, client_id, :_}, :_}
       end)
+
     case res do
       {:atomic, out} ->
         mapped_out =
@@ -263,7 +274,9 @@ defmodule Singyeong.MnesiaStore do
             {@metadata, {^app_id, ^client_id, key}, value} = chunk
             Map.put acc, key, value
           end)
+
         {:ok, mapped_out}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -278,12 +291,15 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.read {@metadata, {app_id, client_id, key}}
       end)
+
     case res do
       {:atomic, [out]} ->
         {@metadata, {^app_id, ^client_id, ^key}, value} = out
         {:ok, value}
+
       {:atomic, []} ->
         {:ok, nil}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -313,12 +329,15 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.read {@sockets, {app_id, client_id}}
       end)
+
     case res do
       {:atomic, [out]} ->
         {@sockets, {^app_id, ^client_id}, pid} = out
         {:ok, pid}
+
       {:atomic, []} ->
         {:ok, nil}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -338,11 +357,14 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.select @sockets, {@sockets, {:_, :_, :_}, :_}, count, :_
       end)
+
     case res do
       {:atomic, [out]} ->
         {:ok, out}
+
       {:atomic, []} ->
         {:ok, nil}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -381,12 +403,15 @@ defmodule Singyeong.MnesiaStore do
       :mnesia.transaction(fn ->
         :mnesia.read {@socket_ips, {app_id, client_id}}
       end)
+
     case res do
       {:atomic, [out]} ->
         {@socket_ips, {^app_id, ^client_id}, ip} = out
         {:ok, ip}
+
       {:atomic, []} ->
         {:ok, nil}
+
       {:aborted, reason} ->
         {:error, {"mnesia transaction aborted", reason}}
     end
@@ -417,9 +442,11 @@ defmodule Singyeong.MnesiaStore do
             :mnesia.write {@tags, {app_id, client_id}, tag}
           end)
         end)
+
       case res do
         {:atomic, _} ->
           :ok
+
         {:aborted, reason} ->
           {:error, {"mnesia transaction aborted", reason}}
       end
@@ -441,6 +468,7 @@ defmodule Singyeong.MnesiaStore do
         :mnesia.transaction(fn ->
           :mnesia.read {@tags, {app_id, client_id}}
         end)
+
       case res do
         {:atomic, tags} when is_list(tags) and length(tags) > 0 ->
           out =
@@ -449,9 +477,12 @@ defmodule Singyeong.MnesiaStore do
               {@tags, {^app_id, ^client_id}, tag} = x
               [tag | acc]
             end)
+
           {:ok, out}
+
         {:atomic, []} ->
           {:ok, nil}
+
         {:aborted, reason} ->
           {:error, {"mnesia transaction aborted", reason}}
       end
@@ -541,6 +572,7 @@ defmodule Singyeong.MnesiaStore do
       case res do
         {:atomic, matches} when is_list(matches) ->
           {:ok, matches}
+
         {:aborted, reason} ->
           {:error, {"mnesia transaction aborted", reason}}
       end
