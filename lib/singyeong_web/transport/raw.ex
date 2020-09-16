@@ -78,12 +78,15 @@ defmodule SingyeongWeb.Transport.Raw do
     case response do
       {:text, payload} ->
         {:push, Gateway.encode(socket, payload), {channels, socket}}
+
       {:close, {:text, payload}} ->
         # My god, why can we not specify custom close codes?
         send self(), {:stop, "closed by server"}
         {:push, Gateway.encode(socket, payload), {channels, socket}}
+
       [] ->
         {:ok, {channels, socket}}
+
       frames when is_list(frames) ->
         for frame <- frames do
           send self(), frame
