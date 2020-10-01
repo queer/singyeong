@@ -6,7 +6,7 @@ defmodule Singyeong.Gateway.Dispatch do
   outgoing messages can take reasonably use.
   """
 
-  alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Utils}
+  alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.{Query, UpdateQueue}
   alias Singyeong.MnesiaStore, as: Store
@@ -36,8 +36,11 @@ defmodule Singyeong.Gateway.Dispatch do
   # Note: Dispatch handlers will return a list of response frames
 
   @spec handle_dispatch(Phoenix.Socket.t(), Payload.t())
-    :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
-  def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do
+    :: {:error, {:close, {:text, Payload.t()}}}
+       | {:ok, []
+               | {:text, Payload.t()}
+               | [{:text, Payload.t()}]}
+  def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data}) do
     {status, res} = Store.validate_metadata data
     case status do
       :ok ->
@@ -60,21 +63,38 @@ defmodule Singyeong.Gateway.Dispatch do
       {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
 
-  def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
+  def handle_dispatch(_, %Payload{t: "QUERY_NODES", d: data}) do
     {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})}
   end
 
-  def handle_dispatch(socket, %Payload{t: "SEND", d: data} = _payload) do
+  def handle_dispatch(_, %Payload{t: "QUEUE", d: %{"queue" => queue_name} = data}) do
+    :ok = Queue.create! queue_name
+    queue_name |> Queue.push(data)
+    {:ok, []}
+  end
+
+  def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %{"queue" => queue_name}}) do
+    :ok = Queue.create! queue_name
+    {:ok, empty?} = Queue.is_empty? queue_name
+    unless empty? do
+      {:ok, value} = Queue.pop queue_name
+      # TODO: This should make sure it only sends to the proper client
+      send_to_clients socket, value, 0, false
+    end
+    {:ok, []}
+  end
+
+  def handle_dispatch(socket, %Payload{t: "SEND", d: data}) do
     send_to_clients socket, data, 0, false
     {:ok, []}
   end
 
-  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data} = _payload) do
+  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data}) do
     send_to_clients socket, data, 0
     {:ok, []}
   end
 
-  def handle_dispatch(_socket, %Payload{t: t, d: data} = payload) do
+  def handle_dispatch(_, %Payload{t: t, d: data} = payload) do
     plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->

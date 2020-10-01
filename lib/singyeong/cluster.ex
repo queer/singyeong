@@ -31,15 +31,18 @@ defmodule Singyeong.Cluster do
       |> Integer.to_string)
       |> Base.encode16
       |> String.downcase
-    state = %{
-      name: "singyeong_#{get_hostname()}_#{Env.port()}",
-      group: "singyeong",
-      cookie: Env.cookie(),
-      longname: nil,
-      hostname: hostname,
-      ip: ip,
-      hash: hash,
-    }
+    state =
+      %{
+        name: "singyeong_#{get_hostname()}_#{Env.port()}",
+        group: "singyeong",
+        cookie: Env.cookie(),
+        longname: nil,
+        hostname: hostname,
+        ip: ip,
+        hash: hash,
+        rafted?: false,
+        last_nodes: %{},
+      }
     # Start clustering after a smol delay
     Process.send_after self(), :start_connect, @start_delay
     {:ok, state}
@@ -62,6 +65,9 @@ defmodule Singyeong.Cluster do
       registry_write new_state
 
       Logger.info "[CLUSTER] All done! Starting clustering..."
+      last_nodes = current_nodes new_state
+
+      new_state = %{new_state | last_nodes: last_nodes}
       Process.send_after self(), :connect, @start_delay
 
       {:noreply, new_state}
@@ -86,10 +92,12 @@ defmodule Singyeong.Cluster do
             # This is NOT logged at :info to avoid spamme
             # Logger.debug "[CLUSTER] Connected to #{longname}"
             nil
+
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
             delete_node state, hash, longname
+
           :ignored ->
             # In general we shouldn't reach it, so...
             # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
@@ -105,6 +113,20 @@ defmodule Singyeong.Cluster do
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
+    state =
+      if !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state)) do
+        if !state[:rafted?] do
+          Logger.info "[CLUSTER] No raft zones configured, activating!"
+        else
+          Logger.info "[CLUSTER] Node set changed, reactivating!"
+        end
+        # TODO: Config config config
+        RaftFleet.activate "zone1"
+        %{state | rafted?: true, last_nodes: current_nodes(state)}
+      else
+        state
+      end
+
     {:noreply, state}
   end
 
@@ -112,29 +134,36 @@ defmodule Singyeong.Cluster do
     spawn fn ->
       count = MnesiaStore.count_sockets()
       threshold = length(Node.list()) - 1
-      counts =
-        run_clustered fn ->
-          MnesiaStore.count_sockets()
-        end
-      average =
-        counts
-        |> Map.drop([@fake_local_node])
-        |> Map.values
-        |> Enum.sum
-        |> :erlang./(threshold)
-      goal = threshold / 2
-      if count > average + goal do
-        to_disconnect = Kernel.trunc count - (average + goal + 1)
-        Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-        {status, result} = MnesiaStore.get_first_sockets to_disconnect
-        case status do
-          :ok ->
-            for socket <- result do
-              payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
-              send socket, payload
+      if threshold > 0 do
+        counts =
+          run_clustered fn ->
+            MnesiaStore.count_sockets()
+          end
+
+        average =
+          counts
+          |> Map.drop([@fake_local_node])
+          |> Map.values
+          |> Enum.sum
+          |> :erlang./(threshold)
+
+        goal = threshold / 2
+        if count > average + goal do
+          to_disconnect = Kernel.trunc count - (average + goal + 1)
+          if to_disconnect > 0 do
+            Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
+            {status, result} = MnesiaStore.get_first_sockets to_disconnect
+            case status do
+              :ok ->
+                for socket <- result do
+                  payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
+                  send socket, payload
+                end
+
+              :error ->
+                Logger.error "Couldn't get sockets to load-balance away: #{result}"
             end
-          :error ->
-            Logger.error "Couldn't get sockets to load-balance away: #{result}"
+          end
         end
       end
     end
@@ -164,7 +193,12 @@ defmodule Singyeong.Cluster do
     end
   end
 
-  defp run_clustered(func) do
+  @doc """
+  Run the specified function across the entire cluster. Returns a mapping of
+  nodes to results.
+  """
+  @spec run_clustered(function()) :: %{required(:fake_local_node | atom()) => term()}
+  def run_clustered(func) do
     # Wrap the local function into an "awaitable" fn
     local_func = fn ->
       res = func.()
@@ -241,6 +275,8 @@ defmodule Singyeong.Cluster do
   defp registry_name(name) do
     "singyeong:cluster:registry:#{name}"
   end
+
+  defp current_nodes(state), do: state |> registry_read |> Map.new
 
   @spec clustered? :: boolean
   def clustered? do

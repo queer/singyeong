@@ -27,29 +27,6 @@ defmodule SingyeongWeb.Router do
         get "/tags", DiscoveryController, :by_tags
       end
       forward "/plugin", Plugs.PluginRouter
-      # scope "/plugin" do
-      #   for plugin <- PluginManager.plugins(:rest) do
-      #     manifest = PluginManager.manifest plugin
-      #     for route <- manifest.rest_routes do
-      #       case route.method do
-      #         :get ->
-      #           get route.route, route.module, route.function
-
-      #         :post ->
-      #           post route.route, route.module, route.function
-
-      #         :put ->
-      #           put route.route, route.module, route.function
-
-      #         :patch ->
-      #           patch route.route, route.module, route.function
-
-      #         :delete ->
-      #           delete route.route, route.module, route.function
-      #       end
-      #     end
-      #   end
-      # end
       post "/proxy", ProxyController, :proxy
     end
 
