@@ -51,12 +51,13 @@ defmodule Singyeong.Mixfile do
       {:redix, ">= 0.0.0"},
       {:msgpax, "~> 2.2"},
       {:typed_struct, "~> 0.2.1"},
+      {:rafted_value, "~> 0.11.1"},
+      {:raft_fleet, "~> 0.10.1"},
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.4.0", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.13.0", only: :test},
 
-      # {:singyeong_plugin, github: "queer/singyeong_plugin"},
       {:singyeong_plugin, "~> 0.1.2"},
     ]
   end

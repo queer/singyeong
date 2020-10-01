@@ -14,6 +14,7 @@ defmodule Singyeong.MnesiaStore do
   @sockets :sockets
   @socket_ips :socket_ips
   @tags :tags
+  @queues :queue_pids
 
   # INITIALIZATION #
 
@@ -43,6 +44,10 @@ defmodule Singyeong.MnesiaStore do
     # to do tag comparisons for eg. connects
     :mnesia.create_table @tags, [attributes: [:composite_key, :tags], type: :bag]
     :mnesia.add_table_index @tags, :composite_key
+
+    :mnesia.create_table @queues, [attributes: [:name, :queue_pid]]
+    :mnesia.add_table_index @queues, :name
+
     :ok
   end
 
@@ -68,7 +73,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Add a client with the given app id and client id
   """
-  @spec add_client(binary(), binary()) :: :ok | {:error, binary()}
+  @spec add_client(String.t(), String.t()) :: :ok | {:error, String.t()}
   def add_client(app_id, client_id) do
     unless client_exists?(app_id, client_id) do
       :mnesia.transaction fn ->
@@ -93,7 +98,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Get all clients for the given app id. Returns a `MapSet` of known client ids.
   """
-  @spec get_clients(binary()) :: {:ok, MapSet.t} | {:error, {binary(), tuple()}}
+  @spec get_clients(String.t()) :: {:ok, MapSet.t} | {:error, {binary(), tuple()}}
   def get_clients(app_id) do
     res =
       :mnesia.transaction fn ->
@@ -117,7 +122,7 @@ defmodule Singyeong.MnesiaStore do
   Check if the given client id is registered as a client for the given
   application id.
   """
-  @spec client_exists?(binary(), binary()) :: boolean()
+  @spec client_exists?(String.t(), String.t()) :: boolean()
   def client_exists?(app_id, client_id) do
     {:ok, clients} = get_clients app_id
     MapSet.member? clients, client_id
@@ -127,7 +132,7 @@ defmodule Singyeong.MnesiaStore do
   Delete the client with the given id from the set of known clients for the
   given app id.
   """
-  @spec delete_client(binary(), binary()) :: :ok
+  @spec delete_client(String.t(), String.t()) :: :ok
   def delete_client(app_id, client_id) do
     :mnesia.transaction fn ->
       clients = :mnesia.wread {@clients, app_id}
@@ -159,7 +164,7 @@ defmodule Singyeong.MnesiaStore do
   validated and cleaned (ie. stripped of incoming type information) metadata
   values ready for updating.
   """
-  @spec validate_metadata(%{optional(binary()) => any()}) :: {:ok, %{optional(binary()) => any()}} | {:error, binary()}
+  @spec validate_metadata(%{optional(String.t()) => any()}) :: {:ok, %{optional(String.t()) => any()}} | {:error, String.t()}
   def validate_metadata(data) when is_map(data) do
     res =
       data
@@ -206,7 +211,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Update a single metadata key for the given app/client id pair.
   """
-  @spec update_metadata(binary(), binary(), binary(), any()) :: :ok | {:error, {binary(), tuple()}}
+  @spec update_metadata(String.t(), String.t(), String.t(), any()) :: :ok | {:error, {binary(), tuple()}}
   def update_metadata(app_id, client_id, key, value) do
     if client_exists?(app_id, client_id) do
       res =
@@ -231,7 +236,7 @@ defmodule Singyeong.MnesiaStore do
   provided metadata map become the metadata keys, and the mapped values become
   the respective metadata values. Metadata keys MUST be binaries.
   """
-  @spec update_metadata(binary(), binary(), %{optional(binary()) => any()}) :: :ok | {:error, {binary(), tuple()}}
+  @spec update_metadata(String.t(), String.t(), %{optional(String.t()) => any()}) :: :ok | {:error, {binary(), tuple()}}
   def update_metadata(app_id, client_id, metadata) do
     if client_exists?(app_id, client_id) do
       res =
@@ -259,7 +264,7 @@ defmodule Singyeong.MnesiaStore do
   Get all known metadata for the given app/client id pair. Returns a map on
   success.
   """
-  @spec get_metadata(binary(), binary()) :: {:ok, %{optional(binary()) => any()}} | {:error, {binary(), tuple()}}
+  @spec get_metadata(String.t(), String.t()) :: {:ok, %{optional(String.t()) => any()}} | {:error, {binary(), tuple()}}
   def get_metadata(app_id, client_id) do
     res =
       :mnesia.transaction fn ->
@@ -285,7 +290,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Get the value of a single metadata key for the given app/client id pair.
   """
-  @spec get_metadata(binary(), binary(), binary()) :: {:ok, any()} | {:error, {binary(), tuple()}}
+  @spec get_metadata(String.t(), String.t(), String.t()) :: {:ok, any()} | {:error, {binary(), tuple()}}
   def get_metadata(app_id, client_id, key) do
     res =
       :mnesia.transaction fn ->
@@ -312,7 +317,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Add a socket to the store. Used for actually sending websocket payloads.
   """
-  @spec add_socket(binary(), binary(), pid()) :: :ok
+  @spec add_socket(String.t(), String.t(), pid()) :: :ok
   def add_socket(app_id, client_id, pid) do
     :mnesia.transaction fn ->
       :mnesia.write {@sockets, {app_id, client_id}, pid}
@@ -323,7 +328,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Return the socket pid with the given composite id, or `nil` if there is none.
   """
-  @spec get_socket(binary(), binary()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  @spec get_socket(String.t(), String.t()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_socket(app_id, client_id) do
     res =
       :mnesia.transaction fn ->
@@ -373,7 +378,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Remove the socket with the given composite id from the store.
   """
-  @spec remove_socket(binary(), binary()) :: :ok
+  @spec remove_socket(String.t(), String.t()) :: :ok
   def remove_socket(app_id, client_id) do
     :mnesia.transaction fn ->
       :mnesia.delete {@sockets, {app_id, client_id}}
@@ -386,7 +391,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Add a socket ip to the store. Used for proxying HTTP requests.
   """
-  @spec add_socket_ip(binary(), binary(), binary()) :: :ok
+  @spec add_socket_ip(String.t(), String.t(), String.t()) :: :ok
   def add_socket_ip(app_id, client_id, ip) do
     :mnesia.transaction fn ->
       :mnesia.write {@socket_ips, {app_id, client_id}, ip}
@@ -397,7 +402,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Return the socket ip with the given composite id, or `nil` if there is none.
   """
-  @spec get_socket_ip(binary(), binary()) :: {:ok, binary()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  @spec get_socket_ip(String.t(), String.t()) :: {:ok, String.t()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_socket_ip(app_id, client_id) do
     res =
       :mnesia.transaction fn ->
@@ -420,7 +425,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Remove the socket ip with the given composite id from the store.
   """
-  @spec remove_socket_ip(binary(), binary()) :: :ok
+  @spec remove_socket_ip(String.t(), String.t()) :: :ok
   def remove_socket_ip(app_id, client_id) do
     :mnesia.transaction fn ->
       :mnesia.delete {@socket_ips, {app_id, client_id}}
@@ -433,7 +438,7 @@ defmodule Singyeong.MnesiaStore do
   @doc """
   Set the tags for the client with the given application id.
   """
-  @spec set_tags(binary(), binary(), list()) :: :ok | {:error, {binary(), tuple()}}
+  @spec set_tags(String.t(), String.t(), list()) :: :ok | {:error, {binary(), tuple()}}
   def set_tags(app_id, client_id, tags) do
     if client_exists?(app_id, client_id) do
       res =
@@ -462,7 +467,7 @@ defmodule Singyeong.MnesiaStore do
   **NOTE**: This returns tags in the REVERSE order that they were registered
   in! Use Enum.reverse/1 if you need them in the original order.
   """
-  @spec get_tags(binary(), binary()) :: {:ok, list()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  @spec get_tags(String.t(), String.t()) :: {:ok, list()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_tags(app_id, client_id) do
     if client_exists?(app_id, client_id) do
       res =
@@ -499,7 +504,7 @@ defmodule Singyeong.MnesiaStore do
 
   TODO: Support dynamic tag updates?
   """
-  @spec delete_tags(binary(), binary()) :: :ok
+  @spec delete_tags(String.t(), String.t()) :: :ok
   def delete_tags(app_id, client_id) do
     # Doesn't really matter what we return here, because if it's not present it
     # won't really make a difference.
@@ -580,5 +585,62 @@ defmodule Singyeong.MnesiaStore do
           {:error, {"mnesia transaction aborted", reason}}
       end
     end
+  end
+
+  # QUEUES #
+
+  # Queue pids
+
+  @doc """
+  Add a queue to the store.
+  """
+  @spec add_queue(atom(), pid()) :: :ok
+  def add_queue(name, pid) do
+    :mnesia.transaction fn ->
+      :mnesia.write {@queues, name, pid}
+    end
+    :ok
+  end
+
+  @doc """
+  Return the queue pid with the given name, or `nil` if there is none.
+  """
+  @spec get_queue(atom()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
+  def get_queue(name) do
+    res =
+      :mnesia.transaction fn ->
+        :mnesia.read {@queues, name}
+      end
+
+    case res do
+      {:atomic, [out]} ->
+        {@queues, ^name, pid} = out
+        {:ok, pid}
+
+      {:atomic, []} ->
+        {:ok, nil}
+
+      {:aborted, reason} ->
+        {:error, {"mnesia transaction aborted", reason}}
+    end
+  end
+
+  @doc """
+  Count the number of queues currently stored.
+  """
+  @spec count_queues() :: integer() | {:error, any()}
+  def count_queues do
+    :mnesia.table_info @queues, :size
+  end
+
+  @doc """
+  Remove the queue with the given name from the store.
+  """
+  @spec remove_socket(atom()) :: :ok
+  def remove_socket(name) do
+    :mnesia.transaction fn ->
+      :mnesia.delete {@queues, name}
+    end
+    :ok
   end
 end

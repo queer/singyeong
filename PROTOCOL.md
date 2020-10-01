@@ -187,6 +187,8 @@ clients must follow.
 | `SEND`            | Send a payload to a single client that matches the routing query |
 | `BROADCAST`       | Send a payload to all clients that match the routing query |
 | `QUERY_NODES`     | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
+| `QUEUE`           | Queues a new message into the specified queue. |
+| `QUEUE_REQUEST`   | Adds the client to the list of clients awaiting messages. |
 
 The inner payloads for these events are as follows:
 
@@ -245,6 +247,34 @@ sending a dispatch event.
 ### `QUERY_NODES`
 
 The inner payload is a node query as described below.
+
+### `QUEUE`
+
+The inner payload is *exactly* the same as `SEND` / `BROADCAST`, except with an
+additional `queue` key:
+
+When sending:
+```Javascript
+{
+  "queue": "my-queue-name",
+  "target": "routing query goes here",
+  "nonce": "unique nonce",
+  "payload": {
+    // Whatever data you want to pass goes here
+  }
+}
+```
+
+When receiving:
+```Javascript
+{
+  "queue": "my-queue-name",
+  "nonce": "unique nonce",
+  "payload": {
+    // Whatever data you want to pass goes here
+  }
+}
+```
 
 ## 신경 node queries
 

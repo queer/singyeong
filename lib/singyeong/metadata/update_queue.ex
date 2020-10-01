@@ -25,7 +25,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
       # it each time you call :queue.len/1.
       |> Map.put(:queue_size, 0)
 
-    Process.send_after self(), :process, 1000
+    Process.send_after self(), :process, 500
     {:ok, state}
   end
 
