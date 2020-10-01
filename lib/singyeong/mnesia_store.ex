@@ -71,7 +71,7 @@ defmodule Singyeong.MnesiaStore do
   @spec add_client(binary(), binary()) :: :ok | {:error, binary()}
   def add_client(app_id, client_id) do
     unless client_exists?(app_id, client_id) do
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         clients = :mnesia.wread {@clients, app_id}
         # If we have the app id already, put the client id in the existing set
         # Otherwise, just put it into a new set
@@ -83,7 +83,7 @@ defmodule Singyeong.MnesiaStore do
           _ ->
             :mnesia.write {@clients, app_id, MapSet.new([client_id])}
         end
-      end)
+      end
       :ok
     else
       {:error, "#{client_id} already a member of #{app_id}"}
@@ -96,9 +96,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_clients(binary()) :: {:ok, MapSet.t} | {:error, {binary(), tuple()}}
   def get_clients(app_id) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.wread {@clients, app_id}
-      end)
+      end
 
     case res do
       {:atomic, [data]} ->
@@ -129,7 +129,7 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec delete_client(binary(), binary()) :: :ok
   def delete_client(app_id, client_id) do
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       clients = :mnesia.wread {@clients, app_id}
       # Only delete if we have the app id already registered
       case clients do
@@ -147,7 +147,7 @@ defmodule Singyeong.MnesiaStore do
         _ ->
           ""
       end
-    end)
+    end
     :ok
   end
 
@@ -210,9 +210,9 @@ defmodule Singyeong.MnesiaStore do
   def update_metadata(app_id, client_id, key, value) do
     if client_exists?(app_id, client_id) do
       res =
-        :mnesia.transaction(fn ->
+        :mnesia.transaction fn ->
           :mnesia.write {@metadata, {app_id, client_id, key}, value}
-        end)
+        end
 
       case res do
         {:atomic, _} ->
@@ -235,13 +235,13 @@ defmodule Singyeong.MnesiaStore do
   def update_metadata(app_id, client_id, metadata) do
     if client_exists?(app_id, client_id) do
       res =
-        :mnesia.transaction(fn ->
+        :mnesia.transaction fn ->
           metadata
           |> Map.keys
           |> Enum.each(fn key ->
             :mnesia.write {@metadata, {app_id, client_id, key}, metadata[key]}
           end)
-        end)
+        end
 
       case res do
         {:atomic, _} ->
@@ -262,9 +262,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_metadata(binary(), binary()) :: {:ok, %{optional(binary()) => any()}} | {:error, {binary(), tuple()}}
   def get_metadata(app_id, client_id) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.match_object {@metadata, {app_id, client_id, :_}, :_}
-      end)
+      end
 
     case res do
       {:atomic, out} ->
@@ -288,9 +288,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_metadata(binary(), binary(), binary()) :: {:ok, any()} | {:error, {binary(), tuple()}}
   def get_metadata(app_id, client_id, key) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.read {@metadata, {app_id, client_id, key}}
-      end)
+      end
 
     case res do
       {:atomic, [out]} ->
@@ -314,9 +314,9 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec add_socket(binary(), binary(), pid()) :: :ok
   def add_socket(app_id, client_id, pid) do
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       :mnesia.write {@sockets, {app_id, client_id}, pid}
-    end)
+    end
     :ok
   end
 
@@ -326,9 +326,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_socket(binary(), binary()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_socket(app_id, client_id) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.read {@sockets, {app_id, client_id}}
-      end)
+      end
 
     case res do
       {:atomic, [out]} ->
@@ -354,9 +354,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_first_sockets(integer()) :: {:ok, pid()} | {:ok, nil} | {:error, {binary(), binary()}}
   def get_first_sockets(count) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.select @sockets, {@sockets, {:_, :_, :_}, :_}, count, :_
-      end)
+      end
 
     case res do
       {:atomic, [out]} ->
@@ -375,9 +375,9 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec remove_socket(binary(), binary()) :: :ok
   def remove_socket(app_id, client_id) do
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       :mnesia.delete {@sockets, {app_id, client_id}}
-    end)
+    end
     :ok
   end
 
@@ -388,9 +388,9 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec add_socket_ip(binary(), binary(), binary()) :: :ok
   def add_socket_ip(app_id, client_id, ip) do
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       :mnesia.write {@socket_ips, {app_id, client_id}, ip}
-    end)
+    end
     :ok
   end
 
@@ -400,9 +400,9 @@ defmodule Singyeong.MnesiaStore do
   @spec get_socket_ip(binary(), binary()) :: {:ok, binary()} | {:ok, nil} | {:error, {binary(), tuple()}}
   def get_socket_ip(app_id, client_id) do
     res =
-      :mnesia.transaction(fn ->
+      :mnesia.transaction fn ->
         :mnesia.read {@socket_ips, {app_id, client_id}}
-      end)
+      end
 
     case res do
       {:atomic, [out]} ->
@@ -422,9 +422,9 @@ defmodule Singyeong.MnesiaStore do
   """
   @spec remove_socket_ip(binary(), binary()) :: :ok
   def remove_socket_ip(app_id, client_id) do
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       :mnesia.delete {@socket_ips, {app_id, client_id}}
-    end)
+    end
     :ok
   end
 
@@ -437,11 +437,12 @@ defmodule Singyeong.MnesiaStore do
   def set_tags(app_id, client_id, tags) do
     if client_exists?(app_id, client_id) do
       res =
-        :mnesia.transaction(fn ->
-          tags |> Enum.each(fn tag ->
+        :mnesia.transaction fn ->
+          tags
+          |> Enum.each(fn tag ->
             :mnesia.write {@tags, {app_id, client_id}, tag}
           end)
-        end)
+        end
 
       case res do
         {:atomic, _} ->
@@ -465,9 +466,9 @@ defmodule Singyeong.MnesiaStore do
   def get_tags(app_id, client_id) do
     if client_exists?(app_id, client_id) do
       res =
-        :mnesia.transaction(fn ->
+        :mnesia.transaction fn ->
           :mnesia.read {@tags, {app_id, client_id}}
-        end)
+        end
 
       case res do
         {:atomic, tags} when is_list(tags) and length(tags) > 0 ->
@@ -502,9 +503,9 @@ defmodule Singyeong.MnesiaStore do
   def delete_tags(app_id, client_id) do
     # Doesn't really matter what we return here, because if it's not present it
     # won't really make a difference.
-    :mnesia.transaction(fn ->
+    :mnesia.transaction fn ->
       :mnesia.delete {@tags, {app_id, client_id}}
-    end)
+    end
     :ok
   end
 
@@ -522,14 +523,14 @@ defmodule Singyeong.MnesiaStore do
     else
       tags_set = Enum.into tags, %MapSet{}
       res =
-        :mnesia.transaction(fn ->
+        :mnesia.transaction fn ->
           apps_with_tags =
             tags
             |> Enum.map(fn tag ->
               # Fetch matching clients from Mnesia
-              out = :mnesia.match_object {@tags, {:_, :_}, tag}
+              {@tags, {:_, :_}, tag}
+              |> :mnesia.match_object
               # This turns the list of tags into a list of lists of matching app ids
-              out
               |> Enum.map(fn object ->
                 {@tags, {app_id, _client_id}, tag} = object
                 {app_id, tag}
@@ -549,6 +550,7 @@ defmodule Singyeong.MnesiaStore do
                     Map.put inner_acc, app_id, [tag]
                   end
                 end)
+
               map
               |> Map.keys
               |> Enum.reduce(acc, fn(app_id, inner_acc) ->
@@ -561,13 +563,14 @@ defmodule Singyeong.MnesiaStore do
                 end
               end)
             end)
+
           # Filter out only the app ids with the correct keys
           apps_with_tags
           |> Map.keys
           |> Enum.filter(fn(app_id) ->
             MapSet.subset? tags_set, Enum.into(apps_with_tags[app_id], %MapSet{})
           end)
-        end)
+        end
 
       case res do
         {:atomic, matches} when is_list(matches) ->
