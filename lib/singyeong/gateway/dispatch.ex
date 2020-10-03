@@ -8,8 +8,9 @@ defmodule Singyeong.Gateway.Dispatch do
 
   alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Payload.{QueueConfirm, QueuedMessage}
   alias Singyeong.Metadata.{Query, UpdateQueue}
-  alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.Store
   require Logger
 
   # TODO: Config option for this
@@ -20,20 +21,17 @@ defmodule Singyeong.Gateway.Dispatch do
   ## DISPATCH EVENTS ##
 
   def can_dispatch?(socket, event) do
-    if socket.assigns[:restricted] do
-      case event do
-        "UPDATE_METADATA" ->
-          true
+    cond do
+      socket.assigns[:restricted] && event == "UPDATE_METADATA" ->
+        true
 
-        _ ->
-          false
-      end
-    else
-      true
+      socket.assigns[:restricted] ->
+        false
+
+      true ->
+        true
     end
   end
-
-  # Note: Dispatch handlers will return a list of response frames
 
   @spec handle_dispatch(Phoenix.Socket.t(), Payload.t())
     :: {:error, {:close, {:text, Payload.t()}}}
@@ -41,45 +39,57 @@ defmodule Singyeong.Gateway.Dispatch do
                | {:text, Payload.t()}
                | [{:text, Payload.t()}]}
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data}) do
-    {status, res} = Store.validate_metadata data
-    case status do
-      :ok ->
-        app_id = socket.assigns[:app_id]
-        client_id = socket.assigns[:client_id]
-        # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
-        queue_worker = UpdateQueue.name app_id, client_id
-        pid = Process.whereis queue_worker
-        send pid, {:queue, app_id, client_id, res}
+    case Store.validate_metadata(data) do
+      {:ok, metadata} ->
+        app = socket.assigns[:app_id]
+        client = socket.assigns[:client_id]
+        pid =
+          app
+          |> UpdateQueue.name(client)
+          |> Process.whereis
+
+        send pid, {:queue, client, metadata}
+        # TODO: ACK metadata updates
         {:ok, []}
 
-      :error ->
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
+      {:error, errors} ->
+        {:error, Payload.close_with_error("invalid metadata", errors)}
     end
-  catch
-    # Ideally we won't reach this case, but clients can't be trusted :<
-    e ->
-      formatted = Exception.format :error, e, __STACKTRACE__
-      Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
-      {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
 
   def handle_dispatch(_, %Payload{t: "QUERY_NODES", d: data}) do
-    {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})}
+    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Query.run_query(data, true)})}
   end
 
-  def handle_dispatch(_, %Payload{t: "QUEUE", d: %{"queue" => queue_name} = data}) do
+  def handle_dispatch(_, %Payload{t: "QUEUE", d: %{
+    "nonce" => nonce,
+    "queue" => queue_name,
+    "payload" => payload
+  }}) do
     :ok = Queue.create! queue_name
-    queue_name |> Queue.push(data)
-    {:ok, []}
+    queued_message =
+      %QueuedMessage {
+        id: UUID.uuid4(),
+        queue: queue_name,
+        nonce: nonce,
+        payload: payload,
+      }
+
+    queue_name |> Queue.push(queued_message)
+    {:ok, Payload.create_payload(:dispatch, "QUEUE_CONFIRM", %QueueConfirm{queue: queue_name})}
   end
 
   def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %{"queue" => queue_name}}) do
     :ok = Queue.create! queue_name
     {:ok, empty?} = Queue.is_empty? queue_name
     unless empty? do
-      {:ok, value} = Queue.pop queue_name
+      Logger.debug "[DISPATCH] Requesting pop from queue #{queue_name}"
+      # TODO: Send the nonce
+      {:ok, %QueuedMessage{nonce: _nonce, payload: payload}} = Queue.pop queue_name
       # TODO: This should make sure it only sends to the proper client
-      send_to_clients socket, value, 0, false
+      send_to_clients socket, payload, 0, false
+    else
+      Logger.debug "[DISPATCH] Queue empty!"
     end
     {:ok, []}
   end
@@ -98,7 +108,7 @@ defmodule Singyeong.Gateway.Dispatch do
     plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
+        {:error, Payload.close_with_error("invalid dispatch payload: #{inspect payload, pretty: true}")}
 
       plugins when is_list(plugins) ->
         case run_pipeline(plugins, t, data, [], []) do
@@ -115,14 +125,13 @@ defmodule Singyeong.Gateway.Dispatch do
               |> Enum.reverse
               |> unwind_undo_stack(t)
 
-            error_payload =
+            error_info =
               %{
-                message: "Error processing plugin event #{t}",
                 reason: reason,
                 undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
               }
 
-            {:error, Payload.close_with_payload(:invalid, error_payload)}
+            {:error, Payload.close_with_error("Error processing plugin event #{t}", error_info)}
         end
     end
   end
@@ -217,7 +226,7 @@ defmodule Singyeong.Gateway.Dispatch do
         for {node, {target_application, clients}} <- valid_targets do
           Logger.debug "Broadcasting message to #{target_application}:#{inspect clients} on node #{node}"
           send_fn = fn ->
-            MessageDispatcher.send_dispatch target_application, clients, "BROADCAST", out
+            MessageDispatcher.send_dispatch clients, "BROADCAST", out
           end
 
           case node do
@@ -235,7 +244,7 @@ defmodule Singyeong.Gateway.Dispatch do
         target_client = [Enum.random(clients)]
         Logger.debug "Sending message to #{target_application}:#{target_client} on node #{node}"
         send_fn = fn ->
-          MessageDispatcher.send_dispatch target_application, target_client, "SEND", out
+          MessageDispatcher.send_dispatch target_client, "SEND", out
         end
         case node do
           ^fake_local_node ->

@@ -1,16 +1,16 @@
 defmodule Singyeong.Plugin.RestRouteTest do
   use SingyeongWeb.ConnCase
   use SingyeongWeb.ChannelCase
-  alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
+  alias Singyeong.Store
   alias SingyeongWeb.Router
 
   setup do
-    MnesiaStore.initialize()
+    Store.start()
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
 
     on_exit "cleanup", fn ->
-      MnesiaStore.shutdown()
+      Store.stop()
       System.delete_env "AUTH"
     end
   end

@@ -4,12 +4,11 @@ defmodule Singyeong.Cluster do
   """
 
   use GenServer
-  alias Singyeong.Discovery
-  alias Singyeong.Env
+  alias Singyeong.Config
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
-  alias Singyeong.MnesiaStore
   alias Singyeong.Redis
+  alias Singyeong.Store
   alias Singyeong.Utils
   require Logger
 
@@ -33,9 +32,9 @@ defmodule Singyeong.Cluster do
       |> String.downcase
     state =
       %{
-        name: "singyeong_#{get_hostname()}_#{Env.port()}",
+        name: "singyeong_#{get_hostname()}_#{Config.port()}",
         group: "singyeong",
-        cookie: Env.cookie(),
+        cookie: Config.cookie(),
         longname: nil,
         hostname: hostname,
         ip: ip,
@@ -57,8 +56,8 @@ defmodule Singyeong.Cluster do
       {:ok, _} = Node.start node_atom, :longnames
       Node.set_cookie state[:cookie] |> String.to_atom
 
-      Logger.info "[CLUSTER] Bootstrapping Mnesia..."
-      Singyeong.MnesiaStore.initialize()
+      Logger.info "[CLUSTER] Bootstrapping store..."
+      Store.start()
 
       Logger.info "[CLUSTER] Updating registry..."
       new_state = %{state | longname: node_name}
@@ -110,8 +109,6 @@ defmodule Singyeong.Cluster do
     # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
     send self(), :load_balance
-    # Do this again, forever.
-    Process.send_after self(), :connect, @connect_interval
 
     state =
       if !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state)) do
@@ -122,22 +119,41 @@ defmodule Singyeong.Cluster do
         end
         # TODO: Config config config
         RaftFleet.activate "zone1"
+        if !state[:rafted?] do
+          Logger.info "[CLUSTER] Not currently rafted, attempting to activate consensus groups!"
+          # Replicate consensus groups
+          RaftFleet.consensus_groups()
+          |> Enum.each(fn {group, _replica_count} ->
+            case Atom.to_string(group) do
+              "singyeong-queue:" <> queue_name ->
+                Logger.debug "[CLUSTER] Joining queue consensus group: #{group}"
+                Singyeong.Queue.create! queue_name
+
+              _ ->
+                Logger.warn "[CLUSTER] Asked to join consensus group #{group} but I don't know how!"
+            end
+          end)
+        end
+
         %{state | rafted?: true, last_nodes: current_nodes(state)}
       else
         state
       end
+
+    # Do this again, forever.
+    Process.send_after self(), :connect, @connect_interval
 
     {:noreply, state}
   end
 
   def handle_info(:load_balance, state) do
     spawn fn ->
-      count = MnesiaStore.count_sockets()
+      count = Store.count_clients()
       threshold = length(Node.list()) - 1
       if threshold > 0 do
         counts =
           run_clustered fn ->
-            MnesiaStore.count_sockets()
+            Store.count_clients()
           end
 
         average =
@@ -152,7 +168,7 @@ defmodule Singyeong.Cluster do
           to_disconnect = Kernel.trunc count - (average + goal + 1)
           if to_disconnect > 0 do
             Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-            {status, result} = MnesiaStore.get_first_sockets to_disconnect
+            {status, result} = Store.get_clients to_disconnect
             case status do
               :ok ->
                 for socket <- result do
@@ -171,15 +187,6 @@ defmodule Singyeong.Cluster do
   end
 
   # CLUSTER-WIDE FUNCTIONS #
-
-  @doc """
-  Discover a service name based off of tags across the entire 신경 cluster.
-  """
-  def discover(tags) do
-    run_clustered fn ->
-      Discovery.discover_service tags
-    end
-  end
 
   @doc """
   Run a metadata query across the entire cluster, and return a mapping of nodes
@@ -280,7 +287,7 @@ defmodule Singyeong.Cluster do
 
   @spec clustered? :: boolean
   def clustered? do
-    Env.clustering() == "true"
+    Config.clustering() == "true"
   end
 
   @spec fake_local_node :: atom()

@@ -3,8 +3,8 @@ defmodule Singyeong.GatewayTest do
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
-  alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
+  alias Singyeong.Store
 
   @app_id "test-app-1"
   @client_id "client-1"
@@ -14,17 +14,18 @@ defmodule Singyeong.GatewayTest do
       "client_id" => @client_id,
       "application_id" => @app_id,
       "auth" => nil,
-      "tags" => ["test", "webscale"],
     },
-    t: :os.system_time(:millisecond),
+    t: nil,
+    ts: :os.system_time(:millisecond),
   }
 
   setup do
+    Store.start()
     PluginManager.init()
-    MnesiaStore.initialize()
 
     on_exit "cleanup", fn ->
-      MnesiaStore.shutdown()
+      Gateway.cleanup @app_id, @client_id
+      Store.stop()
     end
 
     {:ok, []}
@@ -51,8 +52,6 @@ defmodule Singyeong.GatewayTest do
     d = response.d
     assert @client_id == d["client_id"]
     refute d["restricted"]
-
-    Gateway.cleanup socket, @app_id, @client_id
   end
 
   @tag capture_log: true
@@ -81,8 +80,6 @@ defmodule Singyeong.GatewayTest do
     d = response.d
     assert @client_id == d["client_id"]
     refute d["restricted"]
-
-    Gateway.cleanup socket, @app_id, @client_id
   end
 
   @tag capture_log: true
@@ -96,7 +93,5 @@ defmodule Singyeong.GatewayTest do
     } = Gateway.handle_incoming_payload socket, {:binary, Msgpax.pack!(@identify)}
 
     assert %{client_id: @client_id, app_id: @app_id, restricted: false, encoding: "msgpack"} == assigns
-
-    Gateway.cleanup socket, @app_id, @client_id
   end
 end

@@ -5,14 +5,14 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
-  alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
+  alias Singyeong.Store
 
   @client_id "client-1"
   @app_id "test-app-1"
 
   setup do
-    MnesiaStore.initialize()
+    Store.start()
     PluginManager.init()
 
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
@@ -26,7 +26,6 @@ defmodule Singyeong.DispatchTest do
           "client_id" => @client_id,
           "application_id" => @app_id,
           "auth" => nil,
-          "tags" => ["test", "webscale"]
         },
         ts: :os.system_time(:millisecond),
         t: nil,
@@ -40,8 +39,8 @@ defmodule Singyeong.DispatchTest do
       end)
 
     on_exit "cleanup", fn ->
-      Gateway.cleanup socket, @app_id, @client_id
-      MnesiaStore.shutdown()
+      Gateway.cleanup @app_id, @client_id
+      Store.stop()
     end
 
     {:ok, socket: socket}
@@ -59,25 +58,26 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
         d: %{
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
-        }
+        },
+        ts: :os.system_time(:millisecond),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
     now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
       %Payload{
+        op: 4,
         d: %{
           "payload" => payload,
           "nonce" => nonce
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -104,25 +104,26 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
         d: %{
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
-        }
+        },
+        ts: :os.system_time(:millisecond),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
     now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
       %Payload{
+        op: 4,
         d: %{
           "payload" => payload,
           "nonce" => nonce
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -141,7 +142,7 @@ defmodule Singyeong.DispatchTest do
     payload = %Payload{
       t: "UPDATE_METADATA",
       ts: :os.system_time(:millisecond),
-      op: Gateway.opcodes_name()[:dispatch],
+      op: 4,
       d: %{
         "test" => %{
           "type" => "integer",
@@ -165,25 +166,26 @@ defmodule Singyeong.DispatchTest do
 
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
         d: %{
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
-        }
+        },
+        ts: :os.system_time(:millisecond)
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
     now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
       %Payload{
+        op: 4,
         d: %{
           "payload" => payload,
           "nonce" => nonce
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -208,25 +210,26 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
         d: %{
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
-        }
+        },
+        ts: :os.system_time(:millisecond),
       }
 
     %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
     now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
       %Payload{
+        op: 4,
         d: %{
           "payload" => payload,
           "nonce" => nonce
         },
-        op: op,
         ts: now,
         t: "SEND",
       }

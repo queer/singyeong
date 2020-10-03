@@ -6,12 +6,13 @@ defmodule Singyeong.Gateway.Payload do
 
   use TypedStruct
   alias Singyeong.{Gateway, Utils}
+  alias Singyeong.Gateway.Payload.Error
 
   typedstruct do
-    field :op, non_neg_integer(), enforced: true
-    field :d, any(), enforced: true
+    field :op, non_neg_integer(), enforce: true
+    field :d, any(), enforce: true
     field :t, binary() | nil, default: nil
-    field :ts, non_neg_integer() | nil, default: nil
+    field :ts, non_neg_integer() | nil, enforce: true
   end
 
   @spec from_map(map()) :: __MODULE__.t()
@@ -66,5 +67,13 @@ defmodule Singyeong.Gateway.Payload do
 
   def close_with_payload(op, data) do
     {:close, create_payload(op, data)}
+  end
+
+  def close_with_error(err, extra_info \\ nil) do
+    close_with_op_and_error :invalid, err, extra_info
+  end
+
+  def close_with_op_and_error(op, err, extra_info \\ nil) do
+    {:close, create_payload(op, %Error{error: err, extra_info: extra_info})}
   end
 end

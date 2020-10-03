@@ -2,8 +2,8 @@ defmodule SingyeongWeb.ProxyControllerTest do
   use SingyeongWeb.ConnCase
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
-  alias Singyeong.MnesiaStore
   alias Singyeong.PluginManager
+  alias Singyeong.Store
   alias SingyeongWeb.Router.Helpers, as: Routes
 
   doctest Singyeong.Proxy
@@ -13,10 +13,11 @@ defmodule SingyeongWeb.ProxyControllerTest do
 
   setup do
     PluginManager.init()
-    MnesiaStore.initialize()
+    Store.start()
 
     on_exit "cleanup", fn ->
-      MnesiaStore.shutdown()
+      Gateway.cleanup @app_id, @client_id
+      Store.stop()
     end
 
     {:ok, socket: socket(SingyeongWeb.Transport.Raw, nil, [])}
@@ -29,15 +30,11 @@ defmodule SingyeongWeb.ProxyControllerTest do
         "client_id" => @client_id,
         "application_id" => @app_id,
         "auth" => nil,
-        "tags" => ["test", "webscale"],
         "ip" => "https://echo.amy.gg",
       },
-      t: :os.system_time(:millisecond)
+      t: nil,
+      ts: :os.system_time(:millisecond),
     }
-  end
-
-  defp close_socket(socket) do
-    Gateway.cleanup socket, @app_id, @client_id
   end
 
   @tag capture_log: true
@@ -46,7 +43,6 @@ defmodule SingyeongWeb.ProxyControllerTest do
       assert true
     else
       identify socket, @app_id, @client_id
-
       proxy_request = %{
         "method" => "GET",
         "route" => "/",
@@ -73,8 +69,6 @@ defmodule SingyeongWeb.ProxyControllerTest do
         |> json_response(200)
 
       assert %{} == res
-
-      close_socket socket
     end
   end
 
@@ -124,8 +118,6 @@ defmodule SingyeongWeb.ProxyControllerTest do
         |> json_response(200)
 
       assert proxy_body == res
-
-      close_socket socket
     end
   end
 end

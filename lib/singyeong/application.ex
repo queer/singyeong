@@ -2,7 +2,7 @@ defmodule Singyeong.Application do
   @moduledoc false
 
   use Application
-  alias Singyeong.{Env, PluginManager, Utils}
+  alias Singyeong.{Config, PluginManager, Utils}
   require Logger
 
   # See https://hexdocs.pm/elixir/Application.html
@@ -20,7 +20,7 @@ defmodule Singyeong.Application do
     ]
     # Add clustering children if needed
     children =
-      if Env.clustering() == "true" do
+      if Config.clustering() == "true" do
         Logger.info "[APP] Clustering enabled, setting up Redis and cluster workers..."
         children ++ [
           # Redis worker pool
@@ -32,7 +32,7 @@ defmodule Singyeong.Application do
         # Doesn't need a supervisor, hence doing it like this
         # We initialize it here because the clustering worker takes care of
         # initializing Mnesia *after* starting the local node.
-        Singyeong.MnesiaStore.initialize()
+        Singyeong.Store.start()
 
         children
       end
