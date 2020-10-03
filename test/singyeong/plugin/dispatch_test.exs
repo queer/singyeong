@@ -1,10 +1,12 @@
 defmodule Singyeong.Plugin.DispatchTest do
   use SingyeongWeb.ChannelCase, async: false
   import Phoenix.Socket, only: [assign: 3]
-  alias Singyeong.{Gateway, MnesiaStore, PluginManager, Utils}
+  alias Singyeong.{Gateway, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Payload.Error
+  alias Singyeong.Store
   alias SingyeongWeb.Transport
 
   @client_id "client-1"
@@ -13,7 +15,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   @dispatch_op Gateway.opcodes_name()[:dispatch]
 
   setup do
-    MnesiaStore.initialize()
+    Store.start()
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
@@ -23,7 +25,6 @@ defmodule Singyeong.Plugin.DispatchTest do
         "client_id" => @client_id,
         "application_id" => @app_id,
         "auth" => nil,
-        "tags" => ["test", "webscale"]
       },
       ts: :os.system_time(:millisecond),
       t: nil,
@@ -37,8 +38,8 @@ defmodule Singyeong.Plugin.DispatchTest do
       end)
 
     on_exit "cleanup", fn ->
-      Gateway.cleanup socket, @app_id, @client_id
-      MnesiaStore.shutdown()
+      Gateway.cleanup @app_id, @client_id
+      Store.stop()
     end
 
     {:ok, socket: socket}
@@ -55,7 +56,8 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: @dispatch_op,
         t: "TEST",
-        d: "test data"
+        d: "test data",
+        ts: :os.system_time(:millisecond),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -85,7 +87,8 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: @dispatch_op,
         t: "HALT",
-        d: "test data"
+        d: "test data",
+        ts: :os.system_time(:millisecond),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -103,17 +106,20 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: @dispatch_op,
         t: "ERROR",
-        d: "test data"
+        d: "test data",
+        ts: :os.system_time(:millisecond),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
     {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
-    %{
-      message: msg,
-      reason: reason,
-      undo_errors: undo_errors,
+    %Error{
+      error: msg,
+      extra_info: %{
+        reason: reason,
+        undo_errors: undo_errors,
+      },
     } = d
     assert "Error processing plugin event ERROR" == msg
     assert "Manually requested error" == reason
@@ -132,17 +138,20 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: @dispatch_op,
         t: "ERROR_WITH_UNDO",
-        d: "test data"
+        d: "test data",
+        ts: :os.system_time(:millisecond),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
     {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
-    %{
-      message: msg,
-      reason: reason,
-      undo_errors: undo_errors,
+    %Error{
+      error: msg,
+      extra_info: %{
+        reason: reason,
+        undo_errors: undo_errors,
+      },
     } = d
     assert "Error processing plugin event ERROR_WITH_UNDO" == msg
     assert "Manually requested error" == reason
@@ -161,17 +170,20 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: @dispatch_op,
         t: "ERROR_WITH_UNDO_ERROR",
-        d: "test data"
+        d: "test data",
+        ts: :os.system_time(:millisecond),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
     {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
-    %{
-      message: msg,
-      reason: reason,
-      undo_errors: undo_errors,
+    %Error{
+      error: msg,
+      extra_info: %{
+        reason: reason,
+        undo_errors: undo_errors,
+      },
     } = d
     assert "Error processing plugin event ERROR_WITH_UNDO_ERROR" == msg
     assert "Manually requested error" == reason
@@ -192,12 +204,14 @@ defmodule Singyeong.Plugin.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
         d: %{
           "target" => target,
           "payload" => payload,
           "nonce" => nonce,
-        }
+        },
+        ts: :os.system_time(:millisecond),
       }
 
     %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch

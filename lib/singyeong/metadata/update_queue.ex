@@ -7,9 +7,8 @@ defmodule Singyeong.Metadata.UpdateQueue do
   not be visible for several seconds.
   """
 
-  alias Singyeong.MnesiaStore, as: Store
-
   use GenServer
+  alias Singyeong.Store
 
   def start_link(opts) do
     GenServer.start_link __MODULE__, opts, name: opts[:name]
@@ -29,45 +28,52 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {:ok, state}
   end
 
-  def handle_info({:queue, app_id, client_id, metadata}, state) do
-    new_queue = :queue.in {app_id, client_id, metadata}, state[:queue]
-    queue_size = state[:queue_size] + 1
-    {:noreply, %{state | queue: new_queue, queue_size: queue_size}}
+  def handle_info({:queue, client_id, metadata}, %{queue: queue, queue_size: size} = state) do
+    new_queue = :queue.in {client_id, metadata}, queue
+    {:noreply, %{state | queue: new_queue, queue_size: size + 1}}
   end
 
-  def handle_info(:process, %{queue_size: queue_size} = state) do
-    new_state = process_updates state, max(50, div(queue_size, 10))
-    Process.send_after self(), :process, 1000
+  def handle_info(:process, state) do
+    {client_id, new_metadata, new_state} = process_updates nil, %{}, state
+    if client_id != nil and new_metadata != nil and new_metadata != %{} do
+      # Only update metadata if there's new metadata
+      client = Store.get_client client_id
+      Store.update_client %{
+        client
+        | metadata: Map.merge(client.metadata, new_metadata)
+      }
+    end
+    Process.send_after self(), :process, 500
     {:noreply, new_state}
   end
 
-  defp process_updates(%{queue_size: queue_size, queue: queue} = state, count) do
-    if queue_size > 0 and count > 0 do
-      res = :queue.out queue
-      {new_queue, new_queue_size} =
-        case res do
-          {{:value, item}, new_queue} ->
-            # If we get a value out of the queue, deconstruct it and do a
-            # metadata update.
-            {app_id, client_id, metadata} = item
-            Store.update_metadata app_id, client_id, metadata
-            {new_queue, queue_size - 1}
+  defp process_updates(client_id, new_metadata, %{queue_size: 0} = state) do
+    {client_id, new_metadata, state}
+  end
 
-          {:empty, new_queue} ->
-            # If the queue is actually empty but we were out of sync, then we
-            # reset the queue size.
-            {new_queue, 0}
+  defp process_updates(_client_id, new_metadata, %{queue_size: queue_size, queue: queue} = state) do
+    next_payload = :queue.out queue
+    {new_client_id, next_metadata, new_queue, new_queue_size} =
+      case next_payload do
+        {{:value, item}, new_queue} ->
+          # If we get a value out of the queue, deconstruct it and do a
+          # metadata update.
+          {client_id, input} = item
+          {client_id, Map.merge(new_metadata, input), new_queue, queue_size - 1}
 
-          _ ->
-            # If, for some reason, we get something unexpected, just return the
-            # queue itself. This *shouldn't* happen, but who knows.
-            {queue, queue_size}
-        end
+        {:empty, new_queue} ->
+          # If the queue is actually empty but we were out of sync, then we
+          # reset the queue size.
+          # This *shouldn't* be possible, but who knows /shrug
+          {nil, nil, new_queue, 0}
 
-      process_updates %{state | queue: new_queue, queue_size: new_queue_size}, count - 1
-    else
-      state
-    end
+        _ ->
+          # If, for some reason, we get something unexpected, just return the
+          # queue itself. This *shouldn't* happen, but who knows.
+          {nil, nil, queue, queue_size}
+      end
+
+    process_updates new_client_id, next_metadata, %{state | queue: new_queue, queue_size: new_queue_size}
   end
 
   def name(app_id, client_id) do

@@ -1,10 +1,26 @@
 defmodule Singyeong.Queue.Machine do
   @behaviour RaftedValue.Data
 
+  use TypedStruct
+  alias Singyeong.Queue.Machine.State
   require Logger
 
+  @type pending_client() :: {String.t(), String.t()}
+
+  typedstruct module: State, enforce: true do
+    field :queue, term()
+    field :length, non_neg_integer()
+    field :unacked_messages, map()
+    field :pending_clients, term()
+  end
+
   def new do
-    {:queue.new(), 0}
+    %State{
+      queue: :queue.new(),
+      length: 0,
+      unacked_messages: %{},
+      pending_clients: :queue.new(),
+    }
   end
 
   def command({queue, len}, {:push, value}) do
@@ -32,7 +48,6 @@ defmodule Singyeong.Queue.Machine do
   end
 
   def query({_, len}, :length) do
-    Logger.warn "!!! QUERYING QUEUE LENGTH !!!"
     len
   end
 end

@@ -6,5 +6,5 @@ defmodule Singyeong.Metadata.Type do
 
   @enforce_keys [:typename]
   defstruct typename: nil,
-    validation_function: &Types.validate_identity/1
+    validate: &Types.validate_identity/1
 end

@@ -148,13 +148,6 @@ simple "send to any one service in this application group."
 No. You should not try to route to a specific 신경 client by id; instead you 
 should be expressing a metadata query that will send to the client you want.
 
-### Do I need to hard-code application IDs?
-
-No. When clients connect to 신경, they can choose to set some tags describing 
-WHAT they are; consumers of 신경 can then use the HTTP API to discover service
-names based on tags. Check out the "Service discovery" section in
-[DESIGN.md](https://github.com/queer/singyeong/blob/master/DESIGN.md) for more.
-
 ### Do I need sidecar containers if I'm running in Kubernetes?
 
 Nope.
@@ -197,12 +190,6 @@ all containers for an application type is also beneficial. This extends to
 other services that handle things on a per-guild basis, ex. having a cluster of
 voice nodes, where not needing to know which node holds a particular guild is
 very useful.
-
-Additionally, being able to discover-by-tags is VERY useful - I don't have to 
-know ANYTHING about the receiving end other than what tags it might use for 
-itself! I can say things like "send this message to the service that describes
-itself as 'image-generator' and 'prod' with `latency < 100ms`," and 신경 will
-figure out how to get it where it needs to go.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 

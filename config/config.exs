@@ -23,6 +23,14 @@ config :phoenix, :format_encoders,
   json: Jason
 config :phoenix, :json_library, Jason
 
+config :singyeong,
+  store: Singyeong.Store.Mnesia,
+  auth: System.get_env("AUTH"),
+  port: System.get_env("PORT"),
+  clustering: System.get_env("CLUSTERING"),
+  cookie: System.get_env("COOKIE"),
+  redis_dsn: System.get_env("REDIS_DSN")
+
 config :singyeong_plugin,
   gateway_module: Singyeong.Gateway,
   payload_module: Singyeong.Gateway.Payload

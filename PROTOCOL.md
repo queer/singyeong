@@ -126,11 +126,6 @@ The payload you send to tell the gateway who you are.
   // Optional value. If you specify a password in the env. vars, you must send
   // the same password here, otherwise you get placed into restricted mode.
   "auth": "your long complicated password here",
-  // Optional value. Any tags passed here will be used for service discovery,
-  // ie. allowing other services to discover your app id without needing to
-  // hardcode it.
-  // Clients that are placed into restricted mode are NOT able to set tags.
-  "tags": ["thing", "cool", "webscale"],
   // Optional value. If you specify an IP here, the server will use this as the
   // client's IP for HTTP request proxying. This can be useful for a case where
   // you may want to have proxied requests to the client sent somewhere else.
@@ -181,14 +176,16 @@ clients must follow.
 
 ### 신경 dispatch events
 
-| name              | description |
-|-------------------|-------------|
-| `UPDATE_METADATA` | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
-| `SEND`            | Send a payload to a single client that matches the routing query |
-| `BROADCAST`       | Send a payload to all clients that match the routing query |
-| `QUERY_NODES`     | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
-| `QUEUE`           | Queues a new message into the specified queue. |
-| `QUEUE_REQUEST`   | Adds the client to the list of clients awaiting messages. |
+| name              | mode | description |
+|-------------------|------|-------------|
+| `UPDATE_METADATA` | send | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
+| `SEND`            | both | Send a payload to a single client that matches the routing query |
+| `BROADCAST`       | both | Send a payload to all clients that match the routing query |
+| `QUERY_NODES`     | send | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
+| `QUEUE`           | send | Queues a new message into the specified queue. |
+| `QUEUE_CONFIRM`   | recv | Sends an acknowledgement of message queuing to the client. |
+| `QUEUE_REQUEST`   | send | Adds the client to the list of clients awaiting messages. |
+| `QUEUE_RESPOND`   | recv | Sends a queued message to the requesting client, if possible. |
 
 The inner payloads for these events are as follows:
 
@@ -273,6 +270,26 @@ When receiving:
   "payload": {
     // Whatever data you want to pass goes here
   }
+}
+```
+
+### `QUEUE_CONFIRM`
+
+Inner payload:
+```Javascript
+{
+  "queue" => "my-queue-name"
+}
+```
+
+### `QUEUE_REQUEST`
+
+Marks this client as ready to receive events from the specified queue.
+
+Inner payload:
+```Javascript
+{
+  "queue": "my-queue-name"
 }
 ```
 
@@ -397,11 +414,7 @@ dropped.
 
 ### Application queries
 
-The `application` key in a query does not have to only be a string! You can
-also send an array of tags, and 신경 will attempt to find a service matching
-the provided tag query. See "Service discovery" in
-[API.md](https://github.com/queer/singyeong/blob/master/API.md) for more
-information, as well as the description of tags under the `identify` payload.
+The `application` key in a query does not have to only be a string!
 
 ### Optional queries
 

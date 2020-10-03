@@ -34,7 +34,6 @@ The 신경 connection lifecycle is heavily inspired by the
 - Identify the client, which includes data such as
   - What application is this client a part of?
   - What is the client's id?
-  - What tags is the client identifying itself with?
   - Sending the password to authenticate with. The password must **exactly**
     match what the server has configured as a password! That is, if the server
     does not have a password configured, the client must **not** send a 
@@ -94,26 +93,3 @@ the server when it has reached the "ready" point of its lifecycle. This is
 admittedly an odd choice. The reason for doing this is that we can keep the
 신경 node itself stateless, and roll restarts of a 신경 cluster with near-zero
 "downtime."
-
-## Service discovery
-
-신경 allows services to register "tags" to describe themselves when they send
-an identify payload. These tags can later be used to discover services. For 
-example:
-
-Suppose two services: `api` and `expensive`, where the latter of the two is 
-some computationally-expensive thing. If, for some reason, the `api` service
-does not know the name of the `expensive` service, it can run a "query" to 
-discover the names of services describing themselves as 
-`computationally-expensive`.
-
-Admittedly this is a somewhat-contrived example, but it should illustrate how
-신경 service discovery works.
-
-### Dynamic metadata query targets
-
-Metadata queries benefit from this same service discovery mechanism. Rather
-than having to hardcode application names into queries, services can instead
-set the "target" of a query to an array of tags, and 신경 will automatically
-use those tags to discover a suitable target service before handling the 
-"request."

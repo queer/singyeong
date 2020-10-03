@@ -8,31 +8,32 @@ defmodule Singyeong.Metadata.Types do
   alias Singyeong.Metadata.Type
 
   @types %{
-    "string"  => %Type{typename: :string, validation_function: &is_binary/1},
-    "integer" => %Type{typename: :integer, validation_function: &is_integer/1},
-    "float"   => %Type{typename: :float, validation_function: &is_float/1},
-    "version" => %Type{typename: :version, validation_function: &Singyeong.Metadata.Types.validate_version/1},
-    "list"    => %Type{typename: :list, validation_function: &Singyeong.Metadata.Types.validate_list/1},
+    "string"  => %Type{typename: :string, validate: &is_binary/1},
+    "integer" => %Type{typename: :integer, validate: &is_integer/1},
+    "float"   => %Type{typename: :float, validate: &is_float/1},
+    "version" => %Type{typename: :version, validate: &Singyeong.Metadata.Types.validate_version/1},
+    "list"    => %Type{typename: :list, validate: &Singyeong.Metadata.Types.validate_list/1},
   }
 
+  @spec types() :: %{String.t() => Type.t()}
   def types, do: @types
 
+  @spec type_exists?(String.t()) :: boolean()
+  def type_exists?(type), do: Map.has_key? @types, type
+
+  @spec get_type(String.t()) :: Type.t() | nil
+  def get_type(type), do: @types[type]
+
+  @spec validate_identity(term()) :: true
   def validate_identity(_), do: true
 
+  @spec validate_version(term()) :: boolean()
   def validate_version(x) do
     is_binary(x) and Version.parse(x) != :error
   end
 
+  @spec validate_list(term()) :: boolean()
   def validate_list(x) do
-    if is_binary(x) do
-      case Jason.decode(x) do
-        {:ok, l} ->
-          is_list(l)
-        _ ->
-          false
-      end
-    else
-      is_list x
-    end
+    is_list x
   end
 end

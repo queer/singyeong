@@ -4,12 +4,12 @@ defmodule Singyeong.Redis do
   TODO: Should probably just use poolboy or similar here...
   """
 
-  alias Singyeong.Env
+  alias Singyeong.Config
 
   @pool_size 5
 
   def child_spec(_opts) do
-    url = Env.redis_dsn()
+    url = Config.redis_dsn()
     %URI{host: host, userinfo: userinfo} = URI.parse(url)
     children =
       if userinfo != nil and userinfo != "" do
