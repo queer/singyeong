@@ -1,4 +1,9 @@
 defmodule Singyeong.Store do
+  @moduledoc """
+  The behaviour used for implementing a metadata store. The default
+  implementation is `Singyeong.Store.Mnesia` and should be used as a reference.
+  """
+
   alias Singyeong.Config
   alias Singyeong.Store.Client
 

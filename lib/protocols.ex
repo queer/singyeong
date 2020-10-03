@@ -1,6 +1,8 @@
 require Protocol
 
 defmodule ProtocolsHelper do
+  @moduledoc false
+
   @modules [
     Singyeong.Gateway.Payload,
     Singyeong.Gateway.Payload.Error,

@@ -1,4 +1,5 @@
 defmodule Singyeong.Gateway.Payload.Error do
+  @moduledoc false
   use TypedStruct
 
   typedstruct do

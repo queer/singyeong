@@ -1,4 +1,6 @@
 defmodule Singyeong.Config do
+  @moduledoc false
+
   def store_mod, do: Application.get_env :singyeong, :store
 
   def auth, do: Application.get_env :singyeong, :auth

@@ -1,4 +1,6 @@
 defmodule Singyeong.Store.Mnesia do
+  @moduledoc false
+
   alias Singyeong.Metadata
   alias Singyeong.Metadata.Types
   alias Singyeong.Store.Client

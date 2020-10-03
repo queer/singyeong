@@ -1,4 +1,5 @@
 defmodule Singyeong.Gateway.Payload.QueueConfirm do
+  @moduledoc false
   use TypedStruct
 
   typedstruct do
