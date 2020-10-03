@@ -1,4 +1,5 @@
 defmodule Singyeong.Gateway.Payload.QueuedMessage do
+  @moduledoc false
   use TypedStruct
 
   typedstruct do

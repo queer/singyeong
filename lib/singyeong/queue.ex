@@ -1,4 +1,9 @@
 defmodule Singyeong.Queue do
+  @moduledoc """
+  An implementation of Raft-based, distributed, consistent message queues that
+  still have all the routing capabilities of pubsub.
+  """
+
   alias Singyeong.Cluster
   alias Singyeong.Queue.Machine
   require Logger

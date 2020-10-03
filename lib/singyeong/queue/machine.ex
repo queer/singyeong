@@ -1,9 +1,16 @@
 defmodule Singyeong.Queue.Machine do
-  @behaviour RaftedValue.Data
+  @moduledoc """
+  The Raft state machine for queues. This state machine tracks:
+  - The current size / elements of the queue
+  - The messages that clients have requested but not yet acked
+  - The clients awaiting a new message
+  """
 
   use TypedStruct
   alias Singyeong.Queue.Machine.State
   require Logger
+
+  @behaviour RaftedValue.Data
 
   @type pending_client() :: {String.t(), String.t()}
 

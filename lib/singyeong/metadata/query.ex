@@ -9,9 +9,9 @@ defmodule Singyeong.Metadata.Query do
   """
 
   use TypedStruct
-  alias Singyeong.Utils
   alias Singyeong.Store
   alias Singyeong.Store.Client
+  alias Singyeong.Utils
 
   @boolean_op_names [
     "$eq",
@@ -157,13 +157,12 @@ defmodule Singyeong.Metadata.Query do
   end
 
   defp query_app_target(%__MODULE__{} = query) do
-    cond do
-      is_binary query.application ->
-        # Normal case, just return the application name
-        query.application
-
-      true ->
-        raise "query.application invalid: not binary or list"
+    query.application
+    |> is_binary
+    |> if do
+      query.application
+    else
+      raise "query.application: not String"
     end
   end
 
