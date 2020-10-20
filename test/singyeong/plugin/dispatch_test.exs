@@ -6,6 +6,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Payload.Error
+  alias Singyeong.Metadata.Query
   alias Singyeong.Store
   alias SingyeongWeb.Transport
 
@@ -193,8 +194,7 @@ defmodule Singyeong.Plugin.DispatchTest do
 
   @tag capture_log: true
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
-
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => nil
@@ -206,10 +206,10 @@ defmodule Singyeong.Plugin.DispatchTest do
       %Payload{
         op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
         },
         ts: :os.system_time(:millisecond),
       }

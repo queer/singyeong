@@ -5,6 +5,7 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Metadata.Query
   alias Singyeong.PluginManager
   alias Singyeong.Store
 
@@ -48,7 +49,7 @@ defmodule Singyeong.DispatchTest do
 
   @tag capture_log: true
   test "that SEND dispatch query to a socket works", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => []
@@ -60,10 +61,10 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
         },
         ts: :os.system_time(:millisecond),
       }
@@ -94,7 +95,7 @@ defmodule Singyeong.DispatchTest do
 
   @tag capture_log: true
   test "that SEND with nil ops in the query works as expected", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => nil
@@ -106,10 +107,10 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
         },
         ts: :os.system_time(:millisecond),
       }
@@ -156,7 +157,7 @@ defmodule Singyeong.DispatchTest do
     Process.sleep 100
 
     # Actually do and test the dispatch
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => [%{"test" => %{"$eq" => 10}}]
@@ -168,10 +169,10 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
         },
         ts: :os.system_time(:millisecond)
       }
@@ -184,7 +185,7 @@ defmodule Singyeong.DispatchTest do
         op: 4,
         d: %{
           "payload" => payload,
-          "nonce" => nonce
+          "nonce" => nonce,
         },
         ts: now,
         t: "SEND",
@@ -200,7 +201,7 @@ defmodule Singyeong.DispatchTest do
 
   @tag capture_log: true
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => nil
@@ -212,10 +213,10 @@ defmodule Singyeong.DispatchTest do
       %Payload{
         op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
         },
         ts: :os.system_time(:millisecond),
       }
@@ -228,7 +229,7 @@ defmodule Singyeong.DispatchTest do
         op: 4,
         d: %{
           "payload" => payload,
-          "nonce" => nonce
+          "nonce" => nonce,
         },
         ts: now,
         t: "SEND",

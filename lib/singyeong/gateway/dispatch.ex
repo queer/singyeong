@@ -64,12 +64,14 @@ defmodule Singyeong.Gateway.Dispatch do
   def handle_dispatch(_, %Payload{t: "QUEUE", d: %{
     "nonce" => nonce,
     "queue" => queue_name,
+    "target" => target,
     "payload" => payload
   }}) do
     :ok = Queue.create! queue_name
     queued_message =
       %QueuedMessage {
         id: UUID.uuid4(),
+        target: target,
         queue: queue_name,
         nonce: nonce,
         payload: payload,
@@ -84,10 +86,15 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, empty?} = Queue.is_empty? queue_name
     unless empty? do
       Logger.debug "[DISPATCH] Requesting pop from queue #{queue_name}"
-      # TODO: Send the nonce
-      {:ok, %QueuedMessage{nonce: _nonce, payload: payload}} = Queue.pop queue_name
-      # TODO: This should make sure it only sends to the proper client
-      send_to_clients socket, payload, 0, false
+      {:ok, %QueuedMessage{nonce: nonce, target: target, payload: payload}} = Queue.peek queue_name
+      dispatch =
+        %Payload.Dispatch{
+          target: target,
+          nonce: nonce,
+          payload: payload,
+        }
+      matches = Cluster.query target
+      send_with_retry socket, matches, dispatch, false
     else
       Logger.debug "[DISPATCH] Queue empty!"
     end
@@ -95,12 +102,12 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(socket, %Payload{t: "SEND", d: data}) do
-    send_to_clients socket, data, 0, false
+    send_to_clients socket, data, false
     {:ok, []}
   end
 
   def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data}) do
-    send_to_clients socket, data, 0
+    send_to_clients socket, data, true
     {:ok, []}
   end
 
@@ -108,7 +115,7 @@ defmodule Singyeong.Gateway.Dispatch do
     plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->
-        {:error, Payload.close_with_error("invalid dispatch payload: #{inspect payload, pretty: true}")}
+        {:error, Payload.close_with_error("invalid dispatch payload", payload)}
 
       plugins when is_list(plugins) ->
         case run_pipeline(plugins, t, data, [], []) do
@@ -194,84 +201,86 @@ defmodule Singyeong.Gateway.Dispatch do
     apply plugin, :undo, [event, undo_state]
   end
 
-  defp send_to_clients(socket, data, tries, broadcast? \\ true) do
-    %{"target" => target, "payload" => payload} = data
-    targets = Cluster.query target, broadcast?
-    valid_targets =
-      targets
-      |> Enum.filter(fn({_, {_, res}}) ->
-        res != []
-      end)
-      |> Enum.into(%{})
+  defp get_possible_clients(query_res) do
+    # Query returns {app_id, [client_id]}
+    # Clustering it returns a %{node => {app_id, [client_id]}}
+    query_res
+    |> Enum.map(fn
+      {node, {_app, []}} ->
+        {node, []}
 
-    # Basically just flattening a list of lists
-    matched_client_ids =
-      valid_targets
-      |> Map.values
-      |> Enum.map(fn({_, res}) -> res end)
-      |> Enum.concat
+      {node, {_app, clients}} ->
+        {node, clients}
+    end)
+  end
 
-    droppable? = data["droppable"] || false
-    empty? = Enum.empty? matched_client_ids
+  defp send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?) do
+    possible_clients =
+      data.target
+      |> Cluster.query(broadcast?)
+      |> get_possible_clients
 
+    send_with_retry socket, possible_clients, data, broadcast?
+  end
+
+  defp send_with_retry(socket, clients, %Payload.Dispatch{} = payload, broadcast?, tries \\ 0) do
     fake_local_node = Cluster.fake_local_node()
-    out =
-      %{
-        "payload" => payload,
-        "nonce" => data["nonce"]
-      }
-
+    empty? = Enum.empty? clients
     cond do
-      not empty? and broadcast? and not droppable? ->
-        for {node, {target_application, clients}} <- valid_targets do
-          Logger.debug "Broadcasting message to #{target_application}:#{inspect clients} on node #{node}"
+      not empty? and broadcast? ->
+        # If we have clients, and we're broadcasting, ...
+        for {node, clients} <- clients do
           send_fn = fn ->
-            MessageDispatcher.send_dispatch clients, "BROADCAST", out
+            MessageDispatcher.send_dispatch clients, "BROADCAST", payload.nonce, payload.payload
           end
 
           case node do
             ^fake_local_node ->
               Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+
             _ ->
               Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
           end
         end
 
-      not empty? and not broadcast? and not droppable? ->
+      not empty? and not broadcast? ->
+        # If we have clients, and we're not broadcasting, ...
         # Pick random node
-        {node, {target_application, clients}} = Enum.random valid_targets
+        {node, clients} = Enum.random clients
         # Pick a random client from that node's targets
         target_client = [Enum.random(clients)]
-        Logger.debug "Sending message to #{target_application}:#{target_client} on node #{node}"
         send_fn = fn ->
-          MessageDispatcher.send_dispatch target_client, "SEND", out
+          MessageDispatcher.send_dispatch target_client, "SEND", payload.nonce, payload.payload
         end
         case node do
           ^fake_local_node ->
             Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+
           _ ->
             Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
         end
 
-      empty? and not droppable? and tries == @max_send_tries ->
+      empty? and not payload.target.droppable? and tries >= @max_send_tries ->
+        # If there's no matches, and it's not droppable, ...
         failure =
           Payload.create_payload :invalid, %{
-            "error" => "no nodes match query for query #{inspect target, pretty: true}",
+            "error" => "no nodes match query for query #{inspect payload.target, pretty: true}",
             "d" => %{
-              "nonce" => data["nonce"]
+              "nonce" => payload.nonce
             }
           }
 
         send socket.transport_pid, failure
 
-      empty? and not droppable? and tries < @max_send_tries ->
+      empty? and not payload.target.droppable? and tries < @max_send_tries ->
+        # If there's no matches, and it's not droppable, and we HAVEN'T run out of tries yet, ...
         spawn fn ->
           Process.sleep @retry_backoff_ms
-          send_to_clients socket, data, tries + 1, broadcast?
+          send_with_retry socket, clients, payload, broadcast?, tries + 1
         end
 
-      empty? and droppable? ->
-        # Silently drop
+      empty? and payload.target.droppable? ->
+        # If there's no matches, and it's droppable, just silently drop it.
         nil
     end
   end

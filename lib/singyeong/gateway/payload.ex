@@ -7,12 +7,28 @@ defmodule Singyeong.Gateway.Payload do
   use TypedStruct
   alias Singyeong.{Gateway, Utils}
   alias Singyeong.Gateway.Payload.Error
+  alias Singyeong.Metadata.Query
 
   typedstruct do
     field :op, non_neg_integer(), enforce: true
-    field :d, any(), enforce: true
+    field :d, __MODULE__.Dispatch.t() | any(), enforce: true
     field :t, binary() | nil, default: nil
     field :ts, non_neg_integer() | nil, enforce: true
+  end
+
+  typedstruct module: Dispatch do
+    field :target, Query.t()
+    field :nonce, binary() | nil, default: nil
+    field :payload, any() | nil
+  end
+
+  @spec dispatch_from_json(map()) :: __MODULE__.Dispatch.t()
+  def dispatch_from_json(map) do
+    %__MODULE__.Dispatch{
+      target: Query.json_to_query(map["target"]),
+      nonce: map["nonce"],
+      payload: map["payload"],
+    }
   end
 
   @spec from_map(map()) :: __MODULE__.t()

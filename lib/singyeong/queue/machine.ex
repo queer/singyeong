@@ -8,6 +8,7 @@ defmodule Singyeong.Queue.Machine do
 
   use TypedStruct
   alias Singyeong.Queue.Machine.State
+  alias Singyeong.Utils
   require Logger
 
   @behaviour RaftedValue.Data
@@ -26,25 +27,35 @@ defmodule Singyeong.Queue.Machine do
       queue: :queue.new(),
       length: 0,
       unacked_messages: %{},
-      pending_clients: :queue.new(),
+      pending_clients: [],
     }
   end
 
-  def command({queue, len}, {:push, value}) do
-    new_queue = :queue.in value, queue
-    {:ok, {new_queue, len + 1}}
+  def command(state, {:push, value}) do
+    new_queue = :queue.in value, state.queue
+    {:ok, %{state | queue: new_queue, length: state.length + 1}}
   end
 
-  def command({queue, len} = state, :pop) do
-    if len == 0 do
+  def command(state, :pop) do
+    if state.length == 0 do
       {nil, state}
     else
-      {{:value, value}, new_queue} = :queue.out queue
-      {value, {new_queue, len - 1}}
+      # We don't check for a valid client in this function because this will
+      # end up chewing up Raft command time w/ RPC etc. Instead, we peek the
+      # next message, query, then attempt to pop the next message if we have a
+      # possible match
+      # TODO: This is a racy solution -- what do?
+      {{:value, value}, new_queue} = :queue.out state.queue
+      {value, %{state | queue: new_queue, length: state.length - 1}}
     end
   end
 
-  def query({queue, _}, :peek) do
+  def command(state, {:add_client, client}) do
+    new_clients = Utils.fast_list_concat state.pending_clients, client
+    {:ok, %{state | pending_clients: new_clients}}
+  end
+
+  def query(%State{queue: queue}, :peek) do
     case :queue.peek(queue) do
       {:value, value} ->
         value
@@ -54,7 +65,7 @@ defmodule Singyeong.Queue.Machine do
     end
   end
 
-  def query({_, len}, :length) do
+  def query(%State{length: len}, :length) do
     len
   end
 end
