@@ -4,7 +4,6 @@ defmodule Singyeong.Queue do
   still have all the routing capabilities of pubsub.
   """
 
-  alias Singyeong.Cluster
   alias Singyeong.Queue.Machine
   require Logger
 
@@ -26,7 +25,6 @@ defmodule Singyeong.Queue do
     case RaftFleet.add_consensus_group(name_atom, @group_size, config) do
       :ok ->
         Logger.info "[QUEUE] [#{name_atom}] Created new queue consensus group and awaiting leader."
-        me = Node.self()
         ^name_atom = await_leader name_atom, @group_size
         Logger.info "[QUEUE] [#{name_atom}] Done!"
         :ok
