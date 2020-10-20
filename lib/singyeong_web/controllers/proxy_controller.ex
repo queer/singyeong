@@ -1,6 +1,7 @@
 defmodule SingyeongWeb.ProxyController do
   use SingyeongWeb, :controller
 
+  alias Singyeong.Metadata.Query
   alias Singyeong.Proxy
 
   def proxy(conn, params) do
@@ -45,7 +46,7 @@ defmodule SingyeongWeb.ProxyController do
             route: params["route"],
             body: params["body"] || "",
             headers: params["headers"] || %{},
-            query: params["query"],
+            query: Query.json_to_query(params["query"]),
           }
 
         proxy_request conn, ip, request

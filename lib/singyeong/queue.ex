@@ -27,21 +27,11 @@ defmodule Singyeong.Queue do
       :ok ->
         Logger.info "[QUEUE] [#{name_atom}] Created new queue consensus group and awaiting leader."
         me = Node.self()
-        # TODO: This needs to ONLY run across nodes in the consensus group!
-        Cluster.run_clustered fn ->
-          if Node.self() != me do
-            # Join other nodes to the consensus group
-            Logger.info "[QUEUE] [#{name_atom}] #{inspect RaftFleet.active_nodes(), pretty: true}"
-          end
-        end
         ^name_atom = await_leader name_atom, @group_size
         Logger.info "[QUEUE] [#{name_atom}] Done!"
         :ok
 
       {:error, :already_added} ->
-        # Logger.debug "[QUEUE] [#{name_atom}] Queue started, awaiting leader..."
-        # ^name_atom = await_leader name_atom, @group_size
-        # Logger.debug "[QUEUE] [#{name_atom}] Leader acquired!"
         # If it's already started, then we don't need to do anything
         Logger.debug "[QUEUE] [#{name_atom}] Queue exists, doing nothing!"
         :ok
@@ -92,7 +82,6 @@ defmodule Singyeong.Queue do
     Logger.debug "[QUEUE] [#{queue_name queue}] Pushing new payload..."
     queue
     |> queue_name
-    # |> await_leader(@group_size)
     |> RaftFleet.command({:push, payload}, 5_000)
   end
 
@@ -101,7 +90,6 @@ defmodule Singyeong.Queue do
     Logger.debug "[QUEUE] [#{queue_name queue}] Popping new payload..."
     queue
     |> queue_name
-    # |> await_leader(@group_size)
     |> RaftFleet.command(:pop, 5_000)
   end
 
@@ -109,7 +97,6 @@ defmodule Singyeong.Queue do
   def peek(queue) do
     queue
     |> queue_name
-    # |> await_leader(@group_size)
     |> RaftFleet.query(:peek, 5_000)
   end
 
@@ -118,7 +105,6 @@ defmodule Singyeong.Queue do
     Logger.debug "[QUEUE] [#{queue_name queue}] Detecting queue length..."
     queue
     |> queue_name
-    # |> await_leader(@group_size)
     |> RaftFleet.query(:length, 5_000)
   end
 

@@ -30,7 +30,9 @@ defmodule Singyeong.Proxy do
   }
   ```
   """
+  use TypedStruct
   alias Singyeong.Cluster
+  alias Singyeong.Metadata.Query
   require Logger
 
   @methods [
@@ -59,20 +61,18 @@ defmodule Singyeong.Proxy do
     "MOVE",
   ]
 
-  defmodule ProxiedRequest do
-    @moduledoc """
-    An incoming request that needs to be proxied.
-    """
-    @type t :: %ProxiedRequest{method: binary(), route: binary(), body: any(), headers: map(), query: map()}
-    defstruct [:method, :route, :body, :headers, :query]
+  typedstruct module: ProxiedRequest do
+    field :method, String.t()
+    field :route, String.t()
+    field :body, term()
+    field :headers, map()
+    field :query, Query.t()
   end
 
-  defmodule ProxiedResponse do
-    @moduledoc """
-    A response from a request that has been successfully proxied.
-    """
-    @type t :: %ProxiedResponse{status: integer(), body: any(), headers: list()}
-    defstruct [:status, :body, :headers]
+  typedstruct module: ProxiedResponse do
+    field :status, integer()
+    field :body, any()
+    field :headers, map()
   end
 
   @spec requires_body?(binary()) :: boolean
@@ -205,7 +205,7 @@ defmodule Singyeong.Proxy do
         {:ok, %ProxiedResponse{
           status: response.status_code,
           body: response.body,
-          headers: response.headers,
+          headers: Map.new(response.headers),
         }}
 
       :error ->

@@ -6,7 +6,7 @@ defmodule Singyeong.MessageDispatcher do
 
   alias Singyeong.Gateway.Payload
 
-  def send_dispatch(clients, type, msg) do
+  def send_dispatch(clients, type, nonce, payload) do
     clients
     |> Enum.map(fn client ->
       client.socket_pid
@@ -14,8 +14,8 @@ defmodule Singyeong.MessageDispatcher do
     |> Enum.filter(&(&1 != nil and Process.alive?(&1)))
     |> Enum.each(fn pid ->
       send pid, Payload.create_payload(:dispatch, type, %{
-        "nonce" => msg["nonce"],
-        "payload" => msg["payload"],
+        "nonce" => nonce,
+        "payload" => payload,
       })
     end)
   end
