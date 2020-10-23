@@ -20,7 +20,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
     socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
 
-    %GatewayResponse{assigns: assigns} = Gateway.handle_identify socket, %{
+    %GatewayResponse{assigns: assigns} = Gateway.handle_identify socket, %Payload{
       op: Gateway.opcodes_name()[:identify],
       d: %{
         "client_id" => @client_id,

@@ -21,7 +21,7 @@ defmodule Singyeong.DispatchTest do
     # IDENTIFY with the gateway so that we have everything we need set up
     # This is tested in gateway_test.exs
     %GatewayResponse{assigns: assigns} =
-      Gateway.handle_identify socket, %{
+      Gateway.handle_identify socket, %Payload{
         op: Gateway.opcodes_name()[:identify],
         d: %{
           "client_id" => @client_id,

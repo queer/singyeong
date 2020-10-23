@@ -7,6 +7,7 @@ defmodule Singyeong.Queue do
   alias Singyeong.Queue.Machine
   require Logger
 
+  # TODO: Make queue group size configurable
   @group_size 3
 
   @doc """
@@ -14,14 +15,12 @@ defmodule Singyeong.Queue do
   """
   @spec create!(String.t()) :: :ok | no_return()
   def create!(name) do
-    queue = queue_name name
-    create_queue! queue
+    name |> queue_name |> create_queue!
   end
 
   defp create_queue!(name_atom) do
     Logger.info "[QUEUE] [#{name_atom}] Creating new queue..."
     config = RaftedValue.make_config Machine
-    # TODO: Make queue group size configurable
     case RaftFleet.add_consensus_group(name_atom, @group_size, config) do
       :ok ->
         Logger.info "[QUEUE] [#{name_atom}] Created new queue consensus group and awaiting leader."
@@ -104,6 +103,13 @@ defmodule Singyeong.Queue do
     queue
     |> queue_name
     |> RaftFleet.query(:length, 5_000)
+  end
+
+  def flush(queue) do
+    Logger.debug "[QUEUE] [#{queue_name queue}] Flushing..."
+    queue
+    |> queue_name
+    |> RaftFleet.query(:flush, 5_000)
   end
 
   @spec is_empty?(String.t()) :: {:ok, boolean()} | {:error, :no_leader}
