@@ -23,12 +23,7 @@ defmodule Singyeong.Queue.Machine do
   end
 
   def new do
-    %State{
-      queue: :queue.new(),
-      length: 0,
-      unacked_messages: %{},
-      pending_clients: [],
-    }
+    base_state()
   end
 
   def command(state, {:push, value}) do
@@ -55,6 +50,10 @@ defmodule Singyeong.Queue.Machine do
     {:ok, %{state | pending_clients: new_clients}}
   end
 
+  def command(_, :flush) do
+    {:ok, base_state()}
+  end
+
   def query(%State{queue: queue}, :peek) do
     case :queue.peek(queue) do
       {:value, value} ->
@@ -68,4 +67,11 @@ defmodule Singyeong.Queue.Machine do
   def query(%State{length: len}, :length) do
     len
   end
+
+  defp base_state, do: %__MODULE__.State{
+    queue: :queue.new(),
+    length: 0,
+    unacked_messages: %{},
+    pending_clients: [],
+  }
 end

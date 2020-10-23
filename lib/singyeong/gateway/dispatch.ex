@@ -67,6 +67,7 @@ defmodule Singyeong.Gateway.Dispatch do
     "target" => target,
     "payload" => payload
   }}) do
+    Logger.debug "[DISPATCH] Queuing to #{queue_name}"
     :ok = Queue.create! queue_name
     queued_message =
       %QueuedMessage {

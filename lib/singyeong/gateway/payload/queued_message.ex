@@ -4,7 +4,7 @@ defmodule Singyeong.Gateway.Payload.QueuedMessage do
   alias Singyeong.Metadata.Query
 
   typedstruct do
-    field :id, String.t(), enforce: true
+    field :id, String.t()
     field :queue, String.t(), enforce: true
     field :nonce, String.t() | nil
     field :target, Query.t(), enforce: true
