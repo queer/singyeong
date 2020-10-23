@@ -88,6 +88,7 @@ defmodule Singyeong.Gateway.Dispatch do
     unless empty? do
       Logger.debug "[DISPATCH] Requesting pop from queue #{queue_name}"
       {:ok, %QueuedMessage{nonce: nonce, target: target, payload: payload}} = Queue.peek queue_name
+      # TODO: Actually pop from the god damn queue you absolute fucking moron
       dispatch =
         %Payload.Dispatch{
           target: target,
