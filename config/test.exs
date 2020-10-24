@@ -4,4 +4,4 @@ config :singyeong, SingyeongWeb.Endpoint,
   http: [port: 4001],
   server: false
 
-config :logger, level: :debug
+config :logger, level: :warn

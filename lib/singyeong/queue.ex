@@ -112,6 +112,13 @@ defmodule Singyeong.Queue do
     |> RaftFleet.query(:flush, 5_000)
   end
 
+  def dump(queue) do
+    Logger.debug "[QUEUE] [#{queue_name queue}] Dumping..."
+    queue
+    |> queue_name
+    |> RaftFleet.query(:dump, 5_000)
+  end
+
   @spec is_empty?(String.t()) :: {:ok, boolean()} | {:error, :no_leader}
   def is_empty?(queue) do
     len = len queue

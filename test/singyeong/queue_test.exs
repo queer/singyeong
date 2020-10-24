@@ -64,11 +64,12 @@ defmodule Singyeong.QueueTest do
       t: "QUEUE",
     }
 
-    assert_queued queue_name(), %Payload.QueuedMessage{
+    queue_name = queue_name()
+    assert_queued queue_name, %Payload.QueuedMessage{
       nonce: nil,
       payload: "test!",
-      target: target,
-      queue: queue_name(),
+      target: ^target,
+      queue: ^queue_name,
     }
   end
 end

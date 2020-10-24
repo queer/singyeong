@@ -68,6 +68,10 @@ defmodule Singyeong.Queue.Machine do
     len
   end
 
+  def query(%State{queue: queue}, :dump) do
+    queue
+  end
+
   defp base_state, do: %__MODULE__.State{
     queue: :queue.new(),
     length: 0,
