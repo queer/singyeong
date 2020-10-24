@@ -12,13 +12,18 @@ defmodule Singyeong.QueueCase do
       @moduletag capture_log: true
       @queue_name "test"
 
-      setup do
+      setup_all do
         :ok = RaftFleet.activate "test_zone"
         :ok = Queue.create! @queue_name
 
         on_exit fn ->
-          Queue.flush @queue_name
           :ok = RaftFleet.deactivate()
+        end
+      end
+
+      setup do
+        on_exit fn ->
+          Queue.flush @queue_name
         end
       end
 
@@ -26,11 +31,21 @@ defmodule Singyeong.QueueCase do
     end
   end
 
-  # TODO: Traverse the entire queue to search for this message
   defmacro assert_queued(queue_name, pattern) do
     quote do
-      {:ok, peek} = Queue.peek(unquote(queue_name))
-      assert peek = unquote(pattern)
+      {:ok, queue} = Queue.dump(unquote(queue_name))
+      queue
+      |> :queue.to_list
+      |> Enum.any?(fn item ->
+        case item do
+          unquote(pattern) ->
+            true
+
+          _ ->
+            false
+        end
+      end)
+      |> assert
     end
   end
 end
