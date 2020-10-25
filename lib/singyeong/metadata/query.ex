@@ -251,7 +251,7 @@ defmodule Singyeong.Metadata.Query do
           res
 
         {:error, _} ->
-          # TODO: Send errors back to client`
+          # TODO: Send errors back to client
           false
 
         _ ->

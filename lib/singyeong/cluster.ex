@@ -111,6 +111,7 @@ defmodule Singyeong.Cluster do
     send self(), :load_balance
 
     state =
+      # TODO: Move this to new function
       if !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state)) do
         if state[:rafted?] do
           Logger.info "[CLUSTER] Node set changed, reactivating!"
@@ -148,12 +149,13 @@ defmodule Singyeong.Cluster do
 
   def handle_info(:load_balance, state) do
     spawn fn ->
-      count = Store.count_clients()
+      {:ok, count} = Store.count_clients()
       threshold = length(Node.list()) - 1
       if threshold > 0 do
         counts =
           run_clustered fn ->
-            Store.count_clients()
+            {:ok, count} = Store.count_clients()
+            count
           end
 
         average =

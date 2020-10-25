@@ -5,7 +5,9 @@ defmodule Singyeong.QueueTest do
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Metadata.Query
   alias Singyeong.PluginManager
+  alias Singyeong.Queue
   alias Singyeong.Store
 
   @client_id "client-1"
@@ -47,29 +49,92 @@ defmodule Singyeong.QueueTest do
     {:ok, socket: socket}
   end
 
-  test "that queuing a message works", %{socket: socket} do
-    target = %{
-      "application" => @app_id,
-      "ops" => [],
-    }
-    Dispatch.handle_dispatch socket, %Payload{
-      op: Gateway.opcodes_name()[:dispatch],
-      d: %{
-        "target" => target,
-        "nonce" => nil,
-        "payload" => "test!",
-        "queue" => queue_name(),
-      },
-      ts: :os.system_time(:millisecond),
-      t: "QUEUE",
-    }
+  test "that queuing a message works", %{socket: socket, queue: queue_name} do
+    target =
+      %Query{
+        application: @app_id,
+        ops: [],
+      }
 
-    queue_name = queue_name()
+    {:ok, {:text, out}} =
+      Dispatch.handle_dispatch socket, %Payload{
+          op: Gateway.opcodes_name()[:dispatch],
+          d: %{
+            "target" => target,
+            "nonce" => nil,
+            "payload" => "test!",
+            "queue" => queue_name,
+          },
+          ts: :os.system_time(:millisecond),
+          t: "QUEUE",
+        }
+
+    assert %Payload{
+      d: %Payload.QueueConfirm{
+        queue: ^queue_name,
+      }
+    } = out
+
+    assert {:ok, 1} == Queue.len(queue_name)
     assert_queued queue_name, %Payload.QueuedMessage{
       nonce: nil,
       payload: "test!",
       target: ^target,
       queue: ^queue_name,
     }
+  end
+
+  test "that requesting a message works", %{socket: socket, queue: queue_name} do
+    target =
+      %Query{
+        application: @app_id,
+        ops: [],
+      }
+
+    {:ok, {:text, _}} =
+      Dispatch.handle_dispatch socket, %Payload{
+          op: Gateway.opcodes_name()[:dispatch],
+          d: %{
+            "target" => target,
+            "nonce" => nil,
+            "payload" => "test!",
+            "queue" => queue_name,
+          },
+          ts: :os.system_time(:millisecond),
+          t: "QUEUE",
+        }
+
+    assert_queued queue_name, %Payload.QueuedMessage{
+      payload: "test!",
+      target: ^target,
+      queue: ^queue_name,
+    }
+
+    {:ok, []} =
+      Dispatch.handle_dispatch socket, %Payload{
+          op: Gateway.opcodes_name()[:dispatch],
+          d: %{
+            "queue" => queue_name,
+          },
+          ts: :os.system_time(:millisecond),
+          t: "QUEUE_REQUEST",
+        }
+
+    {:text,
+    %Payload{
+        d: %{
+          "nonce" => nil,
+          "payload" => "test!",
+        }, op: 4, t: "SEND", ts: _
+      }
+    } = await_receive_message()
+  end
+
+  defp await_receive_message do
+    receive do
+      msg -> msg
+    after
+      5000 -> raise "couldn't recv message in time!"
+    end
   end
 end

@@ -7,19 +7,23 @@ defmodule Singyeong.Queue.Machine do
   """
 
   use TypedStruct
+  alias Singyeong.Cluster
+  alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Payload.QueuedMessage
+  alias Singyeong.MessageDispatcher
   alias Singyeong.Queue.Machine.State
+  alias Singyeong.Store
   alias Singyeong.Utils
   require Logger
 
   @behaviour RaftedValue.Data
 
-  @type pending_client() :: {String.t(), String.t()}
-
   typedstruct module: State, enforce: true do
+    @type pending_client() :: {Store.app_id(), Store.client_id()}
     field :queue, term()
     field :length, non_neg_integer()
     field :unacked_messages, map()
-    field :pending_clients, term()
+    field :pending_clients, [pending_client()]
   end
 
   def new do
@@ -31,17 +35,23 @@ defmodule Singyeong.Queue.Machine do
     {:ok, %{state | queue: new_queue, length: state.length + 1}}
   end
 
-  def command(state, :pop) do
+  def command(%State{queue: queue, length: length} = state, :pop) do
     if state.length == 0 do
       {nil, state}
     else
-      # We don't check for a valid client in this function because this will
-      # end up chewing up Raft command time w/ RPC etc. Instead, we peek the
-      # next message, query, then attempt to pop the next message if we have a
-      # possible match
-      # TODO: This is a racy solution -- what do?
-      {{:value, value}, new_queue} = :queue.out state.queue
-      {value, %{state | queue: new_queue, length: state.length - 1}}
+      # TODO: haha chewing up Raft time with RPC
+      {:value, %QueuedMessage{target: target} = peek} = :queue.peek queue
+      matches = target |> Cluster.query |> Singyeong.Gateway.Dispatch.get_possible_clients
+      case matches do
+        [] ->
+          # TODO: DLQ
+          {{:error, :no_matches}, state}
+
+        [{node, client} | _] ->
+          {{:value, %QueuedMessage{target: target, nonce: nonce, payload: payload}}, new_queue} = :queue.out queue
+          MessageDispatcher.send_with_retry nil, [{node, client}], %Payload.Dispatch{target: target, nonce: nonce, payload: payload}, false
+          {:ok, %{state | queue: new_queue, length: length - 1}}
+      end
     end
   end
 
