@@ -22,12 +22,21 @@ defmodule Singyeong.Gateway.Payload do
     field :payload, any() | nil
   end
 
-  @spec dispatch_from_json(map()) :: __MODULE__.Dispatch.t()
-  def dispatch_from_json(map) do
+  @spec dispatch_from_json(binary(), map()) :: __MODULE__.Dispatch.t()
+  def dispatch_from_json("QUEUE", %{"target" => target} = map) do
+    %{map | "target" => Query.json_to_query(target)}
+  end
+  def dispatch_from_json("QUEUE", map), do: map
+
+  def dispatch_from_json(type, %{
+    "target" => target,
+    "nonce" => nonce,
+    "payload" => payload,
+  }) do
     %__MODULE__.Dispatch{
-      target: Query.json_to_query(map["target"]),
-      nonce: map["nonce"],
-      payload: map["payload"],
+      target: Query.json_to_query(target),
+      nonce: nonce,
+      payload: payload,
     }
   end
 

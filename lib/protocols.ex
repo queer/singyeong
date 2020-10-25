@@ -2,12 +2,16 @@ require Protocol
 
 defmodule ProtocolsHelper do
   @moduledoc false
+  alias Singyeong.Gateway.Payload
+  alias Singyeong.Metadata.Query
 
   @modules [
-    Singyeong.Gateway.Payload,
-    Singyeong.Gateway.Payload.Error,
-    Singyeong.Gateway.Payload.QueueConfirm,
-    Singyeong.Gateway.Payload.QueuedMessage,
+    Payload,
+    Payload.Dispatch,
+    Payload.Error,
+    Payload.QueueConfirm,
+    Payload.QueuedMessage,
+    Query,
   ]
 
   def modules, do: @modules

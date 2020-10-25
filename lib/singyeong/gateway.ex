@@ -277,7 +277,7 @@ defmodule Singyeong.Gateway do
             handle_identify socket, payload
 
           :dispatch ->
-            dispatch = Payload.dispatch_from_json payload.d
+            dispatch = Payload.dispatch_from_json payload.t, payload.d
             handle_dispatch socket, %{payload | d: dispatch}
 
           :heartbeat ->
@@ -558,7 +558,7 @@ defmodule Singyeong.Gateway do
   end
 
   def handle_heartbeat(socket, _payload) do
-    client = Store.get_client socket.assigns[:client_id]
+    {:ok, client} = Store.get_client socket.assigns[:client_id]
     if client != nil do
       Store.update_client %{
         client | metadata: Map.put(
