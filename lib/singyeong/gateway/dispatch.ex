@@ -70,7 +70,7 @@ defmodule Singyeong.Gateway.Dispatch do
     "queue" => queue_name,
     "target" => %Query{} = target,
     "payload" => payload,
-  } = incoming_payload}) do
+  }}) do
     Logger.debug "[DISPATCH] Queuing to #{queue_name}"
     :ok = Queue.create! queue_name
     queued_message =
@@ -106,14 +106,24 @@ defmodule Singyeong.Gateway.Dispatch do
     end
   end
 
-  def handle_dispatch(socket, %Payload{t: "SEND", d: data}) do
-    send_to_clients socket, data, false
-    {:ok, []}
+  def handle_dispatch(socket, %Payload{t: "SEND", d: data} = payload) do
+    case send_to_clients(socket, data, true) do
+      {:ok, _} ->
+        {:ok, []}
+
+      {:error, value} ->
+        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+    end
   end
 
-  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data}) do
-    send_to_clients socket, data, true
-    {:ok, []}
+  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data} = payload) do
+    case send_to_clients(socket, data, true) do
+      {:ok, _} ->
+        {:ok, []}
+
+      {:error, value} ->
+        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+    end
   end
 
   def handle_dispatch(_, %Payload{t: t, d: data} = payload) do
@@ -210,22 +220,30 @@ defmodule Singyeong.Gateway.Dispatch do
   def get_possible_clients(query_res) do
     # Query returns {app_id, [client_id]}
     # Clustering it returns a %{node => {app_id, [client_id]}}
-    query_res
-    |> Enum.map(fn
-      {node, {_app, []}} ->
-        {node, []}
+    clients =
+      query_res
+      |> Enum.map(fn
+        {node, {_app, []}} ->
+          {node, []}
 
-      {node, {_app, clients}} ->
-        {node, clients}
-    end)
+        {node, {_app, clients}} ->
+          {node, clients}
+      end)
+
+    client_count =
+      clients
+      |> Enum.flat_map(fn {_, clients} -> clients end)
+      |> Enum.count
+
+    {clients, client_count}
   end
 
   defp send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?) do
-    possible_clients =
+    {possible_clients, client_count} =
       data.target
       |> Cluster.query(broadcast?)
       |> get_possible_clients
 
-    MessageDispatcher.send_with_retry socket, possible_clients, data, broadcast?
+    MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?
   end
 end

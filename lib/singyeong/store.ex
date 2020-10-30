@@ -62,7 +62,7 @@ defmodule Singyeong.Store do
   @doc """
   Returns whether or not the given client exists
   """
-  @callback client_exists?(client_id()) :: boolean
+  @callback client_exists?(client_id()) :: boolean()
   defdelegate client_exists?(client_id), to: Config.store_mod()
 
   @doc """

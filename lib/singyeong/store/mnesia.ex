@@ -85,12 +85,16 @@ defmodule Singyeong.Store.Mnesia do
   end
 
   @impl Singyeong.Store
-  def remove_client(%Client{} = client) do
-    remove_client client.client_id
+  def remove_client(%Client{app_id: app_id, client_id: client_id}) do
+    remove_client app_id, client_id
   end
 
-  @impl Singyeong.Store
-  def remove_client(client_id) do
+  def remove_client(app_id, client_id) do
+    {:ok, mapset} = get_app_clients app_id
+    :mnesia.transaction fn ->
+      mapset = MapSet.delete mapset, client_id
+      :ok = :mnesia.write({@apps, app_id, mapset})
+    end
     :mnesia.transaction(fn -> do_remove_client(client_id) end)
     |> return_result_or_error
   end
