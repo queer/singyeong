@@ -49,7 +49,8 @@ defmodule Singyeong.Queue.Machine do
 
         [{node, client} | _] ->
           {{:value, %QueuedMessage{target: target, nonce: nonce, payload: payload}}, new_queue} = :queue.out queue
-          MessageDispatcher.send_with_retry nil, [{node, client}], %Payload.Dispatch{target: target, nonce: nonce, payload: payload}, false
+          # TODO: This should be correct number
+          MessageDispatcher.send_with_retry nil, [{node, client}], -1, %Payload.Dispatch{target: target, nonce: nonce, payload: payload}, false
           {:ok, %{state | queue: new_queue, length: length - 1}}
       end
     end

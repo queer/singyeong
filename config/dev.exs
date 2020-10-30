@@ -13,6 +13,9 @@ config :singyeong, SingyeongWeb.Endpoint,
   check_origin: false,
   watchers: []
 
+config :logger, :console,
+  [metadata: [:file]]
+
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20

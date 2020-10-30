@@ -8,13 +8,13 @@ defmodule Singyeong.MessageDispatcher do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
 
-  @spec send_with_retry(Plug.Socket.t() | nil, list(term()), Payload.Dispatch.t(), boolean()) :: {:ok, :dropped} | {:error, :no_route}
-  def send_with_retry(_, [], %Payload.Dispatch{target: %Query{droppable: true}}, _) do
+  @spec send_with_retry(Plug.Socket.t() | nil, list(term()), non_neg_integer(), Payload.Dispatch.t(), boolean()) :: {:ok, :dropped} | {:ok, :sent} | {:error, :no_route}
+  def send_with_retry(_, _, 0, %Payload.Dispatch{target: %Query{droppable: true}}, _) do
     # No matches and droppable, silently drop
     {:ok, :dropped}
   end
 
-  def send_with_retry(socket, [], %Payload.Dispatch{target: %Query{droppable: false} = target, nonce: nonce}, _) do
+  def send_with_retry(socket, _, 0, %Payload.Dispatch{target: %Query{droppable: false} = target, nonce: nonce}, _) do
     # No matches and not droppable, reply to initiator if possible
     if socket != nil and is_pid(socket.transport_pid) and Process.alive?(socket.transport_pid) do
       failure =
@@ -30,7 +30,7 @@ defmodule Singyeong.MessageDispatcher do
     {:error, :no_route}
   end
 
-  def send_with_retry(_socket, [_ | _] = clients, %Payload.Dispatch{} = payload, broadcast?) do
+  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?) when client_count > 0 do
     if broadcast? do
       # All nodes and all clients
       for {node, node_clients} <- clients do
@@ -44,6 +44,10 @@ defmodule Singyeong.MessageDispatcher do
       distributed_send node, target_client, "SEND", payload.nonce, payload.payload
     end
     {:ok, :sent}
+  end
+
+  def send_with_retry(_, _, 0, _, _) do
+    {:error, :no_route}
   end
 
   defp distributed_send(node, clients, type, nonce, payload) do

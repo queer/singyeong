@@ -305,6 +305,7 @@ defmodule Singyeong.Gateway do
 
   def handle_close(socket) do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
+      Logger.debug "Handling close for socket"
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
 
@@ -313,8 +314,10 @@ defmodule Singyeong.Gateway do
   end
 
   def cleanup(app_id, client_id) do
+    Logger.debug "CLEANING UP :tada:"
     client_id
     |> Store.get_client
+    |> elem(1)
     |> Store.remove_client
 
     queue_worker = UpdateQueue.name app_id, client_id
