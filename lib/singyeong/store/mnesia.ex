@@ -55,11 +55,11 @@ defmodule Singyeong.Store.Mnesia do
   end
 
   defp do_update_client(%Client{app_id: app_id, client_id: id} = client) do
-    mapset = get_clients app_id
-    if MapSet.member?(mapset, id) do
-      raise "Couldn't add client #{id} to app #{app_id}: it already exists"
+    {:ok, mapset} = get_app_clients app_id
+    unless MapSet.member?(mapset, id) do
+      raise "Couldn't update client #{id} in app #{app_id}: it doesn't already exist"
     end
-    :ok = :mnesia.write {@clients, client}
+    :ok = :mnesia.write {@clients, id, client}
     mapset = MapSet.put mapset, id
     :ok = :mnesia.write {@apps, app_id, mapset}
   end
