@@ -563,13 +563,15 @@ defmodule Singyeong.Gateway do
   def handle_heartbeat(socket, _payload) do
     {:ok, client} = Store.get_client socket.assigns[:client_id]
     if client != nil do
-      Store.update_client %{
-        client | metadata: Map.put(
-            client.metadata,
-            Metadata.last_heartbeat_time(),
-            :os.system_time(:millisecond)
-          )
-      }
+      {:ok, _} =
+        Store.update_client %{
+          client | metadata: Map.put(
+              client.metadata,
+              Metadata.last_heartbeat_time(),
+              :os.system_time(:millisecond)
+            )
+        }
+
       :heartbeat_ack
       |> Payload.create_payload(%{"client_id" => socket.assigns[:client_id]})
       |> craft_response
