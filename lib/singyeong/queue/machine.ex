@@ -41,6 +41,7 @@ defmodule Singyeong.Queue.Machine do
     else
       # TODO: haha chewing up Raft time with RPC
       {:value, %QueuedMessage{target: target} = peek} = :queue.peek queue
+      # TODO: This should only match on pending clients
       matches = target |> Cluster.query |> Singyeong.Gateway.Dispatch.get_possible_clients
       case matches do
         [] ->
