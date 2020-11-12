@@ -11,8 +11,7 @@ config :singyeong, SingyeongWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "b+/gXZdeMqYfvqhrGomnUZXcWS25i2zKBgndyLTky3JUj7AAXoHuB6HRuk4D41Du",
   render_errors: [view: SingyeongWeb.ErrorView, accepts: ~w(json)],
-  pubsub: [name: Singyeong.PubSub,
-           adapter: Phoenix.PubSub.PG2]
+  pubsub_server: Singyeong.PubSub
 
 # Configures Elixir's Logger
 config :logger, :console,
