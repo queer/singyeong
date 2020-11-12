@@ -87,7 +87,7 @@ defmodule Singyeong.Gateway.Dispatch do
         target: target,
       }
 
-    {:ok, :ok} = Queue.push queue_name, queued_message
+    :ok = Queue.push queue_name, queued_message
     attempt_queue_dispatch queue_name
     {:ok, Payload.create_payload(:dispatch, "QUEUE_CONFIRM", %QueueConfirm{queue: queue_name})}
   end
@@ -95,7 +95,7 @@ defmodule Singyeong.Gateway.Dispatch do
   def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
     Logger.debug "[DISPATCH] Appending new client: #{inspect {socket.assigns.app_id, socket.assigns.client_id}}"
     :ok = Queue.create! queue_name
-    {:ok, :ok} = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
+    :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
     # TODO: If this happens here, the Raft machine crashes(?) and the queue dies.
     attempt_queue_dispatch queue_name
     {:ok, []}
@@ -245,13 +245,13 @@ defmodule Singyeong.Gateway.Dispatch do
 
   defp attempt_queue_dispatch(queue_name) do
     case Queue.can_dispatch?(queue_name) do
-      {:ok, {:error, :empty_queue}} ->
+      {:error, :empty_queue} ->
         :ok
 
-      {:ok, {:error, :no_pending_clients}} ->
+      {:error, :no_pending_clients} ->
         :ok
 
-      {:ok, {:ok, true}} ->
+      {:ok, true} ->
         {:ok, {%QueuedMessage{
           target: target,
         } = message, pending_clients}} = Queue.peek queue_name
@@ -269,7 +269,7 @@ defmodule Singyeong.Gateway.Dispatch do
       # {matches, count}
       |> case do
         {_, 0} ->
-          {:ok, {:ok, next_message}} = Queue.pop queue_name
+          {:ok, next_message} = Queue.pop queue_name
           # No clients, DLQ it
           # {{:value, %QueuedMessage{} = message}, new_queue} = :queue.out queue
           # dlq = Utils.fast_list_concat dlq, %DeadLetter{message: message, dead_since: now}
@@ -277,7 +277,7 @@ defmodule Singyeong.Gateway.Dispatch do
           Queue.add_dlq queue_name, next_message
 
         {matches, count} when count > 0 ->
-          {:ok, {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}}} = Queue.pop queue_name
+          {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}} = Queue.pop queue_name
           next_client_id =
             pending_clients
             |> intersection(matches)
