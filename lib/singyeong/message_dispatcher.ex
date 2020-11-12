@@ -7,8 +7,12 @@ defmodule Singyeong.MessageDispatcher do
   alias Singyeong.Cluster
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
+  require Logger
 
-  @spec send_with_retry(Plug.Socket.t() | nil, list(term()), non_neg_integer(), Payload.Dispatch.t(), boolean()) :: {:ok, :dropped} | {:ok, :sent} | {:error, :no_route}
+  @spec send_with_retry(Plug.Socket.t() | nil, list(term()), non_neg_integer(), Payload.Dispatch.t(), boolean())
+      :: {:ok, :dropped}
+         | {:ok, :sent}
+         | {:error, :no_route}
   def send_with_retry(_, _, 0, %Payload.Dispatch{target: %Query{droppable: true}}, _) do
     # No matches and droppable, silently drop
     {:ok, :dropped}

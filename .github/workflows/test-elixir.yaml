@@ -25,4 +25,5 @@ jobs:
           otp-version: 23.1.2
           elixir-version: 1.11.2
       - run: env MIX_ENV=test mix deps.get
+      - run: env MIX_ENV=test mix compile --warnings-as-errors
       - run: env MIX_ENV=test mix test

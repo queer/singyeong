@@ -1,11 +1,14 @@
 defmodule Singyeong.QueueCase do
+  @moduledoc """
+  Test helpers for queue-related tests.
+  """
   use ExUnit.CaseTemplate
   alias Singyeong.Queue
 
   using do
     quote do
       # Copied from channel_case.ex
-      use Phoenix.ChannelTest
+      import Phoenix.ChannelTest
       import Singyeong.QueueCase
 
       @endpoint SingyeongWeb.Endpoint

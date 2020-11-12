@@ -107,7 +107,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(socket, %Payload{t: "SEND", d: data} = payload) do
-    case send_to_clients(socket, data, true) do
+    case send_to_clients(socket, data, false) do
       {:ok, _} ->
         {:ok, []}
 
