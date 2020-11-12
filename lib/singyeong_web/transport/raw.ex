@@ -26,13 +26,13 @@ defmodule SingyeongWeb.Transport.Raw do
   # TRANSPORT BEHAVIOURS #
 
   def child_spec(opts) do
-    Phoenix.Socket.__child_spec__ __MODULE__, opts
+    Phoenix.Socket.__child_spec__ __MODULE__, opts, []
   end
 
   def connect(map) do
     # map has a key :connect_info map that contains this, which we want:
     # peer_data: %{address: {127, 0, 0, 1}, port: 49818, ssl_cert: nil},
-    {:ok, {channels, socket}} = Phoenix.Socket.__connect__ __MODULE__, map, false
+    {:ok, {channels, socket}} = Phoenix.Socket.__connect__ __MODULE__, map, []
 
     # Convert the ip
     peer_data = map[:connect_info][:peer_data]
