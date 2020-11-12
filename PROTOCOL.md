@@ -1,9 +1,25 @@
-# 신경 Notes
+# 신경 protocol
 
-Some notes to myself so I don't forget
+The basics of how the 신경 protocol works.
 
 ## Basic 신경 Lifecycle
 
+0.  Parse the provided DSN. A 신경 DSN is a string matching this regex:
+    `s?singyeong:\/\/.+(:.+)?@[\w-]+(:\d{1,5})?\/?(\?encoding=(json|etf|msgpack))?`.
+    `singyeong://` is for a normal websocket connection, whereas
+    `ssingyeong://` is for an SSL connection. You can pass the `encoding` query
+    param with any valid encoding (see the table below), and the server will
+    send you all payloads in that format. If you don't specify an encoding,
+    JSON encoding will be assumed.
+    Since a regex alone isn't too useful, here's some examples of valid DSNs:
+    ```
+    singyeong://test@localhost
+    ssingyeong://test:pass-word@localhost
+    singyeong://test@localhost:4567
+    ssingyeong://test:pass~-word@localhost:4921/
+    singyeong://test:pass@localhost:21312?encoding=json
+    ssingyeong://test:pass@host:12321/?encoding=etf
+    ```
 1.  Open a websocket connection to `/gateway/websocket`. The server will
     immediately reply with a packet like this:
     ```Javascript
@@ -16,8 +32,6 @@ Some notes to myself so I don't forget
     ```
     Your client should start sending a heartbeat packet every
     `heartbeat_interval` milliseconds (more on this later).
-    If you want to use ETF or MessagePack, append an `encoding` query param to
-    the URL you connect to. Valid encoding values can be seen in the table below.
 2.  Send the gateway a packet like this to identify:
     ```Javascript
     {
