@@ -22,13 +22,40 @@ defmodule Singyeong.Gateway.Payload do
     field :payload, any() | nil
   end
 
-  @spec dispatch_from_json(binary(), map()) :: __MODULE__.Dispatch.t()
-  def dispatch_from_json("QUEUE", %{"target" => target} = map) do
-    %{map | "target" => Query.json_to_query(target)}
+  @spec data_from_json(binary(), map()) :: __MODULE__.Dispatch.t()
+  def data_from_json("QUEUE", %{
+    "target" => target,
+    "queue" => queue,
+    "nonce" => nonce,
+    "payload" => payload,
+  }) do
+    %__MODULE__.QueueInsert{
+      queue: queue,
+      target: Query.json_to_query(target),
+      nonce: nonce,
+      payload: payload,
+    }
   end
-  def dispatch_from_json("QUEUE", map), do: map
 
-  def dispatch_from_json(_, %{
+  def data_from_json("QUEUE_REQUEST", %{
+    "queue" => queue
+  }) do
+    %__MODULE__.QueueRequest{
+      queue: queue
+    }
+  end
+
+  def data_from_json("QUEUE_ACK", %{
+    "queue" => queue,
+    "id" => id,
+  }) do
+    %__MODULE__.QueueAck{
+      queue: queue,
+      id: id,
+    }
+  end
+
+  def data_from_json(_, %{
     "target" => target,
     "nonce" => nonce,
     "payload" => payload,
@@ -40,12 +67,14 @@ defmodule Singyeong.Gateway.Payload do
     }
   end
 
+  def data_from_json(_, map), do: map
+
   @spec from_map(map()) :: __MODULE__.t()
-  def from_map(map) when is_map(map) do
+  def from_map(map) do
     map = Utils.stringify_keys map
     %__MODULE__{
       op: map["op"],
-      d: map["d"],
+      d: data_from_json(map["t"], map["d"]),
       t: map["t"],
       ts: map["ts"],
     }

@@ -161,6 +161,13 @@ defmodule Singyeong.Queue do
     |> command({:add_unacked, data, Utils.now()})
   end
 
+  def ack_message(queue, id) do
+    queue
+    |> queue_name
+    |> queue_debug("Acking #{id}")
+    |> command({:ack, id})
+  end
+
   @spec flush(String.t()) :: term()
   def flush(queue) do
     queue

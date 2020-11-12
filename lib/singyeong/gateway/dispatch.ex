@@ -9,8 +9,10 @@ defmodule Singyeong.Gateway.Dispatch do
   alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Payload.{
+    QueueAck,
     QueueConfirm,
     QueueDispatch,
+    QueueInsert,
     QueueRequest,
     QueuedMessage,
   }
@@ -61,22 +63,12 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Query.run_query(data, true)})}
   end
 
-  # %Singyeong.Gateway.Payload{
-  #   t: "QUEUE",
-  #   d: %{
-  #     "nonce" => nil,
-  #     "payload" => "test!",
-  #     "queue" => "test_queue_576460749370021728_570653214583602705",
-  #     "target" => %{"application" => "test-app-1", "ops" => []}
-  #   },
-  # }
-  def handle_dispatch(_, %Payload{t: "QUEUE", d: %{
-    "nonce" => nonce,
-    "queue" => queue_name,
-    "target" => %Query{} = target,
-    "payload" => payload,
+  def handle_dispatch(_, %Payload{t: "QUEUE", d: %QueueInsert{
+    nonce: nonce,
+    queue: queue_name,
+    target: %Query{} = target,
+    payload: payload,
   }}) do
-    Logger.debug "[DISPATCH] Queuing to #{queue_name}"
     :ok = Queue.create! queue_name
     queued_message =
       %QueuedMessage{
@@ -93,10 +85,15 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
-    Logger.debug "[DISPATCH] Appending new client: #{inspect {socket.assigns.app_id, socket.assigns.client_id}}"
     :ok = Queue.create! queue_name
     :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
     attempt_queue_dispatch queue_name
+    {:ok, []}
+  end
+
+  def handle_dispatch(socket, %Payload{t: "QUEUE_ACK", d: %QueueAck{queue: queue_name, id: id}}) do
+    :ok = Queue.create! queue_name
+    :ok = Queue.ack_message queue_name, id
     {:ok, []}
   end
 
