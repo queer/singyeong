@@ -93,12 +93,16 @@ defmodule Singyeong.Queue do
 
   defp command(queue, cmd) do
     # group, command, timeout \\ 500, retry_count \\ 3, retry_interval \\ 1_000, call_module \\ :gen_statem
-    RaftFleet.command queue, cmd, 5_000, 5, 100
+    queue
+    |> RaftFleet.command(cmd, 5_000, 5, 100)
+    |> unwrap_command
   end
 
   defp query(queue, cmd) do
     # group, command, timeout \\ 500, retry_count \\ 3, retry_interval \\ 1_000, call_module \\ :gen_statem
-    RaftFleet.query queue, cmd, 5_000, 5, 100
+    queue
+    |> RaftFleet.query(cmd, 5_000, 5, 100)
+    |> unwrap_command
   end
 
   @spec push(String.t(), map()) :: term()
@@ -223,5 +227,24 @@ defmodule Singyeong.Queue do
   defp queue_debug(queue_name, msg) do
     Logger.debug "[QUEUE] [#{queue_name}] #{msg}"
     queue_name
+  end
+
+  defp unwrap_command(res) do
+    case res do
+      {:ok, :ok} ->
+        :ok
+
+      {:ok, {:error, _} = err} ->
+        err
+
+      {:ok, {:ok, _} = out} ->
+        out
+
+      {:ok, _} = out ->
+        out
+
+      {:error, _} = err ->
+        err
+    end
   end
 end
