@@ -1,0 +1,28 @@
+name: Elixir tests
+on:
+  push:
+    branches-ignore:
+    - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:12.2
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: loredoc_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-elixir@v1
+        with:
+          otp-version: 23.1.2
+          elixir-version: 1.11.2
+      - run: env MIX_ENV=test mix deps.get
+      - run: env MIX_ENV=test mix test
