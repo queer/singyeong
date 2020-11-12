@@ -152,6 +152,11 @@ defmodule Singyeong.Queue.Machine do
   end
 
   @impl RaftedValue.Data
+  def command(%State{unacked_messages: unacked} = state, {:ack, id}) do
+    {:ok, %{state | unacked_messages: Map.delete(unacked, id)}}
+  end
+
+  @impl RaftedValue.Data
   def query(%State{queue: queue, pending_clients: pending}, :peek) do
     case :queue.peek(queue) do
       {:value, value} ->

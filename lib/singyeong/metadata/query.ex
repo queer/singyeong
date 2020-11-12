@@ -81,7 +81,7 @@ defmodule Singyeong.Metadata.Query do
       application: json["application"],
       restricted: coerce_to_boolean(json["restricted"]),
       key: coerce_to_nil_binary(json["key"]),
-      droppable: coerce_to_nil_binary(json["droppable"]),
+      droppable: coerce_to_boolean(json["droppable"]),
       optional: coerce_to_boolean(json["optional"]),
       ops: extract_ops(json["ops"])
     }

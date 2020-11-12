@@ -277,8 +277,7 @@ defmodule Singyeong.Gateway do
             handle_identify socket, payload
 
           :dispatch ->
-            dispatch = Payload.dispatch_from_json payload.t, payload.d
-            handle_dispatch socket, %{payload | d: dispatch}
+            handle_dispatch socket, payload
 
           :heartbeat ->
             # We only really do heartbeats to keep clients alive.

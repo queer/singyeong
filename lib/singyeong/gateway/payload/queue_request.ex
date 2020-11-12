@@ -2,7 +2,7 @@ defmodule Singyeong.Gateway.Payload.QueueRequest do
   @moduledoc false
   use TypedStruct
 
-  typedstruct do
-    field :queue, String.t(), enforce: true
+  typedstruct enforce: true do
+    field :queue, String.t()
   end
 end
