@@ -32,6 +32,7 @@ config :singyeong,
   queue: [
     ack_timeout: 15_000,
     dlq_time: 15_000,
+    group_size: 3,
   ],
   metadata: [
     queue_interval: 500,

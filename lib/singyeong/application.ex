@@ -8,8 +8,6 @@ defmodule Singyeong.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   def start(_type, _args) do
-    import Supervisor.Spec
-
     PluginManager.init()
 
     # Define workers and child supervisors to be supervised
@@ -42,7 +40,7 @@ defmodule Singyeong.Application do
     # Configure pubsub so that phx will be happy
     children = Utils.fast_list_concat children, {Phoenix.PubSub, [name: Singyeong.PubSub, adapter: Phoenix.PubSub.PG2]}
     # Finally, add endpoint supervisor
-    children = Utils.fast_list_concat children, [supervisor(SingyeongWeb.Endpoint, [])]
+    children = Utils.fast_list_concat children, [SingyeongWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options

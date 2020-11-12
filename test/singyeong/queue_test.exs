@@ -1,4 +1,5 @@
 defmodule Singyeong.QueueTest do
+  # use Singyeong.DispatchCase
   use Singyeong.QueueCase
   import Phoenix.Socket, only: [assign: 3]
   alias Singyeong.Config

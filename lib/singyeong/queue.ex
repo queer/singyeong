@@ -4,6 +4,7 @@ defmodule Singyeong.Queue do
   still have all the routing capabilities of pubsub.
   """
 
+  alias Singyeong.Config
   alias Singyeong.Gateway.Payload.QueuedMessage
   alias Singyeong.Queue.{
     Gc,
@@ -11,9 +12,6 @@ defmodule Singyeong.Queue do
   }
   alias Singyeong.Utils
   require Logger
-
-  # TODO: Make queue group size configurable
-  @group_size 3
 
   @doc """
   Create a new queue with the given name as-needed.
@@ -26,35 +24,34 @@ defmodule Singyeong.Queue do
   defp create_queue!(name_atom) do
     queue_debug name_atom, "Creating new queue..."
     config = RaftedValue.make_config Machine
-    case RaftFleet.add_consensus_group(name_atom, @group_size, config) do
+    case RaftFleet.add_consensus_group(name_atom, Config.queue_group_size(), config) do
       :ok ->
         queue_debug name_atom, "Created new queue consensus group and awaiting leader."
-        ^name_atom = await_leader name_atom, @group_size
+        ^name_atom = await_leader name_atom, Config.queue_group_size()
         queue_debug name_atom, "Done!"
         :ok
 
       {:error, :already_added} ->
         # If it's already started, then we don't need to do anything
-        ^name_atom = await_leader name_atom, @group_size
+        ^name_atom = await_leader name_atom, Config.queue_group_size()
         queue_debug name_atom, "Queue exists, doing nothing!"
         :ok
 
       {:error, :no_leader} ->
         queue_debug name_atom, "No leader, awaiting..."
-        ^name_atom = await_leader name_atom, @group_size
+        ^name_atom = await_leader name_atom, Config.queue_group_size()
         queue_debug name_atom, "Leader acquired!"
         :ok
 
       # {:error, :cleanup_ongoing} ->
-        # TODO: ??????
+        # :ok
 
       err ->
         raise "Unknown queue pid start result: #{inspect err}"
     end
     command name_atom, {:name, name_atom}
-    # TODO: Run this inside of the Raft machine somehow...
-    # This should be linked to the relevant Raft consensus group so that this
-    # dies when that does, but how?
+    # FIXME: This should be linked to the relevant Raft consensus group so that
+    #        this dies when that does, but how?
     DynamicSupervisor.start_child Singyeong.QueueGcSupervisor,
       {Gc, [name: queue_readable_name(name_atom)]}
 

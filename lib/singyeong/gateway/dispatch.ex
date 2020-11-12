@@ -96,7 +96,6 @@ defmodule Singyeong.Gateway.Dispatch do
     Logger.debug "[DISPATCH] Appending new client: #{inspect {socket.assigns.app_id, socket.assigns.client_id}}"
     :ok = Queue.create! queue_name
     :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
-    # TODO: If this happens here, the Raft machine crashes(?) and the queue dies.
     attempt_queue_dispatch queue_name
     {:ok, []}
   end
@@ -211,8 +210,7 @@ defmodule Singyeong.Gateway.Dispatch do
     apply plugin, :undo, [event, undo_state]
   end
 
-  # TODO: What's the right place for this?
-  def get_possible_clients(query_res) do
+  defp get_possible_clients(query_res) do
     # Query returns {app_id, [client]}
     # Clustering it returns a %{node => {app_id, [client]}}
     # This converts it to a [{node, [{app_id, client}]}]
