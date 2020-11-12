@@ -5,6 +5,7 @@ defmodule Singyeong.GatewayTest do
   alias Singyeong.Gateway.Payload
   alias Singyeong.PluginManager
   alias Singyeong.Store
+  alias Singyeong.Utils
 
   @app_id "test-app-1"
   @client_id "client-1"
@@ -16,7 +17,7 @@ defmodule Singyeong.GatewayTest do
       "auth" => nil,
     },
     t: nil,
-    ts: :os.system_time(:millisecond),
+    ts: Utils.now(),
   }
 
   setup do

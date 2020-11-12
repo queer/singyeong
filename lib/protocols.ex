@@ -10,6 +10,8 @@ defmodule ProtocolsHelper do
     Payload.Dispatch,
     Payload.Error,
     Payload.QueueConfirm,
+    Payload.QueueDispatch,
+    Payload.QueueRequest,
     Payload.QueuedMessage,
     Query,
   ]

@@ -200,6 +200,7 @@ clients must follow.
 | `QUEUE_CONFIRM`   | recv | Sends an acknowledgement of message queuing to the client. |
 | `QUEUE_REQUEST`   | send | Adds the client to the list of clients awaiting messages. |
 | `QUEUE_RESPOND`   | recv | Sends a queued message to the requesting client, if possible. |
+| `QUEUE_ACK`       | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
 
 The inner payloads for these events are as follows:
 
@@ -425,10 +426,6 @@ The `droppable` key explicitly sets whether a specific message can be dropped
 if it cannot be routed. Specifically, if a message's routing query returns no
 results, and the value of `droppable` is `true`, the message will be silently
 dropped.
-
-### Application queries
-
-The `application` key in a query does not have to only be a string!
 
 ### Optional queries
 

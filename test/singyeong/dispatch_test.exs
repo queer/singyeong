@@ -8,6 +8,7 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Metadata.Query
   alias Singyeong.PluginManager
   alias Singyeong.Store
+  alias Singyeong.Utils
 
   @client_id "client-1"
   @app_id "test-app-1"
@@ -28,7 +29,7 @@ defmodule Singyeong.DispatchTest do
           "application_id" => @app_id,
           "auth" => nil,
         },
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
         t: nil,
       }
 
@@ -66,18 +67,19 @@ defmodule Singyeong.DispatchTest do
           payload: payload,
           nonce: nonce,
         },
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
         op: 4,
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
         ts: now,
         t: "SEND",
@@ -112,18 +114,19 @@ defmodule Singyeong.DispatchTest do
           payload: payload,
           nonce: nonce,
         },
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
         op: 4,
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
         ts: now,
         t: "SEND",
@@ -142,7 +145,7 @@ defmodule Singyeong.DispatchTest do
     # Send a fake metadata update and pray
     payload = %Payload{
       t: "UPDATE_METADATA",
-      ts: :os.system_time(:millisecond),
+      ts: Utils.now(),
       op: 4,
       d: %{
         "test" => %{
@@ -174,18 +177,19 @@ defmodule Singyeong.DispatchTest do
           payload: payload,
           nonce: nonce,
         },
-        ts: :os.system_time(:millisecond)
+        ts: Utils.now()
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
         op: 4,
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
         ts: now,
         t: "SEND",
@@ -218,18 +222,19 @@ defmodule Singyeong.DispatchTest do
           payload: payload,
           nonce: nonce,
         },
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
         op: 4,
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
         ts: now,
         t: "SEND",

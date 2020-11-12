@@ -8,6 +8,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
   """
 
   use GenServer
+  alias Singyeong.Config
   alias Singyeong.Store
 
   def start_link(opts) do
@@ -24,7 +25,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
       # it each time you call :queue.len/1.
       |> Map.put(:queue_size, 0)
 
-    Process.send_after self(), :process, 500
+    Process.send_after self(), :process, Config.metadata_queue_interval()
     {:ok, state}
   end
 
@@ -43,7 +44,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
         | metadata: Map.merge(client.metadata, new_metadata)
       }
     end
-    Process.send_after self(), :process, 500
+    Process.send_after self(), :process, Config.metadata_queue_interval()
     {:noreply, new_state}
   end
 

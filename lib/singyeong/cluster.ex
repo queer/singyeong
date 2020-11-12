@@ -25,9 +25,9 @@ defmodule Singyeong.Cluster do
   def init(_) do
     hostname = get_hostname()
     ip = get_hostaddr()
+    now = Utils.now() |> Integer.to_string
     hash =
-      :crypto.hash(:md5, :os.system_time(:millisecond)
-      |> Integer.to_string)
+      :crypto.hash(:md5, now)
       |> Base.encode16
       |> String.downcase
     state =

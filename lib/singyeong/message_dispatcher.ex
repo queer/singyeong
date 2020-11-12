@@ -6,10 +6,19 @@ defmodule Singyeong.MessageDispatcher do
 
   alias Singyeong.Cluster
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Payload.Dispatch
   alias Singyeong.Metadata.Query
+  alias Singyeong.Store
+  alias Singyeong.Store.Client
   require Logger
 
-  @spec send_with_retry(Plug.Socket.t() | nil, list(term()), non_neg_integer(), Payload.Dispatch.t(), boolean())
+  @spec send_with_retry(
+        Plug.Socket.t() | nil,
+        [{Store.app_id(), Client.t()}],
+        non_neg_integer(),
+        Payload.Dispatch.t(),
+        boolean()
+      )
       :: {:ok, :dropped}
          | {:ok, :sent}
          | {:error, :no_route}
@@ -34,7 +43,8 @@ defmodule Singyeong.MessageDispatcher do
     {:error, :no_route}
   end
 
-  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?) when client_count > 0 do
+  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?)
+      when client_count > 0 do
     if broadcast? do
       # All nodes and all clients
       for {node, node_clients} <- clients do
@@ -72,14 +82,14 @@ defmodule Singyeong.MessageDispatcher do
 
   defp send_dispatch(clients, type, nonce, payload) do
     clients
-    |> Enum.map(fn client ->
+    |> Enum.map(fn {_, client} ->
       client.socket_pid
     end)
     |> Enum.filter(&(&1 != nil and Process.alive?(&1)))
     |> Enum.each(fn pid ->
-      send pid, Payload.create_payload(:dispatch, type, %{
-        "nonce" => nonce,
-        "payload" => payload,
+      send pid, Payload.create_payload(:dispatch, type, %Dispatch{
+        nonce: nonce,
+        payload: payload,
       })
     end)
   end

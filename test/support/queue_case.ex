@@ -35,17 +35,20 @@ defmodule Singyeong.QueueCase do
         end
         %{queue: queue}
       end
-
-      def queue_name, do: "test_queue_#{abs(System.monotonic_time(:nanosecond))}_#{:rand.uniform(abs(System.monotonic_time(:nanosecond)))}"
     end
   end
 
-  # This is defined as a macro so that tests using it can pass a proper pattern
-  # and not just have match hell.
+  def queue_name, do: "test_queue_#{abs(System.monotonic_time(:nanosecond))}_#{:rand.uniform(abs(System.monotonic_time(:nanosecond)))}"
+
+  # Welcome to macro hell.
+
   defmacro assert_queued(queue_name, pattern) do
     quote do
-      {:ok, queue} = Queue.dump(unquote(queue_name))
-      queue
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:queue)
       |> :queue.to_list
       |> Enum.any?(fn item ->
         case item do
@@ -57,6 +60,105 @@ defmodule Singyeong.QueueCase do
         end
       end)
       |> assert
+    end
+  end
+
+  defmacro refute_queued(queue_name, pattern) do
+    quote do
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:queue)
+      |> :queue.to_list
+      |> Enum.any?(fn item ->
+        case item do
+          unquote(pattern) ->
+            true
+
+          _ ->
+            false
+        end
+      end)
+      |> refute
+    end
+  end
+
+  defmacro assert_dlq(queue_name, pattern) do
+    quote do
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:dlq)
+      |> Enum.any?(fn item ->
+        case item.message do
+          unquote(pattern) ->
+            true
+
+          _ ->
+            false
+        end
+      end)
+      |> assert
+    end
+  end
+
+  defmacro refute_dlq(queue_name, pattern) do
+    quote do
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:dlq)
+      |> Enum.any?(fn item ->
+        case item.message do
+          unquote(pattern) ->
+            true
+
+          _ ->
+            false
+        end
+      end)
+      |> refute
+    end
+  end
+
+  defmacro assert_ack(queue_name, id, pattern) do
+    quote do
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:unacked_messages)
+      |> Map.get(unquote(id))
+      |> case do
+        %{message: unquote(pattern)} ->
+          true
+
+        _ ->
+          false
+      end
+      |> assert
+    end
+  end
+
+  defmacro refute_ack(queue_name, id, pattern) do
+    quote do
+      unquote(queue_name)
+      |> Queue.dump_full_state
+      |> elem(1)
+      |> Map.from_struct
+      |> Map.get(:unacked_messages)
+      |> Map.get(unquote(id))
+      |> case do
+        %{message: unquote(pattern)} ->
+          true
+
+        _ ->
+          false
+      end
+      |> refute
     end
   end
 end

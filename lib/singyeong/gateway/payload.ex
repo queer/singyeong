@@ -28,7 +28,7 @@ defmodule Singyeong.Gateway.Payload do
   end
   def dispatch_from_json("QUEUE", map), do: map
 
-  def dispatch_from_json(type, %{
+  def dispatch_from_json(_, %{
     "target" => target,
     "nonce" => nonce,
     "payload" => payload,
@@ -77,7 +77,7 @@ defmodule Singyeong.Gateway.Payload do
       op: op,
       d: data,
       t: t,
-      ts: :os.system_time(:millisecond)
+      ts: Utils.now(),
     }}
   end
 
