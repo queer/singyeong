@@ -19,7 +19,7 @@ defmodule Singyeong.Queue.Gc do
     name = state[:name]
     Logger.debug "[QUEUE] [GC] [#{name}] Starting GC pass..."
     case Queue.check_acks_and_dlq(name) do
-      {:ok, :ok} ->
+      :ok ->
         Process.send_after self(), :gc, interval()
         Logger.debug "[QUEUE] [GC] [#{name}] Finished GC pass!"
         {:noreply, state}
