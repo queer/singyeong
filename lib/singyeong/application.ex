@@ -22,7 +22,7 @@ defmodule Singyeong.Application do
     children =
       if Config.clustering() == "true" do
         Logger.info "[APP] Clustering enabled, setting up Redis and cluster workers..."
-        children ++ [
+        Utils.fast_list_concat children, [
           # Redis worker pool
           Singyeong.Redis,
           # Clustering worker
@@ -38,6 +38,8 @@ defmodule Singyeong.Application do
       end
     # Load plugins and add their behaviours to the supervision tree
     children = Utils.fast_list_concat children, PluginManager.load_plugins()
+    # Configure pubsub so that phx will be happy
+    children = Utils.fast_list_concat children, {Phoenix.PubSub, [name: Singyeong.PubSub, adapter: Phoenix.PubSub.PG2]}
     # Finally, add endpoint supervisor
     children = Utils.fast_list_concat children, [supervisor(SingyeongWeb.Endpoint, [])]
 
