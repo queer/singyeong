@@ -8,6 +8,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   alias Singyeong.Gateway.Payload.Error
   alias Singyeong.Metadata.Query
   alias Singyeong.Store
+  alias Singyeong.Utils
   alias SingyeongWeb.Transport
 
   @client_id "client-1"
@@ -27,7 +28,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         "application_id" => @app_id,
         "auth" => nil,
       },
-      ts: :os.system_time(:millisecond),
+      ts: Utils.now(),
       t: nil,
     }
 
@@ -58,7 +59,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         op: @dispatch_op,
         t: "TEST",
         d: "test data",
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -74,7 +75,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert @dispatch_op == op
     assert "TEST" == t
     assert "some cool test data" == d
-    assert ts <= :os.system_time(:millisecond)
+    assert ts <= Utils.now()
   end
 
   @tag capture_log: true
@@ -89,7 +90,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         op: @dispatch_op,
         t: "HALT",
         d: "test data",
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -108,7 +109,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         op: @dispatch_op,
         t: "ERROR",
         d: "test data",
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -125,7 +126,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert "Error processing plugin event ERROR" == msg
     assert "Manually requested error" == reason
     assert [] == undo_errors
-    assert ts <= :os.system_time(:millisecond)
+    assert ts <= Utils.now()
   end
 
   @tag capture_log: true
@@ -140,7 +141,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         op: @dispatch_op,
         t: "ERROR_WITH_UNDO",
         d: "test data",
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -157,7 +158,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert "Error processing plugin event ERROR_WITH_UNDO" == msg
     assert "Manually requested error" == reason
     assert [] == undo_errors
-    assert ts <= :os.system_time(:millisecond)
+    assert ts <= Utils.now()
   end
 
   @tag capture_log: true
@@ -172,7 +173,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         op: @dispatch_op,
         t: "ERROR_WITH_UNDO_ERROR",
         d: "test data",
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
@@ -189,7 +190,7 @@ defmodule Singyeong.Plugin.DispatchTest do
     assert "Error processing plugin event ERROR_WITH_UNDO_ERROR" == msg
     assert "Manually requested error" == reason
     assert ["undo error"] == undo_errors
-    assert ts <= :os.system_time(:millisecond)
+    assert ts <= Utils.now()
   end
 
   @tag capture_log: true
@@ -211,18 +212,21 @@ defmodule Singyeong.Plugin.DispatchTest do
           payload: payload,
           nonce: nonce,
         },
-        ts: :os.system_time(:millisecond),
+        ts: Utils.now(),
       }
 
     %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
+    now = Utils.now()
     op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames
     expected =
       %Payload{
+        # Unlike other tests, this is EXPECTED to be a stringified map. This is
+        # due to the fact that this is running over the raw transport.
         d: %{
           "payload" => payload,
-          "nonce" => nonce
+          "nonce" => nonce,
+          "target" => nil,
         },
         op: op,
         ts: now,

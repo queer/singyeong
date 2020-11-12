@@ -8,7 +8,12 @@ defmodule Singyeong.Gateway.Dispatch do
 
   alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Gateway.Payload.{QueueConfirm, QueuedMessage}
+  alias Singyeong.Gateway.Payload.{
+    QueueConfirm,
+    QueueDispatch,
+    QueueRequest,
+    QueuedMessage,
+  }
   alias Singyeong.Metadata.{Query, UpdateQueue}
   alias Singyeong.Store
   require Logger
@@ -82,28 +87,18 @@ defmodule Singyeong.Gateway.Dispatch do
         target: target,
       }
 
-    {:ok, _} = Queue.push queue_name, queued_message
+    {:ok, :ok} = Queue.push queue_name, queued_message
+    attempt_queue_dispatch queue_name
     {:ok, Payload.create_payload(:dispatch, "QUEUE_CONFIRM", %QueueConfirm{queue: queue_name})}
   end
 
-  def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %{"queue" => queue_name}}) do
+  def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
+    Logger.debug "[DISPATCH] Appending new client: #{inspect {socket.assigns.app_id, socket.assigns.client_id}}"
     :ok = Queue.create! queue_name
-    {:ok, _} = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
-    {:ok, empty?} = Queue.is_empty? queue_name
-    unless empty? do
-      Logger.debug "[DISPATCH] Requesting pop from queue #{queue_name}"
-      case Queue.pop(queue_name) do
-        {:ok, _} ->
-          {:ok, []}
-
-        {:error, :no_matches} ->
-          # TODO: Communicate this to the client?
-          {:ok, []}
-      end
-    else
-      Logger.debug "[DISPATCH] Queue empty!"
-      {:ok, []}
-    end
+    {:ok, :ok} = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
+    # TODO: If this happens here, the Raft machine crashes(?) and the queue dies.
+    attempt_queue_dispatch queue_name
+    {:ok, []}
   end
 
   def handle_dispatch(socket, %Payload{t: "SEND", d: data} = payload) do
@@ -218,16 +213,17 @@ defmodule Singyeong.Gateway.Dispatch do
 
   # TODO: What's the right place for this?
   def get_possible_clients(query_res) do
-    # Query returns {app_id, [client_id]}
-    # Clustering it returns a %{node => {app_id, [client_id]}}
+    # Query returns {app_id, [client]}
+    # Clustering it returns a %{node => {app_id, [client]}}
+    # This converts it to a [{node, [{app_id, client}]}]
     clients =
       query_res
       |> Enum.map(fn
         {node, {_app, []}} ->
           {node, []}
 
-        {node, {_app, clients}} ->
-          {node, clients}
+        {node, {app, clients}} ->
+          {node, Enum.map(clients, &{app, &1})}
       end)
 
     client_count =
@@ -245,5 +241,88 @@ defmodule Singyeong.Gateway.Dispatch do
       |> get_possible_clients
 
     MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?
+  end
+
+  defp attempt_queue_dispatch(queue_name) do
+    case Queue.can_dispatch?(queue_name) do
+      {:ok, {:error, :empty_queue}} ->
+        :ok
+
+      {:ok, {:error, :no_pending_clients}} ->
+        :ok
+
+      {:ok, {:ok, true}} ->
+        {:ok, {%QueuedMessage{
+          target: target,
+        } = message, pending_clients}} = Queue.peek queue_name
+
+      # Query the metadata store to find matching clients, and dispatch the
+      # queued message to the client that's been waiting the longest. Due to
+      # current limitations of the query engine, this queries all clients for
+      # the pending application, then computes the intersection of that set of
+      # clients with the set of pending clients, picking the first match,
+      # ie hd(pending ∩ matches).
+      # TODO: This query should only be run over pending clients
+      target
+      |> Cluster.query
+      |> get_possible_clients
+      # {matches, count}
+      |> case do
+        {_, 0} ->
+          {:ok, {:ok, next_message}} = Queue.pop queue_name
+          # No clients, DLQ it
+          # {{:value, %QueuedMessage{} = message}, new_queue} = :queue.out queue
+          # dlq = Utils.fast_list_concat dlq, %DeadLetter{message: message, dead_since: now}
+          # {{:error, :dlq}, %{state | dlq: dlq, queue: new_queue}}
+          Queue.add_dlq queue_name, next_message
+
+        {matches, count} when count > 0 ->
+          {:ok, {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}}} = Queue.pop queue_name
+          next_client_id =
+            pending_clients
+            |> intersection(matches)
+            |> case do
+              [] ->
+                nil
+
+              [_ | _] = res ->
+                hd res
+            end
+
+          if next_client_id != nil do
+            {node, [next_client]} =
+              matches
+              |> Enum.filter(fn {_node, clients} ->
+                Enum.any? clients, fn {app, client} ->
+                  next_client_id == {app, client.client_id}
+                end
+              end)
+              |> hd
+
+            outgoing_payload =
+              %QueueDispatch{
+                queue: queue_name,
+                payload: payload,
+                id: id,
+              }
+
+            # Queues can only send to a single client, so client_count=1
+            MessageDispatcher.send_with_retry nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+                target: target,
+                nonce: nonce,
+                payload: outgoing_payload
+              }, false
+
+            Queue.add_unacked queue_name, {id, message}
+          end
+      end
+    end
+  end
+
+  defp intersection(pending_clients, matches) do
+    matches
+    |> Enum.flat_map(fn {_node, clients} -> clients end)
+    |> Enum.map(fn {app_id, client} -> {app_id, client.client_id} end)
+    |> Enum.filter(&Enum.member?(pending_clients, &1))
   end
 end

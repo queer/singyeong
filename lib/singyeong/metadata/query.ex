@@ -144,7 +144,7 @@ defmodule Singyeong.Metadata.Query do
   @doc """
   Given a query, execute it and return a list of client IDs.
   """
-  @spec run_query(__MODULE__.t(), boolean()) :: {application_id(), [client_id()] | []} | {nil, []}
+  @spec run_query(__MODULE__.t(), boolean()) :: {application_id(), [Client.t()] | []} | {nil, []}
   def run_query(%__MODULE__{} = query, broadcast) do
     application = query_app_target query
     case application do
@@ -162,7 +162,7 @@ defmodule Singyeong.Metadata.Query do
     |> if do
       query.application
     else
-      raise "query.application: not String"
+      raise "query.application: not string"
     end
   end
 

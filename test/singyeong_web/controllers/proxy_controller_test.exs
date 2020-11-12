@@ -4,6 +4,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
   alias Singyeong.Gateway
   alias Singyeong.PluginManager
   alias Singyeong.Store
+  alias Singyeong.Utils
   alias SingyeongWeb.Router.Helpers, as: Routes
 
   doctest Singyeong.Proxy
@@ -33,7 +34,7 @@ defmodule SingyeongWeb.ProxyControllerTest do
         "ip" => "https://echo.amy.gg",
       },
       t: nil,
-      ts: :os.system_time(:millisecond),
+      ts: Utils.now(),
     }
   end
 

@@ -4,7 +4,12 @@ defmodule Singyeong.Queue do
   still have all the routing capabilities of pubsub.
   """
 
-  alias Singyeong.Queue.Machine
+  alias Singyeong.Gateway.Payload.QueuedMessage
+  alias Singyeong.Queue.{
+    Gc,
+    Machine,
+  }
+  alias Singyeong.Utils
   require Logger
 
   # TODO: Make queue group size configurable
@@ -46,6 +51,14 @@ defmodule Singyeong.Queue do
       err ->
         raise "Unknown queue pid start result: #{inspect err}"
     end
+    command name_atom, {:name, name_atom}
+    # TODO: Run this inside of the Raft machine somehow...
+    # This should be linked to the relevant Raft consensus group so that this
+    # dies when that does, but how?
+    DynamicSupervisor.start_child Singyeong.QueueGcSupervisor,
+      {Gc, [name: queue_readable_name(name_atom)]}
+
+    :ok
   end
 
   defp await_leader(queue, member_count) do
@@ -70,9 +83,12 @@ defmodule Singyeong.Queue do
   end
 
   @spec queue_name(String.t()) :: atom()
-  def queue_name(name), do: :"singyeong-queue:#{name}"
+  def queue_name(name), do: :"singyeong:queue:#{name}"
 
-  # We don't await_leader on these methods because it turns out to be
+  @spec queue_readable_name(atom()) :: String.t()
+  def queue_readable_name(name), do: name |> Atom.to_string |> String.replace("singyeong:queue:", "", global: false)
+
+  # We don't await_leader on these functions because it turns out to be
   # PROHIBITIVELY expensive!
 
   defp command(queue, cmd) do
@@ -93,7 +109,12 @@ defmodule Singyeong.Queue do
     |> command({:push, payload})
   end
 
-  @spec pop(String.t()) :: term()
+  @spec pop(String.t()) :: {:ok, :ok}
+                           | {:ok, {:error, :empty_queue}}
+                           | {:ok, {:error, :no_matches}}
+                           | {:ok, {:error, :dlq}}
+                           | {:ok, {:error, :no_pending_clients}}
+                           | {:error, :no_leader}
   def pop(queue) do
     queue
     |> queue_name
@@ -117,6 +138,36 @@ defmodule Singyeong.Queue do
     |> command({:remove_client, client})
   end
 
+  @spec check_acks_and_dlq(String.t()) :: term()
+  def check_acks_and_dlq(queue) do
+    queue
+    |> queue_name
+    |> queue_debug("Processing ACKs and DLQ...")
+    |> command({:check_acks_and_dlq, Utils.now()})
+  end
+
+  def add_dlq(queue, msg) do
+    queue
+    |> queue_name
+    |> queue_debug("Appending new message to DLQ...")
+    |> command({:add_dlq, msg, Utils.now()})
+  end
+
+  def add_unacked(queue, {id, %QueuedMessage{}} = data) do
+    queue
+    |> queue_name
+    |> queue_debug("Marking #{id} as unacked")
+    |> command({:add_unacked, data, Utils.now()})
+  end
+
+  @spec flush(String.t()) :: term()
+  def flush(queue) do
+    queue
+    |> queue_name
+    |> queue_debug("Flushing...")
+    |> command(:flush)
+  end
+
   @spec peek(String.t()) :: term()
   def peek(queue) do
     queue
@@ -133,18 +184,27 @@ defmodule Singyeong.Queue do
     |> query(:length)
   end
 
-  def flush(queue) do
-    queue
-    |> queue_name
-    |> queue_debug("Flushing...")
-    |> query(:flush)
-  end
-
+  @spec dump(String.t()) :: term()
   def dump(queue) do
     queue
     |> queue_name
     |> queue_debug("Dumping...")
     |> query(:dump)
+  end
+
+  @spec dump_full_state(String.t()) :: term()
+  def dump_full_state(queue) do
+    queue
+    |> queue_name
+    |> queue_debug("Dumping full state...")
+    |> query(:dump_full_state)
+  end
+
+  def can_dispatch?(queue) do
+    queue
+    |> queue_name
+    |> queue_debug("Checking for dispatchability...")
+    |> query(:can_dispatch?)
   end
 
   @spec is_empty?(String.t()) :: {:ok, boolean()} | {:error, :no_leader}

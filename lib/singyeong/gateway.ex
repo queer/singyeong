@@ -247,7 +247,7 @@ defmodule Singyeong.Gateway do
            last_heartbeat when is_integer(last_heartbeat)
              <- metadata[Metadata.last_heartbeat_time()]
       do
-        last_heartbeat + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
+        last_heartbeat + (@heartbeat_interval * 1.5) < Utils.now()
       else
         _ -> false
       end
@@ -305,7 +305,6 @@ defmodule Singyeong.Gateway do
 
   def handle_close(socket) do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
-      Logger.debug "Handling close for socket"
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
 
@@ -314,7 +313,6 @@ defmodule Singyeong.Gateway do
   end
 
   def cleanup(app_id, client_id) do
-    Logger.debug "CLEANING UP :tada:"
     client_id
     |> Store.get_client
     |> elem(1)
@@ -376,7 +374,7 @@ defmodule Singyeong.Gateway do
         app_id: app_id,
         client_id: client_id,
         metadata: %{
-          Metadata.last_heartbeat_time() => :os.system_time(:millisecond),
+          Metadata.last_heartbeat_time() => Utils.now(),
           Metadata.restricted() => restricted,
           Metadata.encoding() => encoding,
           Metadata.ip() => client_ip,
@@ -568,7 +566,7 @@ defmodule Singyeong.Gateway do
           client | metadata: Map.put(
               client.metadata,
               Metadata.last_heartbeat_time(),
-              :os.system_time(:millisecond)
+              Utils.now()
             )
         }
 
