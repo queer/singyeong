@@ -5,7 +5,7 @@ defmodule Singyeong.Mixfile do
     [
       app: :singyeong,
       version: "0.0.1",
-      elixir: "~> 1.10",
+      elixir: "~> 1.11",
       elixirc_paths: elixirc_paths(Mix.env),
       compilers: [:phoenix, :gettext] ++ Mix.compilers,
       start_permanent: Mix.env == :prod,
@@ -27,7 +27,7 @@ defmodule Singyeong.Mixfile do
   def application do
     [
       mod: {Singyeong.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :mnesia]
     ]
   end
 

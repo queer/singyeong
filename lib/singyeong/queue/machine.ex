@@ -42,7 +42,7 @@ defmodule Singyeong.Queue.Machine do
       # TODO: haha chewing up Raft time with RPC
       {:value, %QueuedMessage{target: target} = peek} = :queue.peek queue
       # TODO: This should only match on pending clients
-      matches = target |> Cluster.query |> Singyeong.Gateway.Dispatch.get_possible_clients
+      {matches, match_count} = target |> Cluster.query |> Singyeong.Gateway.Dispatch.get_possible_clients
       case matches do
         [] ->
           # TODO: DLQ
@@ -50,8 +50,7 @@ defmodule Singyeong.Queue.Machine do
 
         [{node, client} | _] ->
           {{:value, %QueuedMessage{target: target, nonce: nonce, payload: payload}}, new_queue} = :queue.out queue
-          # TODO: This should be correct number
-          MessageDispatcher.send_with_retry nil, [{node, client}], -1, %Payload.Dispatch{target: target, nonce: nonce, payload: payload}, false
+          MessageDispatcher.send_with_retry nil, [{node, client}], match_count, %Payload.Dispatch{target: target, nonce: nonce, payload: payload}, false
           {:ok, %{state | queue: new_queue, length: length - 1}}
       end
     end

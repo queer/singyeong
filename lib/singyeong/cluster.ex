@@ -104,42 +104,10 @@ defmodule Singyeong.Cluster do
         end
       end
     end
-    # This should probably be a TRACE, but Elixir doesn't seem to have that :C
-    # Could be useful for debuggo I guess?
-    # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
-    send self(), :load_balance
+    load_balance()
 
-    state =
-      # TODO: Move this to new function
-      if !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state)) do
-        if state[:rafted?] do
-          Logger.info "[CLUSTER] Node set changed, reactivating!"
-        else
-          Logger.info "[CLUSTER] No raft zones configured, activating!"
-        end
-        # TODO: Config config config
-        RaftFleet.activate "zone1"
-        if !state[:rafted?] do
-          Logger.info "[CLUSTER] Not currently rafted, attempting to activate consensus groups!"
-          # Replicate consensus groups
-          RaftFleet.consensus_groups()
-          |> Enum.each(fn {group, _replica_count} ->
-            case Atom.to_string(group) do
-              "singyeong-queue:" <> queue_name ->
-                Logger.debug "[CLUSTER] Joining queue consensus group: #{group}"
-                Singyeong.Queue.create! queue_name
-
-              _ ->
-                Logger.warn "[CLUSTER] Asked to join consensus group #{group} but I don't know how!"
-            end
-          end)
-        end
-
-        %{state | rafted?: true, last_nodes: current_nodes(state)}
-      else
-        state
-      end
+    state = update_raft_state state
 
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
@@ -147,7 +115,7 @@ defmodule Singyeong.Cluster do
     {:noreply, state}
   end
 
-  def handle_info(:load_balance, state) do
+  defp load_balance do
     spawn fn ->
       {:ok, count} = Store.count_clients()
       threshold = length(Node.list()) - 1
@@ -185,7 +153,36 @@ defmodule Singyeong.Cluster do
         end
       end
     end
-    {:noreply, state}
+  end
+
+  defp update_raft_state(state) do
+    needs_raft_reactivation = !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state))
+
+    if needs_raft_reactivation do
+      # TODO: Config config config
+      Logger.info "[CLUSTER] (Re)activating Raft zones"
+      RaftFleet.activate "zone1"
+    end
+
+    if needs_raft_reactivation and not state[:rafted?] do
+      Logger.info "[CLUSTER] Not currently rafted, attempting to activate consensus groups!"
+      # Replicate consensus groups
+      RaftFleet.consensus_groups()
+      |> Enum.each(fn {group, _replica_count} ->
+        case Atom.to_string(group) do
+          "singyeong-queue:" <> queue_name ->
+            Logger.debug "[CLUSTER] Joining queue consensus group: #{group}"
+            Singyeong.Queue.create! queue_name
+
+          _ ->
+            Logger.warn "[CLUSTER] Asked to join consensus group #{group} but I don't know how!"
+        end
+      end)
+
+      %{state | rafted?: true, last_nodes: current_nodes(state)}
+    else
+      state
+    end
   end
 
   # CLUSTER-WIDE FUNCTIONS #
