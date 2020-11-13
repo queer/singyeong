@@ -16,11 +16,31 @@ config :singyeong, SingyeongWeb.Endpoint,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "[$time] $metadata[$level]$levelpad $message\n",
-  metadata: [:user_id]
+  metadata: [:file, :line]
 
 config :phoenix, :format_encoders,
   json: Jason
+
 config :phoenix, :json_library, Jason
+
+config :singyeong,
+  store: Singyeong.Store.Mnesia,
+  auth: System.get_env("AUTH"),
+  port: System.get_env("PORT"),
+  clustering: System.get_env("CLUSTERING"),
+  cookie: System.get_env("COOKIE"),
+  redis_dsn: System.get_env("REDIS_DSN"),
+  raft: [
+    zone: System.get_env("ZONE") || "zone-1",
+  ],
+  queue: [
+    ack_timeout: 15_000,
+    dlq_time: 15_000,
+    group_size: 3,
+  ],
+  metadata: [
+    queue_interval: 500,
+  ]
 
 config :singyeong_plugin,
   gateway_module: Singyeong.Gateway,

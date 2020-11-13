@@ -4,7 +4,7 @@ defmodule Singyeong.PluginManager do
   runtime, as well as for providing an interface for interaction with plugins.
   """
 
-  alias Singyeong.Env
+  alias Singyeong.Config
   alias Singyeong.Plugin.{Capabilities, Manifest}
   alias Singyeong.Utils
   require Logger
@@ -135,7 +135,7 @@ defmodule Singyeong.PluginManager do
   def plugin_auth(auth, ip) do
     case plugins_for_auth() do
       [] ->
-        if Env.auth() == auth do
+        if Config.auth() == auth do
           :ok
         else
           :restricted

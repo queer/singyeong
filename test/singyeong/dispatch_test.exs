@@ -1,55 +1,19 @@
 defmodule Singyeong.DispatchTest do
-  use SingyeongWeb.ChannelCase
+  # use SingyeongWeb.ChannelCase
+  use Singyeong.DispatchCase
   import Phoenix.Socket, only: [assign: 3]
   alias Singyeong.Gateway
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
-  alias Singyeong.MnesiaStore
+  alias Singyeong.Metadata.Query
   alias Singyeong.PluginManager
-
-  @client_id "client-1"
-  @app_id "test-app-1"
-
-  setup do
-    MnesiaStore.initialize()
-    PluginManager.init()
-
-    socket = socket SingyeongWeb.Transport.Raw, nil, [client_id: @client_id, app_id: @app_id]
-
-    # IDENTIFY with the gateway so that we have everything we need set up
-    # This is tested in gateway_test.exs
-    %GatewayResponse{assigns: assigns} =
-      Gateway.handle_identify socket, %{
-        op: Gateway.opcodes_name()[:identify],
-        d: %{
-          "client_id" => @client_id,
-          "application_id" => @app_id,
-          "auth" => nil,
-          "tags" => ["test", "webscale"]
-        },
-        ts: :os.system_time(:millisecond),
-        t: nil,
-      }
-
-    socket =
-      assigns
-      |> Map.keys
-      |> Enum.reduce(socket, fn(x, acc) ->
-        assign acc, x, assigns[x]
-      end)
-
-    on_exit "cleanup", fn ->
-      Gateway.cleanup socket, @app_id, @client_id
-      MnesiaStore.shutdown()
-    end
-
-    {:ok, socket: socket}
-  end
+  alias Singyeong.Store
+  alias Singyeong.Utils
 
   @tag capture_log: true
   test "that SEND dispatch query to a socket works", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => []
@@ -59,25 +23,27 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
-        }
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
+        },
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        op: 4,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -94,7 +60,7 @@ defmodule Singyeong.DispatchTest do
 
   @tag capture_log: true
   test "that SEND with nil ops in the query works as expected", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => nil
@@ -104,25 +70,27 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
-        }
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
+        },
+        ts: Utils.now(),
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        op: 4,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -140,8 +108,8 @@ defmodule Singyeong.DispatchTest do
     # Send a fake metadata update and pray
     payload = %Payload{
       t: "UPDATE_METADATA",
-      ts: :os.system_time(:millisecond),
-      op: Gateway.opcodes_name()[:dispatch],
+      ts: Utils.now(),
+      op: 4,
       d: %{
         "test" => %{
           "type" => "integer",
@@ -155,7 +123,7 @@ defmodule Singyeong.DispatchTest do
     Process.sleep 100
 
     # Actually do and test the dispatch
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => [%{"test" => %{"$eq" => 10}}]
@@ -165,25 +133,27 @@ defmodule Singyeong.DispatchTest do
 
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
-        }
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
+        },
+        ts: Utils.now()
       }
 
     {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        op: 4,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
-        op: op,
         ts: now,
         t: "SEND",
       }
@@ -198,7 +168,7 @@ defmodule Singyeong.DispatchTest do
 
   @tag capture_log: true
   test "that dispatch via `Gateway.handle_dispatch` works as expected", %{socket: socket} do
-    target = %{
+    target = Query.json_to_query %{
       "application" => @app_id,
       "optional" => true,
       "ops" => nil
@@ -208,25 +178,27 @@ defmodule Singyeong.DispatchTest do
     # Actually do and test the dispatch
     dispatch =
       %Payload{
+        op: 4,
         t: "SEND",
-        d: %{
-          "target" => target,
-          "payload" => payload,
-          "nonce" => nonce,
-        }
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
+        },
+        ts: Utils.now(),
       }
 
     %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
-    now = :os.system_time :millisecond
-    op = Gateway.opcodes_name()[:dispatch]
+    now = Utils.now()
     assert [] == frames
     expected =
       %Payload{
-        d: %{
-          "payload" => payload,
-          "nonce" => nonce
+        op: 4,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
         },
-        op: op,
         ts: now,
         t: "SEND",
       }

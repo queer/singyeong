@@ -5,7 +5,7 @@ defmodule Singyeong.Mixfile do
     [
       app: :singyeong,
       version: "0.0.1",
-      elixir: "~> 1.10",
+      elixir: "~> 1.11",
       elixirc_paths: elixirc_paths(Mix.env),
       compilers: [:phoenix, :gettext] ++ Mix.compilers,
       start_permanent: Mix.env == :prod,
@@ -27,7 +27,7 @@ defmodule Singyeong.Mixfile do
   def application do
     [
       mod: {Singyeong.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :mnesia]
     ]
   end
 
@@ -51,12 +51,14 @@ defmodule Singyeong.Mixfile do
       {:redix, ">= 0.0.0"},
       {:msgpax, "~> 2.2"},
       {:typed_struct, "~> 0.2.1"},
+      {:rafted_value, "~> 0.11.1"},
+      {:raft_fleet, "~> 0.10.1"},
+      {:elixir_uuid, "~> 1.2"},
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.5.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.13.0", only: :test},
 
-      # {:singyeong_plugin, github: "queer/singyeong_plugin"},
       {:singyeong_plugin, "~> 0.1.2"},
     ]
   end

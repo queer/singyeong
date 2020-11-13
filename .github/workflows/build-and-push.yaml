@@ -1,0 +1,23 @@
+name: Publish Docker
+on:
+  push:
+    branches:
+    - master
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]'
+    steps:
+    - uses: actions/checkout@master
+    - name: Publish to Docker Hub
+      uses: queer/Publish-Docker-Github-Action@master
+      env:
+        GITHUB_REF: master
+        CERT_FILE: ${{ secrets.CA_CERT }}
+      with:
+        name: queer/singyeong
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        # TODO: Should this be run on a schedule instead?
+        cache: true
+        snapshot: true

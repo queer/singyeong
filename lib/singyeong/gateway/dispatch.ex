@@ -6,79 +6,122 @@ defmodule Singyeong.Gateway.Dispatch do
   outgoing messages can take reasonably use.
   """
 
-  alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Utils}
+  alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
   alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.Payload.{
+    QueueAck,
+    QueueConfirm,
+    QueueDispatch,
+    QueuedMessage,
+    QueueInsert,
+    QueueRequest,
+  }
   alias Singyeong.Metadata.{Query, UpdateQueue}
-  alias Singyeong.MnesiaStore, as: Store
+  alias Singyeong.Store
   require Logger
-
-  # TODO: Config option for this
-  @max_send_tries 3
-  # TODO: Config option for this too
-  @retry_backoff_ms 1_000
 
   ## DISPATCH EVENTS ##
 
   def can_dispatch?(socket, event) do
-    if socket.assigns[:restricted] do
-      case event do
-        "UPDATE_METADATA" ->
-          true
+    cond do
+      socket.assigns[:restricted] && event == "UPDATE_METADATA" ->
+        true
 
-        _ ->
-          false
-      end
-    else
-      true
+      socket.assigns[:restricted] ->
+        false
+
+      true ->
+        true
     end
   end
-
-  # Note: Dispatch handlers will return a list of response frames
 
   @spec handle_dispatch(Phoenix.Socket.t(), Payload.t())
-    :: {:error, {:close, {:text, Payload.t()}}} | {:ok, [{:text, Payload.t()}]}
-  def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data} = _payload) do
-    {status, res} = Store.validate_metadata data
-    case status do
-      :ok ->
-        app_id = socket.assigns[:app_id]
-        client_id = socket.assigns[:client_id]
-        # Store.update_metadata socket.assigns[:app_id], socket.assigns[:client_id], res
-        queue_worker = UpdateQueue.name app_id, client_id
-        pid = Process.whereis queue_worker
-        send pid, {:queue, app_id, client_id, res}
+    :: {:error, {:close, {:text, Payload.t()}}}
+       | {:ok, []
+               | {:text, Payload.t()}
+               | [{:text, Payload.t()}]}
+  def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data}) do
+    case Store.validate_metadata(data) do
+      {:ok, metadata} ->
+        app = socket.assigns[:app_id]
+        client = socket.assigns[:client_id]
+        pid =
+          app
+          |> UpdateQueue.name(client)
+          |> Process.whereis
+
+        send pid, {:queue, client, metadata}
+        # TODO: ACK metadata updates
         {:ok, []}
 
-      :error ->
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "couldn't validate metadata"})}
+      {:error, errors} ->
+        {:error, Payload.close_with_error("invalid metadata", errors)}
     end
-  catch
-    # Ideally we won't reach this case, but clients can't be trusted :<
-    e ->
-      formatted = Exception.format :error, e, __STACKTRACE__
-      Logger.error "[DISPATCH] Encountered error handling metadata update:\n#{formatted}"
-      {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid metadata"})}
   end
 
-  def handle_dispatch(_socket, %Payload{t: "QUERY_NODES", d: data} = _payload) do
-    {:ok, Payload.create_payload(:dispatch, %{"nodes" => Query.run_query(data, true)})}
+  def handle_dispatch(_, %Payload{t: "QUERY_NODES", d: data}) do
+    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Query.run_query(data, true)})}
   end
 
-  def handle_dispatch(socket, %Payload{t: "SEND", d: data} = _payload) do
-    send_to_clients socket, data, 0, false
+  def handle_dispatch(_, %Payload{t: "QUEUE", d: %QueueInsert{
+    nonce: nonce,
+    queue: queue_name,
+    target: %Query{} = target,
+    payload: payload,
+  }}) do
+    :ok = Queue.create! queue_name
+    queued_message =
+      %QueuedMessage{
+        id: UUID.uuid4(),
+        queue: queue_name,
+        payload: payload,
+        nonce: nonce,
+        target: target,
+      }
+
+    :ok = Queue.push queue_name, queued_message
+    attempt_queue_dispatch queue_name
+    {:ok, Payload.create_payload(:dispatch, "QUEUE_CONFIRM", %QueueConfirm{queue: queue_name})}
+  end
+
+  def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
+    :ok = Queue.create! queue_name
+    :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
+    attempt_queue_dispatch queue_name
     {:ok, []}
   end
 
-  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data} = _payload) do
-    send_to_clients socket, data, 0
+  def handle_dispatch(_, %Payload{t: "QUEUE_ACK", d: %QueueAck{queue: queue_name, id: id}}) do
+    :ok = Queue.create! queue_name
+    :ok = Queue.ack_message queue_name, id
     {:ok, []}
   end
 
-  def handle_dispatch(_socket, %Payload{t: t, d: data} = payload) do
+  def handle_dispatch(socket, %Payload{t: "SEND", d: data} = payload) do
+    case send_to_clients(socket, data, false) do
+      {:ok, _} ->
+        {:ok, []}
+
+      {:error, value} ->
+        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+    end
+  end
+
+  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data} = payload) do
+    case send_to_clients(socket, data, true) do
+      {:ok, _} ->
+        {:ok, []}
+
+      {:error, value} ->
+        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+    end
+  end
+
+  def handle_dispatch(_, %Payload{t: t, d: data} = payload) do
     plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->
-        {:error, Payload.close_with_payload(:invalid, %{"error" => "invalid dispatch payload: #{inspect payload, pretty: true}"})}
+        {:error, Payload.close_with_error("invalid dispatch payload", payload)}
 
       plugins when is_list(plugins) ->
         case run_pipeline(plugins, t, data, [], []) do
@@ -95,14 +138,13 @@ defmodule Singyeong.Gateway.Dispatch do
               |> Enum.reverse
               |> unwind_undo_stack(t)
 
-            error_payload =
+            error_info =
               %{
-                message: "Error processing plugin event #{t}",
                 reason: reason,
                 undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
               }
 
-            {:error, Payload.close_with_payload(:invalid, error_payload)}
+            {:error, Payload.close_with_error("Error processing plugin event #{t}", error_info)}
         end
     end
   end
@@ -165,85 +207,117 @@ defmodule Singyeong.Gateway.Dispatch do
     apply plugin, :undo, [event, undo_state]
   end
 
-  defp send_to_clients(socket, data, tries, broadcast? \\ true) do
-    %{"target" => target, "payload" => payload} = data
-    targets = Cluster.query target, broadcast?
-    valid_targets =
-      targets
-      |> Enum.filter(fn({_, {_, res}}) ->
-        res != []
+  defp get_possible_clients(query_res) do
+    # Query returns {app_id, [client]}
+    # Clustering it returns a %{node => {app_id, [client]}}
+    # This converts it to a [{node, [{app_id, client}]}]
+    clients =
+      query_res
+      |> Enum.map(fn
+        {node, {_app, []}} ->
+          {node, []}
+
+        {node, {app, clients}} ->
+          {node, Enum.map(clients, &{app, &1})}
       end)
-      |> Enum.into(%{})
 
-    # Basically just flattening a list of lists
-    matched_client_ids =
-      valid_targets
-      |> Map.values
-      |> Enum.map(fn({_, res}) -> res end)
-      |> Enum.concat
+    client_count =
+      clients
+      |> Enum.flat_map(fn {_, clients} -> clients end)
+      |> Enum.count
 
-    droppable? = data["droppable"] || false
-    empty? = Enum.empty? matched_client_ids
+    {clients, client_count}
+  end
 
-    fake_local_node = Cluster.fake_local_node()
-    out =
-      %{
-        "payload" => payload,
-        "nonce" => data["nonce"]
-      }
+  defp send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?) do
+    {possible_clients, client_count} =
+      data.target
+      |> Cluster.query(broadcast?)
+      |> get_possible_clients
 
-    cond do
-      not empty? and broadcast? and not droppable? ->
-        for {node, {target_application, clients}} <- valid_targets do
-          Logger.debug "Broadcasting message to #{target_application}:#{inspect clients} on node #{node}"
-          send_fn = fn ->
-            MessageDispatcher.send_dispatch target_application, clients, "BROADCAST", out
+    MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?
+  end
+
+  defp attempt_queue_dispatch(queue_name) do
+    case Queue.can_dispatch?(queue_name) do
+      {:error, :empty_queue} ->
+        :ok
+
+      {:error, :no_pending_clients} ->
+        :ok
+
+      {:ok, true} ->
+        {:ok, {%QueuedMessage{
+          target: target,
+        } = message, pending_clients}} = Queue.peek queue_name
+
+      # Query the metadata store to find matching clients, and dispatch the
+      # queued message to the client that's been waiting the longest. Due to
+      # current limitations of the query engine, this queries all clients for
+      # the pending application, then computes the intersection of that set of
+      # clients with the set of pending clients, picking the first match,
+      # ie hd(pending ∩ matches).
+      # TODO: This query should only be run over pending clients
+      target
+      |> Cluster.query
+      |> get_possible_clients
+      # {matches, count}
+      |> case do
+        {_, 0} ->
+          {:ok, next_message} = Queue.pop queue_name
+          # No clients, DLQ it
+          # {{:value, %QueuedMessage{} = message}, new_queue} = :queue.out queue
+          # dlq = Utils.fast_list_concat dlq, %DeadLetter{message: message, dead_since: now}
+          # {{:error, :dlq}, %{state | dlq: dlq, queue: new_queue}}
+          Queue.add_dlq queue_name, next_message
+
+        {matches, count} when count > 0 ->
+          {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}} = Queue.pop queue_name
+          next_client_id =
+            pending_clients
+            |> intersection(matches)
+            |> case do
+              [] ->
+                nil
+
+              [_ | _] = res ->
+                hd res
+            end
+
+          if next_client_id != nil do
+            {node, [next_client]} =
+              matches
+              |> Enum.filter(fn {_node, clients} ->
+                Enum.any? clients, fn {app, client} ->
+                  next_client_id == {app, client.client_id}
+                end
+              end)
+              |> hd
+
+            outgoing_payload =
+              %QueueDispatch{
+                queue: queue_name,
+                payload: payload,
+                id: id,
+              }
+
+            # Queues can only send to a single client, so client_count=1
+            MessageDispatcher.send_with_retry nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+                target: target,
+                nonce: nonce,
+                payload: outgoing_payload
+              }, false, "QUEUE"
+
+            Queue.add_unacked queue_name, {id, message}
           end
-
-          case node do
-            ^fake_local_node ->
-              Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
-            _ ->
-              Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
-          end
-        end
-
-      not empty? and not broadcast? and not droppable? ->
-        # Pick random node
-        {node, {target_application, clients}} = Enum.random valid_targets
-        # Pick a random client from that node's targets
-        target_client = [Enum.random(clients)]
-        Logger.debug "Sending message to #{target_application}:#{target_client} on node #{node}"
-        send_fn = fn ->
-          MessageDispatcher.send_dispatch target_application, target_client, "SEND", out
-        end
-        case node do
-          ^fake_local_node ->
-            Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
-          _ ->
-            Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
-        end
-
-      empty? and not droppable? and tries == @max_send_tries ->
-        failure =
-          Payload.create_payload :invalid, %{
-            "error" => "no nodes match query for query #{inspect target, pretty: true}",
-            "d" => %{
-              "nonce" => data["nonce"]
-            }
-          }
-
-        send socket.transport_pid, failure
-
-      empty? and not droppable? and tries < @max_send_tries ->
-        spawn fn ->
-          Process.sleep @retry_backoff_ms
-          send_to_clients socket, data, tries + 1, broadcast?
-        end
-
-      empty? and droppable? ->
-        # Silently drop
-        nil
+      end
     end
+  end
+
+  defp intersection(pending_clients, matches) do
+    matches
+    |> Enum.flat_map(fn {_node, clients} -> clients end)
+    |> Enum.map(fn {app_id, client} -> {app_id, client.client_id} end)
+    |> Enum.filter(&Enum.member?(pending_clients, &1))
   end
 end

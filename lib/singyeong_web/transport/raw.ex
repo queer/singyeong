@@ -82,7 +82,8 @@ defmodule SingyeongWeb.Transport.Raw do
 
       {:close, {:text, payload}} ->
         # My god, why can we not specify custom close codes?
-        send self(), {:stop, "closed by server"}
+        Gateway.handle_close socket
+        Process.send_after self(), {:stop, {:shutdown, :closed}}, 100
         {:push, Gateway.encode(socket, payload), {channels, socket}}
 
       [] ->
@@ -116,7 +117,6 @@ defmodule SingyeongWeb.Transport.Raw do
     Logger.info "[TRANSPORT] Socket for #{socket.assigns[:app_id]}:#{socket.assigns[:client_id]}"
       <> " @ #{socket.assigns[:ip]}"
       <> " closed with code #{inspect code}: #{inspect reason}"
-    Gateway.handle_close socket
     :ok
   end
 end

@@ -101,4 +101,6 @@ defmodule Singyeong.Utils do
   end
 
   def stringify_keys(not_map, _), do: not_map
+
+  def now, do: :os.system_time :millisecond
 end

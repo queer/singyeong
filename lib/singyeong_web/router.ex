@@ -1,6 +1,6 @@
 defmodule SingyeongWeb.Router do
   use SingyeongWeb, :router
-  alias Singyeong.Env
+  alias Singyeong.Config
   alias Singyeong.PluginManager
   alias Singyeong.Utils
 
@@ -23,33 +23,7 @@ defmodule SingyeongWeb.Router do
 
     scope "/v1" do
       pipe_through :authenticated_routes
-      scope "/discovery" do
-        get "/tags", DiscoveryController, :by_tags
-      end
       forward "/plugin", Plugs.PluginRouter
-      # scope "/plugin" do
-      #   for plugin <- PluginManager.plugins(:rest) do
-      #     manifest = PluginManager.manifest plugin
-      #     for route <- manifest.rest_routes do
-      #       case route.method do
-      #         :get ->
-      #           get route.route, route.module, route.function
-
-      #         :post ->
-      #           post route.route, route.module, route.function
-
-      #         :put ->
-      #           put route.route, route.module, route.function
-
-      #         :patch ->
-      #           patch route.route, route.module, route.function
-
-      #         :delete ->
-      #           delete route.route, route.module, route.function
-      #       end
-      #     end
-      #   end
-      # end
       post "/proxy", ProxyController, :proxy
     end
 
@@ -87,11 +61,11 @@ defmodule SingyeongWeb.Router do
       end
 
     cond do
-      PluginManager.plugins_for_auth() == [] and Env.auth() == nil ->
+      PluginManager.plugins_for_auth() == [] and Config.auth() == nil ->
         conn
 
-      PluginManager.plugins_for_auth() == [] and Env.auth() != nil ->
-        if auth == Env.auth() do
+      PluginManager.plugins_for_auth() == [] and Config.auth() != nil ->
+        if auth == Config.auth() do
           conn
         else
           conn

@@ -4,12 +4,11 @@ defmodule Singyeong.Cluster do
   """
 
   use GenServer
-  alias Singyeong.Discovery
-  alias Singyeong.Env
+  alias Singyeong.Config
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
-  alias Singyeong.MnesiaStore
   alias Singyeong.Redis
+  alias Singyeong.Store
   alias Singyeong.Utils
   require Logger
 
@@ -26,20 +25,23 @@ defmodule Singyeong.Cluster do
   def init(_) do
     hostname = get_hostname()
     ip = get_hostaddr()
+    now = Utils.now() |> Integer.to_string
     hash =
-      :crypto.hash(:md5, :os.system_time(:millisecond)
-      |> Integer.to_string)
+      :crypto.hash(:md5, now)
       |> Base.encode16
       |> String.downcase
-    state = %{
-      name: "singyeong_#{get_hostname()}_#{Env.port()}",
-      group: "singyeong",
-      cookie: Env.cookie(),
-      longname: nil,
-      hostname: hostname,
-      ip: ip,
-      hash: hash,
-    }
+    state =
+      %{
+        name: "singyeong_#{get_hostname()}_#{Config.port()}",
+        group: "singyeong",
+        cookie: Config.cookie(),
+        longname: nil,
+        hostname: hostname,
+        ip: ip,
+        hash: hash,
+        rafted?: false,
+        last_nodes: %{},
+      }
     # Start clustering after a smol delay
     Process.send_after self(), :start_connect, @start_delay
     {:ok, state}
@@ -54,14 +56,17 @@ defmodule Singyeong.Cluster do
       {:ok, _} = Node.start node_atom, :longnames
       Node.set_cookie state[:cookie] |> String.to_atom
 
-      Logger.info "[CLUSTER] Bootstrapping Mnesia..."
-      Singyeong.MnesiaStore.initialize()
+      Logger.info "[CLUSTER] Bootstrapping store..."
+      Store.start()
 
       Logger.info "[CLUSTER] Updating registry..."
       new_state = %{state | longname: node_name}
       registry_write new_state
 
       Logger.info "[CLUSTER] All done! Starting clustering..."
+      last_nodes = current_nodes new_state
+
+      new_state = %{new_state | last_nodes: last_nodes}
       Process.send_after self(), :connect, @start_delay
 
       {:noreply, new_state}
@@ -86,10 +91,12 @@ defmodule Singyeong.Cluster do
             # This is NOT logged at :info to avoid spamme
             # Logger.debug "[CLUSTER] Connected to #{longname}"
             nil
+
           false ->
             # If we can't connect, prune it from the registry. If the remote
             # node is still alive, it'll re-register itself.
             delete_node state, hash, longname
+
           :ignored ->
             # In general we shouldn't reach it, so...
             # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
@@ -97,60 +104,87 @@ defmodule Singyeong.Cluster do
         end
       end
     end
-    # This should probably be a TRACE, but Elixir doesn't seem to have that :C
-    # Could be useful for debuggo I guess?
-    # Logger.debug "[CLUSTER] Connected to: #{inspect Node.list()}"
 
-    send self(), :load_balance
+    load_balance()
+
+    state = update_raft_state state
+
     # Do this again, forever.
     Process.send_after self(), :connect, @connect_interval
 
     {:noreply, state}
   end
 
-  def handle_info(:load_balance, state) do
+  defp load_balance do
     spawn fn ->
-      count = MnesiaStore.count_sockets()
+      {:ok, count} = Store.count_clients()
       threshold = length(Node.list()) - 1
-      counts =
-        run_clustered fn ->
-          MnesiaStore.count_sockets()
-        end
-      average =
-        counts
-        |> Map.drop([@fake_local_node])
-        |> Map.values
-        |> Enum.sum
-        |> :erlang./(threshold)
-      goal = threshold / 2
-      if count > average + goal do
-        to_disconnect = Kernel.trunc count - (average + goal + 1)
-        Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-        {status, result} = MnesiaStore.get_first_sockets to_disconnect
-        case status do
-          :ok ->
-            for socket <- result do
-              payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
-              send socket, payload
+      if threshold > 0 do
+        counts =
+          run_clustered fn ->
+            {:ok, count} = Store.count_clients()
+            count
+          end
+
+        average =
+          counts
+          |> Map.drop([@fake_local_node])
+          |> Map.values
+          |> Enum.sum
+          |> :erlang./(threshold)
+
+        goal = threshold / 2
+        if count > average + goal do
+          to_disconnect = Kernel.trunc count - (average + goal + 1)
+          if to_disconnect > 0 do
+            Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
+            {status, result} = Store.get_clients to_disconnect
+            case status do
+              :ok ->
+                for socket <- result do
+                  payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
+                  send socket, payload
+                end
+
+              :error ->
+                Logger.error "Couldn't get sockets to load-balance away: #{result}"
             end
-          :error ->
-            Logger.error "Couldn't get sockets to load-balance away: #{result}"
+          end
         end
       end
     end
-    {:noreply, state}
+  end
+
+  defp update_raft_state(state) do
+    needs_raft_reactivation = !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state))
+
+    if needs_raft_reactivation do
+      Logger.info "[CLUSTER] (Re)activating Raft zones"
+      RaftFleet.activate Config.raft_zone()
+    end
+
+    if needs_raft_reactivation and not state[:rafted?] do
+      Logger.info "[CLUSTER] Not currently rafted, attempting to activate consensus groups!"
+      # Replicate consensus groups
+      RaftFleet.consensus_groups()
+      |> Enum.each(fn {group, _replica_count} ->
+        case Atom.to_string(group) do
+          "singyeong-queue:" <> queue_name ->
+            Logger.debug "[CLUSTER] Joining queue consensus group: #{group}"
+            Singyeong.Queue.create! queue_name
+
+          _ ->
+            Logger.warn "[CLUSTER] Asked to join consensus group #{group} but I don't know how!"
+        end
+      end)
+
+      %{state | rafted?: true, last_nodes: current_nodes(state)}
+    else
+      state
+    end
   end
 
   # CLUSTER-WIDE FUNCTIONS #
-
-  @doc """
-  Discover a service name based off of tags across the entire 신경 cluster.
-  """
-  def discover(tags) do
-    run_clustered fn ->
-      Discovery.discover_service tags
-    end
-  end
 
   @doc """
   Run a metadata query across the entire cluster, and return a mapping of nodes
@@ -159,12 +193,17 @@ defmodule Singyeong.Cluster do
   def query(query, broadcast \\ false) do
     run_clustered fn ->
       query
-      |> Query.json_to_query
+      # |> Query.json_to_query
       |> Query.run_query(broadcast)
     end
   end
 
-  defp run_clustered(func) do
+  @doc """
+  Run the specified function across the entire cluster. Returns a mapping of
+  nodes to results.
+  """
+  @spec run_clustered(function()) :: %{required(:fake_local_node | atom()) => term()}
+  def run_clustered(func) do
     # Wrap the local function into an "awaitable" fn
     local_func = fn ->
       res = func.()
@@ -242,9 +281,11 @@ defmodule Singyeong.Cluster do
     "singyeong:cluster:registry:#{name}"
   end
 
+  defp current_nodes(state), do: state |> registry_read |> Map.new
+
   @spec clustered? :: boolean
   def clustered? do
-    Env.clustering() == "true"
+    Config.clustering() == "true"
   end
 
   @spec fake_local_node :: atom()

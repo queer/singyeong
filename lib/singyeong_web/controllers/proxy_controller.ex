@@ -1,6 +1,7 @@
 defmodule SingyeongWeb.ProxyController do
   use SingyeongWeb, :controller
 
+  alias Singyeong.Metadata.Query
   alias Singyeong.Proxy
 
   def proxy(conn, params) do
@@ -26,14 +27,17 @@ defmodule SingyeongWeb.ProxyController do
         conn
         |> put_status(400)
         |> json(%{"method" => ["no method provided"]})
+
       is_nil params["route"] ->
         conn
         |> put_status(400)
         |> json(%{"route" => ["no route provided"]})
+
       is_nil params["query"] ->
         conn
         |> put_status(400)
         |> json(%{"query" => ["no query provided"]})
+
       true ->
         # Headers and body are optional
         request =
@@ -42,8 +46,9 @@ defmodule SingyeongWeb.ProxyController do
             route: params["route"],
             body: params["body"] || "",
             headers: params["headers"] || %{},
-            query: params["query"],
+            query: Query.json_to_query(params["query"]),
           }
+
         proxy_request conn, ip, request
     end
   end
@@ -58,6 +63,7 @@ defmodule SingyeongWeb.ProxyController do
         end)
         |> put_status(res.status)
         |> text(res.body)
+
       :error ->
         conn
         |> put_status(400)

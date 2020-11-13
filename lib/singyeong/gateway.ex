@@ -6,11 +6,11 @@ defmodule Singyeong.Gateway do
   """
 
   alias Singyeong.Gateway.{Dispatch, Payload}
-  alias Singyeong.MessageDispatcher
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
-  alias Singyeong.MnesiaStore, as: Store
   alias Singyeong.PluginManager
+  alias Singyeong.Store
+  alias Singyeong.Store.Client
   alias Singyeong.Utils
   require Logger
 
@@ -160,8 +160,7 @@ defmodule Singyeong.Gateway do
             "cannot decode payload"
           end
 
-        :invalid
-        |> Payload.close_with_payload(%{"error" => error_msg})
+        Payload.close_with_error(error_msg)
         |> craft_response
     end
   end
@@ -238,19 +237,23 @@ defmodule Singyeong.Gateway do
   def handle_payload(socket, %Payload{} = payload) do
     # Check if we need to disconnect the client for taking too long to heartbeat
     should_disconnect =
-      unless socket.assigns[:app_id] == nil and socket.assigns[:client_id] == nil do
-        # If both are NOT nil, then we need to check last heartbeat
-        {:ok, last} = Store.get_metadata socket.assigns[:app_id],
-            socket.assigns[:client_id], Metadata.last_heartbeat_time()
-
-        last + (@heartbeat_interval * 1.5) < :os.system_time(:millisecond)
+      with app_id when not is_nil(app_id) <- socket.assigns[:app_id],
+           client_id when not is_nil(client_id) <- socket.assigns[:client_id],
+           {:ok, %Client{
+             metadata: metadata,
+             client_id: ^client_id,
+             app_id: ^app_id
+           }} <- Store.get_client(client_id),
+           last_heartbeat when is_integer(last_heartbeat)
+             <- metadata[Metadata.last_heartbeat_time()]
+      do
+        last_heartbeat + (@heartbeat_interval * 1.5) < Utils.now()
       else
-        false
+        _ -> false
       end
 
     if should_disconnect do
-      :invalid
-      |> Payload.close_with_payload(%{"error" => "heartbeat took too long"})
+      Payload.close_with_error("heartbeat took too long")
       |> craft_response
     else
       try_handle_event socket, payload
@@ -265,8 +268,7 @@ defmodule Singyeong.Gateway do
       # identified itself yet and as such shouldn't be allowed to do anything
       # BUT identify
       # We try to halt it as soon as possible so that we don't waste time on it
-      :invalid
-      |> Payload.close_with_payload(%{"error" => "sent payload with non-identify opcode without identifying first"})
+      Payload.close_with_error("sent payload with non-identify opcode without identifying first")
       |> craft_response
     else
       try do
@@ -292,7 +294,7 @@ defmodule Singyeong.Gateway do
           formatted = Exception.format :error, e, __STACKTRACE__
           Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
           :invalid
-          |> Payload.close_with_payload(%{"error" => "internal server error"})
+          |> Payload.close_with_error("internal server error")
           |> craft_response
       end
     end
@@ -305,20 +307,21 @@ defmodule Singyeong.Gateway do
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
 
-      cleanup socket, app_id, client_id
+      cleanup app_id, client_id
     end
   end
 
-  def cleanup(socket, app_id, client_id) do
-    MessageDispatcher.unregister_socket socket
-    Store.delete_client app_id, client_id
-    Store.remove_socket app_id, client_id
-    Store.remove_socket_ip app_id, client_id
-    Store.delete_tags app_id, client_id
+  def cleanup(app_id, client_id) do
+    client_id
+    |> Store.get_client
+    |> elem(1)
+    |> Store.remove_client
 
     queue_worker = UpdateQueue.name app_id, client_id
     pid = Process.whereis queue_worker
-    DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
+    if pid do
+      DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
+    end
   end
 
   ## OP HANDLING ##
@@ -329,7 +332,6 @@ defmodule Singyeong.Gateway do
     client_id = d["client_id"]
     app_id = d["application_id"]
 
-    tags = Map.get d, "tags", []
     if is_binary(client_id) and is_binary(app_id) do
       # If the client doesn't specify its own ip (eg. for routing to a specific
       # port for HTTP), we fall back to the socket-assign port, which is
@@ -341,21 +343,17 @@ defmodule Singyeong.Gateway do
         status when status in [:ok, :restricted] ->
           restricted = status == :restricted
           encoding = socket.assigns[:encoding]
-          unless Store.client_exists?(app_id, client_id) do
+          unless Store.client_exists?(client_id) do
             # Client doesn't exist, add to store and okay it
-            finish_identify app_id, client_id, tags, socket, ip, restricted, encoding
+            finish_identify app_id, client_id, socket, ip, restricted, encoding
           else
             # If we already have a client, reject outright
-            :invalid
-            |> Payload.close_with_payload(%{
-              "error" => "client id #{client_id} already registered for application id #{app_id}"
-            })
+            Payload.close_with_error("#{client_id}: already registered for app #{app_id}")
             |> craft_response
           end
 
         {:error, errors} ->
-          :invalid
-          |> Payload.close_with_payload(%{"errors" => errors})
+          Payload.close_with_error("Errors occurred during auth:", errors)
           |> craft_response
       end
     else
@@ -363,22 +361,30 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp finish_identify(app_id, client_id, tags, socket, ip, restricted, encoding) do
+  defp finish_identify(app_id, client_id, socket, ip, restricted, encoding) do
     queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
       {UpdateQueue, %{name: queue_worker}}
-    # Add client to the store and update its tags if possible
-    Store.add_client app_id, client_id
-    unless restricted do
-      Store.set_tags app_id, client_id, tags
-      Store.add_socket_ip app_id, client_id, ip
-    end
-    # Last heartbeat time is the current time to avoid incorret disconnects
-    Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
-    Store.update_metadata app_id, client_id, Metadata.restricted(), restricted
-    Store.update_metadata app_id, client_id, Metadata.encoding(), encoding
-    # Register with pubsub
-    MessageDispatcher.register_socket app_id, client_id, socket
+
+    client_ip = if restricted, do: nil, else: ip
+
+    client =
+      %Client{
+        app_id: app_id,
+        client_id: client_id,
+        metadata: %{
+          Metadata.last_heartbeat_time() => Utils.now(),
+          Metadata.restricted() => restricted,
+          Metadata.encoding() => encoding,
+          Metadata.ip() => client_ip,
+        },
+        socket_pid: socket.transport_pid,
+        socket_ip: client_ip,
+        queues: []
+      }
+
+    Store.add_client client
+
     if restricted do
       Logger.info "[GATEWAY] Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"
     else
@@ -419,6 +425,11 @@ defmodule Singyeong.Gateway do
         |> process_outgoing_event
         |> craft_response
 
+      {:ok, {:text, %Payload{}} = frame} ->
+        frame
+        |> process_outgoing_event
+        |> craft_response
+
       {:ok, frames} when is_list(frames) ->
         frames
         |> process_outgoing_event
@@ -429,6 +440,9 @@ defmodule Singyeong.Gateway do
     end
   end
 
+  def process_outgoing_event({:text, %Payload{} = payload}) do
+    {:text, process_outgoing_event(payload)}
+  end
   def process_outgoing_event(%Payload{} = payload) do
     case process_event_via_pipeline(payload, :client) do
       {:ok, frame} ->
@@ -481,12 +495,11 @@ defmodule Singyeong.Gateway do
 
             error_payload =
               %{
-                message: "Error processing plugin event #{type}",
                 reason: reason,
                 undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
               }
 
-            {:error, Payload.close_with_payload(:invalid, error_payload)}
+            {:error, Payload.close_with_error("Error processing plugin event #{type}", error_payload)}
         end
     end
   end
@@ -545,12 +558,19 @@ defmodule Singyeong.Gateway do
   end
 
   def handle_heartbeat(socket, _payload) do
-    app_id = socket.assigns[:app_id]
-    client_id = socket.assigns[:client_id]
-    if not is_nil(client_id) and is_binary(client_id) do
-      # When we ack the heartbeat, update last heartbeat time
-      Store.update_metadata app_id, client_id, Metadata.last_heartbeat_time(), :os.system_time(:millisecond)
-      Payload.create_payload(:heartbeat_ack, %{"client_id" => socket.assigns[:client_id]})
+    {:ok, client} = Store.get_client socket.assigns[:client_id]
+    if client != nil do
+      {:ok, _} =
+        Store.update_client %{
+          client | metadata: Map.put(
+              client.metadata,
+              Metadata.last_heartbeat_time(),
+              Utils.now()
+            )
+        }
+
+      :heartbeat_ack
+      |> Payload.create_payload(%{"client_id" => socket.assigns[:client_id]})
       |> craft_response
     else
       handle_missing_data()
@@ -558,14 +578,12 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_missing_data do
-    :invalid
-    |> Payload.close_with_payload(%{"error" => "payload has no data"})
+    Payload.close_with_error("payload has no data")
     |> craft_response
   end
 
   defp handle_invalid_op(_socket, op) do
-    :invalid
-    |> Payload.close_with_payload(%{"error" => "invalid client op #{inspect op}"})
+    Payload.close_with_error("invalid client op #{inspect op}")
     |> craft_response
   end
 

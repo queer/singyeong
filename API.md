@@ -26,28 +26,6 @@ Does not require authorization.
 < }
 ```
 
-## Service discovery
-
-### `GET /discovery/tags`
-
-Discover an application id by the tags its clients have registered. Tags to be
-queried are passed to this method as a urlencoded JSON array as the querystring
-parameter `q`.
-
-Requires authorization.
-
-#### Example
-
-```
-> GET /api/v1/discovery/tags?q=[%22test%22,%22webscale%22]
-> Authorization: password
-
-< {
-<   "status": "ok",
-<   "result": ["app-1" "app-2"]
-< }
-```
-
 ## Request proxying
 
 ### `POST /proxy`
