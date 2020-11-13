@@ -17,17 +17,21 @@ defmodule Singyeong.MessageDispatcher do
         [{Store.app_id(), Client.t()}],
         non_neg_integer(),
         Payload.Dispatch.t(),
-        boolean()
+        boolean(),
+        String.t() | nil
       )
       :: {:ok, :dropped}
          | {:ok, :sent}
          | {:error, :no_route}
-  def send_with_retry(_, _, 0, %Payload.Dispatch{target: %Query{droppable: true}}, _) do
+
+  def send_with_retry(socket, clients, client_count, dispatch, broadcast?, event_type \\ nil)
+
+  def send_with_retry(_, _, 0, %Payload.Dispatch{target: %Query{droppable: true}}, _, nil) do
     # No matches and droppable, silently drop
     {:ok, :dropped}
   end
 
-  def send_with_retry(socket, _, 0, %Payload.Dispatch{target: %Query{droppable: false} = target, nonce: nonce}, _) do
+  def send_with_retry(socket, _, 0, %Payload.Dispatch{target: %Query{droppable: false} = target, nonce: nonce}, _, nil) do
     # No matches and not droppable, reply to initiator if possible
     if socket != nil and is_pid(socket.transport_pid) and Process.alive?(socket.transport_pid) do
       failure =
@@ -43,24 +47,24 @@ defmodule Singyeong.MessageDispatcher do
     {:error, :no_route}
   end
 
-  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?)
+  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?, type)
       when client_count > 0 do
     if broadcast? do
       # All nodes and all clients
       for {node, node_clients} <- clients do
-        distributed_send node, node_clients, "BROADCAST", payload.nonce, payload.payload
+        distributed_send node, node_clients, type || "BROADCAST", payload.nonce, payload.payload
       end
     else
       # Pick random node
       {node, clients} = Enum.random clients
       # Pick a random client from that node's targets
       target_client = [Enum.random(clients)]
-      distributed_send node, target_client, "SEND", payload.nonce, payload.payload
+      distributed_send node, target_client, type || "SEND", payload.nonce, payload.payload
     end
     {:ok, :sent}
   end
 
-  def send_with_retry(_, _, 0, _, _) do
+  def send_with_retry(_, _, 0, _, _, _) do
     {:error, :no_route}
   end
 

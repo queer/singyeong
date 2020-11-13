@@ -196,10 +196,9 @@ clients must follow.
 | `SEND`            | both | Send a payload to a single client that matches the routing query |
 | `BROADCAST`       | both | Send a payload to all clients that match the routing query |
 | `QUERY_NODES`     | send | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
-| `QUEUE`           | send | Queues a new message into the specified queue. |
+| `QUEUE`           | BOTH | Queues a new message into the specified queue when sent. Indicates a queued message being received when received. |
 | `QUEUE_CONFIRM`   | recv | Sends an acknowledgement of message queuing to the client. |
 | `QUEUE_REQUEST`   | send | Adds the client to the list of clients awaiting messages. |
-| `QUEUE_RESPOND`   | recv | Sends a queued message to the requesting client, if possible. |
 | `QUEUE_ACK`       | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
 
 The inner payloads for these events are as follows:
@@ -262,8 +261,11 @@ The inner payload is a node query as described below.
 
 ### `QUEUE`
 
-The inner payload is *exactly* the same as `SEND` / `BROADCAST`, except with an
-additional `queue` key:
+The inner payload is more or less exactly the same as `SEND` / `BROADCAST`,
+except with an additional `queue` key. When receiving a queued message, the
+inner payload is a bit more complicated, mainly so that the server can indicate
+the queue that the message came from, and the id of the message, so that your
+client can ack properly.
 
 When sending:
 ```Javascript
@@ -280,15 +282,18 @@ When sending:
 When receiving:
 ```Javascript
 {
-  "queue": "my-queue-name",
   "nonce": "unique nonce",
   "payload": {
-    // Whatever data you want to pass goes here
+    "queue": "my-queue-name",
+    "id": "id-for-acks",
+    "payload": "your payload here"
   }
 }
 ```
 
 ### `QUEUE_CONFIRM`
+
+Sent by the server to indicate that the message has been queued.
 
 Inner payload:
 ```Javascript
@@ -299,12 +304,26 @@ Inner payload:
 
 ### `QUEUE_REQUEST`
 
-Marks this client as ready to receive events from the specified queue.
+Marks this client as ready to receive events from the specified queue. THIS
+OPERATION DOES NOT SEND BACK A PAYLOAD.
 
 Inner payload:
 ```Javascript
 {
   "queue": "my-queue-name"
+}
+```
+
+### `QUEUE_ACK`
+
+Sent by the client to indicate acknowledgement of a message, telling the server
+that it can be removed from the specified queue.
+
+Inner payload:
+```Javascript
+{
+  "queue": "my-queue-name",
+  "id": "id-to-ack"
 }
 ```
 

@@ -110,7 +110,7 @@ defmodule Singyeong.QueueTest do
           },
         },
         op: 4,
-        t: "SEND",
+        t: "QUEUE",
         ts: _,
       }
     } = await_receive_message()
@@ -268,7 +268,7 @@ defmodule Singyeong.QueueTest do
           },
         },
         op: 4,
-        t: "SEND",
+        t: "QUEUE",
         ts: _,
       }
     } = await_receive_message()
