@@ -1,4 +1,5 @@
 defmodule Singyeong.DispatchCase do
+  @moduledoc false
   use ExUnit.CaseTemplate
 
   using do

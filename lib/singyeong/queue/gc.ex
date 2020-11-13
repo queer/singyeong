@@ -1,4 +1,10 @@
 defmodule Singyeong.Queue.Gc do
+  @moduledoc """
+  A backgrounnd worker that occasionally garbage-collects a queue. The queue
+  garbage collection process is moving unacked messages to the DLQ, and moving
+  dead messages from the DLQ back into the main queue. An unacked message
+  cannot be moved unacked -> DLQ -> main queue in a single pass.
+  """
   use GenServer
   alias Singyeong.{
     Config,

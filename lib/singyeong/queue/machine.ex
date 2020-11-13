@@ -185,6 +185,8 @@ defmodule Singyeong.Queue.Machine do
   @impl RaftedValue.Data
   def query(%{length: length, pending_clients: pending_clients}, :can_dispatch?) do
     cond do
+      # See: https://github.com/rrrene/credo/issues/824
+      # credo:disable-for-next-line
       length == 0 ->
         {:error, :empty_queue}
 
