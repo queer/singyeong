@@ -159,9 +159,8 @@ defmodule Singyeong.Cluster do
     needs_raft_reactivation = !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state))
 
     if needs_raft_reactivation do
-      # TODO: Config config config
       Logger.info "[CLUSTER] (Re)activating Raft zones"
-      RaftFleet.activate "zone1"
+      RaftFleet.activate Config.raft_zone()
     end
 
     if needs_raft_reactivation and not state[:rafted?] do

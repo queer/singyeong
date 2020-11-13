@@ -29,6 +29,9 @@ config :singyeong,
   clustering: System.get_env("CLUSTERING"),
   cookie: System.get_env("COOKIE"),
   redis_dsn: System.get_env("REDIS_DSN"),
+  raft: [
+    zone: System.get_env("ZONE") || "zone-1",
+  ],
   queue: [
     ack_timeout: 15_000,
     dlq_time: 15_000,
