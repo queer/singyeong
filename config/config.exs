@@ -20,6 +20,7 @@ config :logger, :console,
 
 config :phoenix, :format_encoders,
   json: Jason
+
 config :phoenix, :json_library, Jason
 
 config :singyeong,
