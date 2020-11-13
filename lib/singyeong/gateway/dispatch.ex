@@ -12,9 +12,9 @@ defmodule Singyeong.Gateway.Dispatch do
     QueueAck,
     QueueConfirm,
     QueueDispatch,
+    QueuedMessage,
     QueueInsert,
     QueueRequest,
-    QueuedMessage,
   }
   alias Singyeong.Metadata.{Query, UpdateQueue}
   alias Singyeong.Store
