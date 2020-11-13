@@ -91,7 +91,7 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, []}
   end
 
-  def handle_dispatch(socket, %Payload{t: "QUEUE_ACK", d: %QueueAck{queue: queue_name, id: id}}) do
+  def handle_dispatch(_, %Payload{t: "QUEUE_ACK", d: %QueueAck{queue: queue_name, id: id}}) do
     :ok = Queue.create! queue_name
     :ok = Queue.ack_message queue_name, id
     {:ok, []}
@@ -306,7 +306,7 @@ defmodule Singyeong.Gateway.Dispatch do
                 target: target,
                 nonce: nonce,
                 payload: outgoing_payload
-              }, false
+              }, false, "QUEUE"
 
             Queue.add_unacked queue_name, {id, message}
           end
