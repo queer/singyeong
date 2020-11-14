@@ -13,7 +13,9 @@ jobs:
         with:
           otp-version: 23.1.2
           elixir-version: 1.11.2
-      - run: wget https://github.com/queer/singyeong-test-plugin/releases/download/0.1.0/singyeong_plugin_test.zip -O priv/test/plugin/singyeong_plugin_test.zip
+      - run: |
+          mkdir -pv priv/test/plugin/
+          wget https://github.com/queer/singyeong-test-plugin/releases/download/0.1.0/singyeong_plugin_test.zip -O priv/test/plugin/singyeong_plugin_test.zip
       - run: env MIX_ENV=test mix deps.get
       - run: env MIX_ENV=test mix compile --warnings-as-errors
       - run: env MIX_ENV=test mix test
