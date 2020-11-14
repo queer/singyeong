@@ -8,11 +8,16 @@ defmodule Singyeong.Plugin.DispatchTest do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Payload.Error
   alias Singyeong.Metadata.Query
+  alias Singyeong.PluginManager
   alias Singyeong.Store
   alias Singyeong.Utils
   alias SingyeongWeb.Transport
 
   @dispatch_op Gateway.opcodes_name()[:dispatch]
+
+  setup_all do
+    PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
+  end
 
   @tag capture_log: true
   test "that a :ok dispatch works", %{socket: socket} do
