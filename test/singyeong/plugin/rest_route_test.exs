@@ -5,6 +5,8 @@ defmodule Singyeong.Plugin.RestRouteTest do
   alias Singyeong.Store
   alias SingyeongWeb.Router
 
+  @moduletag :plugin
+
   setup do
     Store.start()
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]

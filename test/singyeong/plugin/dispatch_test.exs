@@ -15,6 +15,8 @@ defmodule Singyeong.Plugin.DispatchTest do
 
   @dispatch_op Gateway.opcodes_name()[:dispatch]
 
+  @moduletag :plugin
+
   setup_all do
     PluginManager.init ["priv/test/plugin/singyeong_plugin_test.zip"]
   end

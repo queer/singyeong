@@ -13,6 +13,7 @@ defmodule Singyeong.Config do
   def queue_ack_timeout, do: queue_config() |> Keyword.get(:ack_timeout)
   def queue_dlq_time, do: queue_config() |> Keyword.get(:dlq_time)
   def queue_group_size, do: queue_config() |> Keyword.get(:group_size)
+  def queue_gc_interval, do: queue_config() |> Keyword.get(:gc_interval)
 
   def metadata_config, do: c :metadata
   def metadata_queue_interval, do: metadata_config() |> Keyword.get(:queue_interval)

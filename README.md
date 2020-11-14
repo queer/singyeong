@@ -2,26 +2,40 @@
 
 ![Build status](https://github.com/queer/singyeong/workflows/Publish%20Docker/badge.svg) [![codecov](https://codecov.io/gh/queer/singyeong/branch/master/graph/badge.svg)](https://codecov.io/gh/queer/singyeong) [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-queer%2Fsingyeong-%23007ec6)](https://hub.docker.com/r/queer/singyeong/tags) [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=queer/singyeong)](https://dependabot.com)
 
-Singyeong (신경) is the nerve-center of your microservices-based application,
-providing a metadata-oriented message bus for IPC, service discovery, dynamic
-request proxying, and more. 신경 aims to be simple to use, but still provide
-powerful features.
+> ## 신경
+> [/ɕʰinɡjʌ̹ŋ/ • sin-gyeong](https://en.wiktionary.org/wiki/%EC%8B%A0%EA%B2%BD#Pronunciation) <sup><sup>(try it with [IPA Reader](http://ipa-reader.xyz))</sup></sup>
+> 1. nerve
+>
+> ## Nerve
+> /nərv/
+> 1. A thin thread-shaped organ in a human or animal body that senses and responds to external stimuli.
 
-신경 can be discussed in the amyware Discord server: https://discord.gg/aJSRXdd
+신경 is the nerve-center of your microservices, providing a message bus + message
+queue with powerful routing, automatic load-balaincing + failover, powerful HTTP
+request proxying + routing, and more. 신경 aims to be simple to get started with
+while still providing the features for a variety of use-cases.
+
+신경 is a part of the [amyware Discord server](https://discord.gg/aJSRXdd).
+
+If you like what I make, consider supporting me on Patreon:
+
+[<img src="https://i.imgur.com/YFjoCd1.png" width="162" height="38" />](https://patreon.com/amyware)
 
 ### Clients:
 
-Language   | Author         | Link
------------|----------------|--------------------------------------------------
-Java       | @queer         | https://github.com/queer/singyeong-java-client
-Python     | @PendragonLore | https://github.com/PendragonLore/shinkei
-Typescript | @alula         | https://github.com/KyokoBot/node-singyeong-client
-.NET       | @FiniteReality | https://github.com/finitereality/singyeong.net
+Language   | Author         | Link                                              | Maintained?
+-----------|----------------|---------------------------------------------------|-------------
+Java       | [@queer](https://queer.gg)         | https://github.com/queer/singyeong-java-client    | yes
+.NET       | [@FiniteReality](https://github.com/FiniteReality) | https://github.com/finitereality/singyeong.net    | yes
+Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          | maybe; see [this PR](https://github.com/PendragonLore/shinkei/pull/2)
+Typescript | [@alula](https://github.com/alula)         | https://github.com/KyokoBot/node-singyeong-client | looks like no?
+
 ### Credit
 
-신경 was **heavily** inspired by the [Ayana](https://ayana.io/) developers who
-are implementing something similar with [Sekitsui](https://gitlab.com/sekitsui).
-신경 exists because it has somewhat-different goals than Sekitsui.
+신경 was inspired by [sekitsui](https://gitlab.com/sekitsui), a project by the
+[Ayana](https://ayana.io) developers. 신경 was developed due to sekitsui
+seemingly having halted development (no release as far as I'm aware, no repo
+activity in the last 1-2 years).
 
 ## WARNING
 
@@ -30,32 +44,9 @@ no guarantee that it won't break, eat your cat, ... Use at your own risk!
 
 ## Configuration
 
-Configuration is done via environment variables.
-
-```Bash
-# Basic configuration
-
-# The port to bind to. Default is 4000. In production, you probably want to be
-# running on port 80.
-PORT="4567"
-
-# The password that clients must send in order to connect. Optional.
-# It is HIGHLY recommended that you set a long / complex password. See the
-# "Security" section below for more on why.
-AUTH="2d1e29fbe6895b3693112ff<insert more long password here>"
-
-# Clustering configuration
-# If you're not running a cluster, these options shouldn't be set.
-
-# Whether or not clustering should be enabled.
-CLUSTERING="true"
-# The cookie is used for securing communication between nodes. See
-# http://erlang.org/doc/reference_manual/distributed.html §13.7 Security.
-COOKIE="very long and secure cookie that nobody can guess"
-# Everything needed to connect to Redis. 신경 uses Redis for cluster member
-# discovery.
-REDIS_DSN="redis://:password@127.0.0.1:6379/0"
-```
+Configuration is done via environment variables, or via a custom configuration
+file. See [`config.exs`](https://github.com/queer/singyeong/blob/master/config/config.exs)
+for more information about config options.
 
 ### Custom config files
 
@@ -89,24 +80,21 @@ Plugins belong in a directory named `plugins` at the root directory. See the
 신경 is capable of bootstrapping the Erlang node and discovering cluster
 members automatically; you do ***not*** need to manually set the Erlang
 distribution flags, and *you should not set them*. 신경 will set everything up
-automatically.
+automatically. If you want to be able to seamlessly move from a 1-node cluster
+to a multi-node cluster, you **need** to have clustering enabled from the
+start, or else you have to restart your cluster and risk losing queued
+messages.
 
-신경 uses Redis for discovering cluster members. There might be more options
-supported eventually.
-
-Someday it might be cool to support gossip protocol, kube api, ... to allow for
-automatically forming clusters w/o external dependencies, I guess.
-
-### Why not using swarm / libcluster?
-
-Swarm doesn't do certain things that I want, and I don't see the value in
-writing a libcluster strategy that does what I want.
+신경 uses Redis for discovering cluster members. There are vague plans to support
+cluster formation via Kube API, UDP multicast, etc., but nothing solid yet. I'm
+open to ideas for it.
 
 ## What exactly is it?
 
-신경 is a metadata-oriented service mesh. Clients connect over a websocket
-(protocol defined in [PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md)),
-and can send messages that can be routed to clients based on client metadata.
+신경 is a metadata-oriented message bus + message queue + HTTP proxy. Clients
+connect over a [websocket](https://github.com/queer/singyeong/blob/master/PROTOCOL.md),
+and can send messages, queue messages, and send HTTP requests that can be
+routed to clients based on client metadata.
 
 ### Metadata-oriented?
 
@@ -141,6 +129,8 @@ simple "send to any one service in this application group."
 
 No. You should not try to route to a specific 신경 client by id; instead you
 should be expressing a metadata query that will send to the client you want.
+Generally speaking, clients should be capable of running statelessly, or you
+should use metadata to route messages effectively.
 
 ### Do I need sidecar containers if I'm running in Kubernetes?
 
@@ -148,7 +138,7 @@ Nope.
 
 ### Does it support clustering / multi-master / ...?
 
-신경 has basic masterless clustering support.
+신경 has masterless clustering support.
 
 ## Why should I use this?
 
@@ -169,6 +159,8 @@ Nope.
 
 - Query performance might be unacceptable.
 - Websockets might not be acceptable.
+- Development is still fairly early-stage; the alpha-ish quality of it may be
+  nonviable.
 
 ## Why make this?
 
@@ -182,6 +174,11 @@ all containers for an application type is also beneficial. This extends to
 other services that handle things on a per-guild basis, ex. having a cluster of
 voice nodes, where not needing to know which node holds a particular guild is
 very useful.
+
+Beyond this, it's useful for all sorts of other cases. Routing messages to a
+release version and a beta version without paying the cost of a pubsub or
+multiple queues or something similar. 신경 can get messages to the right place
+with some very complicated conditions very easily.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
@@ -197,16 +194,48 @@ convenience of getting it all out-of-the-box with Phoenix and being able to
 focus on writing my application-level code instead of setting up a ton of weird
 plumbing.
 
-## How do I write my own client for it? How does it work internally? etc.
+## How do I write my own client for it?
 
 Check out [PROTOCOL.md](https://github.com/queer/singyeong/blob/master/PROTOCOL.md).
 
-## How do I run the tests?
+## How does it work internally?
 
-`mix test`. ~~Of course, there are no tests because I forgot to write
-them. Oops.~~
+The code is intended to be pretty easy to read. The general direction that data
+flows is something like:
 
-I finally added tests. ~~Please clap~~ More will likely be added over time.
+```
+client -> decoder -> message processor -> dispatch         -> process and dispatch response
+                                       -> identifier       -> allow or reject connection
+                                       -> metadata updater -> apply or reject metadata updates
+```
+
+Additionally, I aim to keep the server fairly small, ideally <5k LoC, but
+absolutely <1kLoC. At the time of writing, the server is ~3100 LoC:
+
+```
+git:(master) X | ->  cloc lib/
+      42 text files.
+      42 unique files.
+       0 files ignored.
+
+github.com/AlDanial/cloc v 1.88  T=0.03 s (1569.1 files/s, 161430.0 lines/s)
+-------------------------------------------------------------------------------
+Language                     files          blank        comment           code
+-------------------------------------------------------------------------------
+Elixir                          42            626            542           3153
+-------------------------------------------------------------------------------
+SUM:                            42            626            542           3153
+-------------------------------------------------------------------------------
+git:(master) X | ->
+```
+
+## What abuot test coverage and the like?
+
+You can run tests with `mix test`. Note that the plugin tests **WILL FAIL**
+unless you set up the [test plugin](https://github.com/queer/singyeong-test-plugin)
+in `priv/test/plugin/`. If you don't want to deal with the plugin-related code
+when running tests (tho you REALLY should care...), you can skip those tests by
+running `mix test --exclude plugin`.
 
 Note that the HTTP proxying tests use an echo server I wrote (`echo.amy.gg`),
 rather than using a locally-hosted one. If you don't want to run these tests,
@@ -222,14 +251,9 @@ of attack.
 
 ## What is that name?
 
-I have it on good authority (read: Google Translate) that 신경 means "nerve." I
+신경 means nerve, and since the nervous system is how the entire body
+communicates, it seemed like a fitting name for a messaging system. I
 considered naming this something like 등뼈 (deungppyeo, "spine"/"backbone") or
 회로망 (hoelomang, "network") or even 별자리 (byeoljali, "constellation), but I
 figured that 신경 would be easier for people who don't know Korean to
 pronounce, as well as being easier to find from GitHub search.
-
-## Shameless plug
-
-If you like what I make, consider supporting me on Patreon.
-
-[![patreon button](https://i.imgur.com/YFjoCd1.png)](https://patreon.com/amyware)

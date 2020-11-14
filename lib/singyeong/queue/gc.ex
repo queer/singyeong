@@ -36,5 +36,5 @@ defmodule Singyeong.Queue.Gc do
     end
   end
 
-  defp interval, do: min(Config.queue_dlq_time(), Config.queue_ack_timeout())
+  defp interval, do: Config.queue_gc_interval()
 end
