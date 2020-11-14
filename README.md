@@ -7,7 +7,7 @@
 > 1. nerve
 >
 > ## Nerve
-> /nərv/
+> /nərv/ • *noun*
 > 1. A thin thread-shaped organ in a human or animal body that senses and responds to external stimuli.
 
 신경 is the nerve-center of your microservices, providing a message bus + message
@@ -229,7 +229,7 @@ SUM:                            42            626            542           3153
 git:(master) X | ->
 ```
 
-## What abuot test coverage and the like?
+## What about test coverage and the like?
 
 You can run tests with `mix test`. Note that the plugin tests **WILL FAIL**
 unless you set up the [test plugin](https://github.com/queer/singyeong-test-plugin)
