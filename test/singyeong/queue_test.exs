@@ -14,7 +14,6 @@ defmodule Singyeong.QueueTest do
     QueueRequest,
   }
   alias Singyeong.Metadata.Query
-  alias Singyeong.PluginManager
   alias Singyeong.Queue
   alias Singyeong.Store
   alias Singyeong.Utils

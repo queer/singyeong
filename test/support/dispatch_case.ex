@@ -12,7 +12,6 @@ defmodule Singyeong.DispatchCase do
         Gateway,
         Gateway.GatewayResponse,
         Gateway.Payload,
-        PluginManager,
         Store,
         Utils,
       }
@@ -26,7 +25,6 @@ defmodule Singyeong.DispatchCase do
 
       setup do
         Store.start()
-        PluginManager.init()
 
         socket = socket Raw, nil, [client_id: @client_id, app_id: @app_id]
 

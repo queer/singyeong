@@ -81,7 +81,8 @@ defmodule Singyeong.PluginManager do
 
   @spec plugins(atom()) :: [atom()] | []
   def plugins(capability) do
-    if Capabilities.is_capability?(capability) do
+    size = :ets.info capability, :size
+    if Capabilities.is_capability?(capability) and size != :undefined and size > 0 do
       capability
       |> :ets.tab2list
       |> Enum.map(fn {mod, _} -> mod end)

@@ -7,7 +7,6 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
-  alias Singyeong.PluginManager
   alias Singyeong.Store
   alias Singyeong.Utils
 
