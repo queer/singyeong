@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: apt-get update && apt-get install -y glibc
       - uses: actions/setup-elixir@v1
         with:
           otp-version: 23.1.2
