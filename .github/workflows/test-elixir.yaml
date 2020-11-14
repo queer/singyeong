@@ -9,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: apt-get update && apt-get install -y glibc
       - uses: actions/setup-elixir@v1
         with:
           otp-version: 23.1.2
           elixir-version: 1.11.2
+      - run: wget https://github.com/queer/singyeong-test-plugin/releases/download/0.1.0/singyeong_plugin_test.zip -O priv/test/plugin/singyeong_plugin_test.zip
       - run: env MIX_ENV=test mix deps.get
       - run: env MIX_ENV=test mix compile --warnings-as-errors
       - run: env MIX_ENV=test mix test
