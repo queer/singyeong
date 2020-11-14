@@ -8,7 +8,9 @@
 >
 > ## Nerve
 > /nərv/ • *noun*
-> 1. A thin thread-shaped organ in a human or animal body that senses and responds to external stimuli.
+> 1. (in the body) a whitish fiber or bundle of fibers that transmits impulses of sensation to the brain or spinal cord, and impulses from these to the muscles and organs.
+> 
+> <small style="color:grey;">"the optic nerve"</small>
 
 신경 is the nerve-center of your microservices, providing a message bus + message
 queue with powerful routing, automatic load-balaincing + failover, powerful HTTP
