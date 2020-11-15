@@ -20,6 +20,7 @@ The basics of how the 신경 protocol works.
     singyeong://test:pass@localhost:21312?encoding=json
     ssingyeong://test:pass@host:12321/?encoding=etf
     ```
+    If a port is not specified, you can assume that the port is 80.
 1.  Open a websocket connection to `/gateway/websocket`. The server will
     immediately reply with a packet like this:
     ```Javascript
