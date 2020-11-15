@@ -213,7 +213,7 @@ client -> decoder -> message processor -> dispatch         -> process and dispat
 ```
 
 Additionally, I aim to keep the server fairly small, ideally <5k LoC, but
-absolutely <1kLoC. At the time of writing, the server is ~3100 LoC:
+absolutely <10kLoC. At the time of writing, the server is ~3100 LoC:
 
 ```
 git:(master) X | ->  cloc lib/
