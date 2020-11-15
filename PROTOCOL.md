@@ -197,7 +197,7 @@ clients must follow.
 | `SEND`            | both | Send a payload to a single client that matches the routing query |
 | `BROADCAST`       | both | Send a payload to all clients that match the routing query |
 | `QUERY_NODES`     | send | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
-| `QUEUE`           | BOTH | Queues a new message into the specified queue when sent. Indicates a queued message being received when received. |
+| `QUEUE`           | both | Queues a new message into the specified queue when sent. Indicates a queued message being received when received. |
 | `QUEUE_CONFIRM`   | recv | Sends an acknowledgement of message queuing to the client. |
 | `QUEUE_REQUEST`   | send | Adds the client to the list of clients awaiting messages. |
 | `QUEUE_ACK`       | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
