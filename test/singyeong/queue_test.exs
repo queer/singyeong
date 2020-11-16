@@ -113,6 +113,8 @@ defmodule Singyeong.QueueTest do
         ts: _,
       }
     } = await_receive_message()
+
+    refute_awaiting queue_name, socket.assigns.client_id
   end
 
   test "that an unresolveable message DLQs and requeues", %{socket: socket, queue: queue_name} do
@@ -171,6 +173,7 @@ defmodule Singyeong.QueueTest do
         }
 
     # ...Now that we've registered that we want a message...
+    assert_awaiting queue_name, socket.assigns.client_id
 
     # ...The message that we couldn't route immediately got DLQ'd.
     assert_dlq queue_name, %Payload.QueuedMessage{

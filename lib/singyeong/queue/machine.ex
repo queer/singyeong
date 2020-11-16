@@ -78,6 +78,12 @@ defmodule Singyeong.Queue.Machine do
   end
 
   @impl RaftedValue.Data
+  def command(%State{pending_clients: clients} = state, {:remove_client, client}) do
+    new_clients = Enum.filter clients, fn c -> c != client end
+    {:ok, %{state | pending_clients: new_clients}}
+  end
+
+  @impl RaftedValue.Data
   def command(_, :flush) do
     {:ok, base_state()}
   end

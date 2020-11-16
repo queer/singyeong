@@ -161,4 +161,24 @@ defmodule Singyeong.QueueCase do
       |> refute
     end
   end
+
+  def assert_awaiting(queue_name, client_id) do
+    queue_name
+    |> Queue.dump_full_state
+    |> elem(1)
+    |> Map.from_struct
+    |> Map.get(:pending_clients)
+    |> Enum.any?(fn {_, client} -> client == client_id end)
+    |> assert
+  end
+
+  def refute_awaiting(queue_name, client_id) do
+    queue_name
+    |> Queue.dump_full_state
+    |> elem(1)
+    |> Map.from_struct
+    |> Map.get(:pending_clients)
+    |> Enum.any?(fn {_, client} -> client == client_id end)
+    |> refute
+  end
 end

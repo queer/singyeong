@@ -269,7 +269,7 @@ defmodule Singyeong.Gateway.Dispatch do
           # {{:value, %QueuedMessage{} = message}, new_queue} = :queue.out queue
           # dlq = Utils.fast_list_concat dlq, %DeadLetter{message: message, dead_since: now}
           # {{:error, :dlq}, %{state | dlq: dlq, queue: new_queue}}
-          Queue.add_dlq queue_name, next_message
+          :ok = Queue.add_dlq queue_name, next_message
 
         {matches, count} when count > 0 ->
           {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}} = Queue.pop queue_name
@@ -300,6 +300,9 @@ defmodule Singyeong.Gateway.Dispatch do
                 payload: payload,
                 id: id,
               }
+
+            {app_id, %{client_id: client_id}} = next_client
+            :ok = Queue.remove_client queue_name, {app_id, client_id}
 
             # Queues can only send to a single client, so client_count=1
             MessageDispatcher.send_with_retry nil, [{node, [next_client]}], 1, %Payload.Dispatch{

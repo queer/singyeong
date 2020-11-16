@@ -111,10 +111,10 @@ defmodule Singyeong.Queue do
   end
 
   @spec pop(String.t()) :: {:ok, :ok}
-                           | {:ok, {:error, :empty_queue}}
-                           | {:ok, {:error, :no_matches}}
-                           | {:ok, {:error, :dlq}}
-                           | {:ok, {:error, :no_pending_clients}}
+                           | {:error, :empty_queue}
+                           | {:error, :no_matches}
+                           | {:error, :dlq}
+                           | {:error, :no_pending_clients}
                            | {:error, :no_leader}
   def pop(queue) do
     queue
@@ -147,6 +147,7 @@ defmodule Singyeong.Queue do
     |> command({:check_acks_and_dlq, Utils.now()})
   end
 
+  @spec add_dlq(String.t(), [Machine.DeadLetter.t()]) :: :ok
   def add_dlq(queue, msg) do
     queue
     |> queue_name
@@ -154,6 +155,7 @@ defmodule Singyeong.Queue do
     |> command({:add_dlq, msg, Utils.now()})
   end
 
+  @spec add_unacked(String.t(), {String.t(), QueuedMessage.t(), non_neg_integer()}) :: :ok
   def add_unacked(queue, {id, %QueuedMessage{}} = data) do
     queue
     |> queue_name
@@ -161,6 +163,7 @@ defmodule Singyeong.Queue do
     |> command({:add_unacked, data, Utils.now()})
   end
 
+  @spec ack_message(String.t(), String.t()) :: :ok
   def ack_message(queue, id) do
     queue
     |> queue_name
@@ -208,6 +211,9 @@ defmodule Singyeong.Queue do
     |> query(:dump_full_state)
   end
 
+  @spec can_dispatch?(String.t()) :: {:ok, boolean()}
+                                    | {:error, :empty_queue}
+                                    | {:error, :no_pending_clients}
   def can_dispatch?(queue) do
     queue
     |> queue_name
