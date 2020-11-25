@@ -306,21 +306,26 @@ defmodule Singyeong.Gateway do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
+      Logger.info "[GATEWAY] Cleaning up #{app_id}:#{client_id}"
 
       cleanup app_id, client_id
     end
   end
 
   def cleanup(app_id, client_id) do
-    client_id
-    |> Store.get_client
-    |> elem(1)
-    |> Store.remove_client
+    {:ok, :ok} =
+      client_id
+      |> Store.get_client
+      |> elem(1)
+      |> Store.remove_client
+
+    Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
 
     queue_worker = UpdateQueue.name app_id, client_id
     pid = Process.whereis queue_worker
     if pid do
       DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
+      Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Terminated update queue"
     end
   end
 

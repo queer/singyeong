@@ -112,6 +112,7 @@ defmodule SingyeongWeb.Transport.Raw do
   end
 
   def terminate(reason, {_channels, socket} = _state) do
+    Gateway.handle_close socket
     # TODO: Close codes??
     code = 1000
     Logger.info "[TRANSPORT] Socket for #{socket.assigns[:app_id]}:#{socket.assigns[:client_id]}"
