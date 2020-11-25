@@ -87,6 +87,8 @@ defmodule Singyeong.Gateway.Dispatch do
   def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
     :ok = Queue.create! queue_name
     :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
+    {:ok, client} = Store.get_client socket.assigns.client_id
+    client = %{client | queues: Utils.fast_list_concat(client.queues, Queue.queue_name(queue_name))}
     attempt_queue_dispatch queue_name
     {:ok, []}
   end

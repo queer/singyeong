@@ -313,11 +313,8 @@ defmodule Singyeong.Gateway do
   end
 
   def cleanup(app_id, client_id) do
-    {:ok, :ok} =
-      client_id
-      |> Store.get_client
-      |> elem(1)
-      |> Store.remove_client
+    {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} = Store.get_client client_id
+    {:ok, :ok} = Store.remove_client client
 
     Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
 
@@ -326,6 +323,11 @@ defmodule Singyeong.Gateway do
     if pid do
       DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
       Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Terminated update queue"
+    end
+
+    for queue <- client.queues do
+      Queue.remove_client {app_id, client_id}
+      Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from queue #{queue}"
     end
   end
 

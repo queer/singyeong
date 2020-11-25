@@ -73,6 +73,7 @@ defmodule Singyeong.Store.Mnesia do
   defp do_get_client(client_id) do
     case :mnesia.read({@clients, client_id}) do
       [{@clients, ^client_id, client}] ->
+        # TODO: Stop assuming ID uniqueness
         {:ok, app_clients} = get_app_clients client.app_id
         unless MapSet.member?(app_clients, client_id) do
           raise "Couldn't get client #{client_id}: not a member of app #{client.app_id}"
