@@ -9,6 +9,7 @@ defmodule Singyeong.Gateway do
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
   alias Singyeong.PluginManager
+  alias Singyeong.Queue
   alias Singyeong.Store
   alias Singyeong.Store.Client
   alias Singyeong.Utils
@@ -326,7 +327,7 @@ defmodule Singyeong.Gateway do
     end
 
     for queue <- client.queues do
-      Queue.remove_client {app_id, client_id}
+      Queue.remove_client queue, {app_id, client_id}
       Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from queue #{queue}"
     end
   end
