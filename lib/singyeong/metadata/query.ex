@@ -181,7 +181,7 @@ defmodule Singyeong.Metadata.Query do
     clients =
       app_clients
       |> MapSet.to_list
-      |> Enum.map(&Store.get_client(&1))
+      |> Enum.map(&Store.get_client(app_id, &1))
       |> Enum.map(&elem(&1, 1))
 
     unless Enum.empty?(clients) do

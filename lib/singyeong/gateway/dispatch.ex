@@ -43,14 +43,14 @@ defmodule Singyeong.Gateway.Dispatch do
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data}) do
     case Store.validate_metadata(data) do
       {:ok, metadata} ->
-        app = socket.assigns[:app_id]
-        client = socket.assigns[:client_id]
+        app = socket.assigns.app_id
+        client = socket.assigns.client_id
         pid =
           app
           |> UpdateQueue.name(client)
           |> Process.whereis
 
-        send pid, {:queue, client, metadata}
+        send pid, {:queue, {app, client}, metadata}
         # TODO: ACK metadata updates
         {:ok, []}
 
@@ -85,9 +85,11 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST", d: %QueueRequest{queue: queue_name}}) do
+    app_id = socket.assigns.app_id
+    client_id = socket.assigns.client_id
     :ok = Queue.create! queue_name
-    :ok = Queue.add_client queue_name, {socket.assigns.app_id, socket.assigns.client_id}
-    {:ok, client} = Store.get_client socket.assigns.client_id
+    :ok = Queue.add_client queue_name, {app_id, client_id}
+    {:ok, client} = Store.get_client app_id, client_id
     client = %{client | queues: Utils.fast_list_concat(client.queues, queue_name)}
     {:ok, _} = Store.update_client client
     attempt_queue_dispatch queue_name

@@ -35,10 +35,10 @@ defmodule Singyeong.Metadata.UpdateQueue do
   end
 
   def handle_info(:process, state) do
-    {client_id, new_metadata, new_state} = process_updates nil, %{}, state
-    if client_id != nil and new_metadata != nil and new_metadata != %{} do
+    {{app_id, client_id}, new_metadata, new_state} = process_updates nil, %{}, state
+    if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
       # Only update metadata if there's new metadata
-      client = Store.get_client client_id
+      client = Store.get_client app_id, client_id
       Store.update_client %{
         client
         | metadata: Map.merge(client.metadata, new_metadata)

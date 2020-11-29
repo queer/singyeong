@@ -36,8 +36,8 @@ defmodule Singyeong.Store do
   Returns the client with the given ID. Validates that the client is included
   in the apps client list.
   """
-  @callback get_client(client_id()) :: transaction(Client.t() | nil)
-  defdelegate get_client(id), to: Config.store_mod()
+  @callback get_client(app_id(), client_id()) :: transaction(Client.t() | nil)
+  defdelegate get_client(app_id, client_id), to: Config.store_mod()
 
   @doc """
   Updates the given client in-place in the store. This should not have the same
@@ -62,8 +62,8 @@ defmodule Singyeong.Store do
   @doc """
   Returns whether or not the given client exists
   """
-  @callback client_exists?(client_id()) :: boolean()
-  defdelegate client_exists?(client_id), to: Config.store_mod()
+  @callback client_exists?(app_id(), client_id()) :: boolean()
+  defdelegate client_exists?(app_id, client_id), to: Config.store_mod()
 
   @doc """
   Counts the number of currently-connected clients. May not return negative

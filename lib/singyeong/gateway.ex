@@ -314,7 +314,7 @@ defmodule Singyeong.Gateway do
   end
 
   def cleanup(app_id, client_id) do
-    {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} = Store.get_client client_id
+    {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} = Store.get_client app_id, client_id
     {:ok, :ok} = Store.remove_client client
 
     Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
@@ -351,7 +351,7 @@ defmodule Singyeong.Gateway do
         status when status in [:ok, :restricted] ->
           restricted = status == :restricted
           encoding = socket.assigns[:encoding]
-          unless Store.client_exists?(client_id) do
+          unless Store.client_exists?(app_id, client_id) do
             # Client doesn't exist, add to store and okay it
             finish_identify app_id, client_id, socket, ip, restricted, encoding
           else
@@ -565,8 +565,8 @@ defmodule Singyeong.Gateway do
     apply plugin, :global_undo, [event, direction, undo_state]
   end
 
-  def handle_heartbeat(socket, _payload) do
-    {:ok, client} = Store.get_client socket.assigns[:client_id]
+  def handle_heartbeat(%Phoenix.Socket{assigns: %{app_id: app_id, client_id: client_id}}, _payload) do
+    {:ok, client} = Store.get_client app_id, client_id
     if client != nil do
       {:ok, _} =
         Store.update_client %{
@@ -578,7 +578,7 @@ defmodule Singyeong.Gateway do
         }
 
       :heartbeat_ack
-      |> Payload.create_payload(%{"client_id" => socket.assigns[:client_id]})
+      |> Payload.create_payload(%{"client_id" => client_id})
       |> craft_response
     else
       handle_missing_data()

@@ -33,18 +33,18 @@ defmodule Singyeong.Store.Mnesia do
   end
 
   @impl Singyeong.Store
-  def add_client(%Client{client_id: id} = client) do
-    if client_exists?(id) do
-      raise "#{id}: can't add to #{client.app_id}: already exists"
+  def add_client(%Client{app_id: app_id, client_id: client_id} = client) do
+    if client_exists?(app_id, client_id) do
+      raise "#{client_id}: can't add to #{app_id}: already exists"
     end
     :mnesia.transaction(fn -> do_add_client(client) end)
     |> return_result_or_error
   end
 
-  defp do_add_client(%Client{app_id: app_id, client_id: id} = client) do
-    :ok = :mnesia.write {@clients, id, client}
+  defp do_add_client(%Client{app_id: app_id, client_id: client_id} = client) do
+    :ok = :mnesia.write {@clients, {app_id, client_id}, client}
     {:ok, mapset} = get_app_clients app_id
-    mapset = MapSet.put mapset, id
+    mapset = MapSet.put mapset, client_id
     :ok = :mnesia.write {@apps, app_id, mapset}
   end
 
@@ -54,29 +54,28 @@ defmodule Singyeong.Store.Mnesia do
     |> return_result_or_error
   end
 
-  defp do_update_client(%Client{app_id: app_id, client_id: id} = client) do
+  defp do_update_client(%Client{app_id: app_id, client_id: client_id} = client) do
     {:ok, mapset} = get_app_clients app_id
-    unless MapSet.member?(mapset, id) do
-      raise "Couldn't update client #{id} in app #{app_id}: it doesn't already exist"
+    unless MapSet.member?(mapset, client_id) do
+      raise "Couldn't update client #{client_id} in app #{app_id}: it doesn't already exist"
     end
-    :ok = :mnesia.write {@clients, id, client}
-    mapset = MapSet.put mapset, id
+    :ok = :mnesia.write {@clients, {app_id, client_id}, client}
+    mapset = MapSet.put mapset, client_id
     :ok = :mnesia.write {@apps, app_id, mapset}
   end
 
   @impl Singyeong.Store
-  def get_client(client_id) do
-    :mnesia.transaction(fn -> do_get_client(client_id) end)
-    |> return_read_result_or_error(@clients, client_id)
+  def get_client(app_id, client_id) do
+    :mnesia.transaction(fn -> do_get_client({app_id, client_id}) end)
+    |> return_read_result_or_error(@clients, {app_id, client_id})
   end
 
-  defp do_get_client(client_id) do
-    case :mnesia.read({@clients, client_id}) do
-      [{@clients, ^client_id, client}] ->
-        # TODO: Stop assuming ID uniqueness
+  defp do_get_client({app_id, client_id} = composite_id) do
+    case :mnesia.read({@clients, composite_id}) do
+      [{@clients, ^composite_id, client}] ->
         {:ok, app_clients} = get_app_clients client.app_id
         unless MapSet.member?(app_clients, client_id) do
-          raise "Couldn't get client #{client_id}: not a member of app #{client.app_id}"
+          raise "Couldn't get client #{client_id}: not a member of app #{app_id}"
         end
         client
 
@@ -124,8 +123,8 @@ defmodule Singyeong.Store.Mnesia do
   end
 
   @impl Singyeong.Store
-  def client_exists?(client_id) do
-    case get_client(client_id) do
+  def client_exists?(app_id, client_id) do
+    case get_client(app_id, client_id) do
       {:ok, client} -> client != nil
       {:error, _} -> false
     end
