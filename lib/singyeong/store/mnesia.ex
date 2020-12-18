@@ -10,17 +10,34 @@ defmodule Singyeong.Store.Mnesia do
   @clients :clients
   @apps :apps
 
+  @t_string :strings
+  @t_integer :integers
+  @t_float :float
+  @t_version :version
+  @t_list :list
+
   @impl Singyeong.Store
   def start do
     :mnesia.create_schema []
     :mnesia.start()
 
-    :mnesia.create_table @clients, [attributes: [:composite_id, :client]]
-    :mnesia.add_table_index @clients, :composite_id
+    # General storage
+    create_table_with_indexes @clients,   [attributes: [:composite_id, :client]], [:composite_id]
+    create_table_with_indexes @apps,      [attributes: [:app_id, :app]], [:app_id]
 
-    :mnesia.create_table @apps, [attributes: [:app_id, :app]]
-    :mnesia.add_table_index @apps, :app_id
+    # Metadata-type-specific storage
+    create_table_with_indexes @t_string,  [attributes: [:composite_key, :value]], [:composite_key, :value]
+    create_table_with_indexes @t_integer, [attributes: [:composite_key, :value]], [:composite_key, :value]
+    create_table_with_indexes @t_float,   [attributes: [:composite_key, :value]], [:composite_key, :value]
+    create_table_with_indexes @t_version, [attributes: [:composite_key, :value]], [:composite_key, :value]
+    create_table_with_indexes @t_list,    [attributes: [:composite_key, :value]], [:composite_key, :value]
+
     :ok
+  end
+
+  defp create_table_with_indexes(table, opts, index_keys) do
+    :mnesia.create_table table, opts
+    for index <- index_keys, do: :mnesia.add_table_index table, index
   end
 
   @impl Singyeong.Store
