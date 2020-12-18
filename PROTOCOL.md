@@ -211,7 +211,7 @@ The inner payloads for these events are as follows:
   "key": {
     "type": "string",
     "value": "value"
-  }
+  },
   "key2": {
     "type": "integer",
     "value": 123

@@ -88,6 +88,5 @@ defmodule Singyeong.Store do
   @callback validate_metadata(%{optional(String.t()) => any()})
     :: {:ok, %{optional(String.t()) => any()}}
        | {:error, %{String.t() => String.t()}}
-
   defdelegate validate_metadata(metadata), to: Config.store_mod()
 end

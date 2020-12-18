@@ -24,7 +24,7 @@ defmodule Singyeong.Gateway.Dispatch do
 
   def can_dispatch?(socket, event) do
     cond do
-      socket.assigns[:restricted] && event == "UPDATE_METADATA" ->
+      socket.assigns[:restricted] and event == "UPDATE_METADATA" ->
         true
 
       socket.assigns[:restricted] ->

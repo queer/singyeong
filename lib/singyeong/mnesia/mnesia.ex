@@ -1,8 +1,9 @@
-defmodule Singyeong.Store.Mnesia do
+defmodule Singyeong.Mnesia.Store do
   @moduledoc false
 
   alias Singyeong.Metadata
   alias Singyeong.Metadata.Types
+  alias Singyeong.Repo
   alias Singyeong.Store.Client
 
   @behaviour Singyeong.Store
@@ -79,6 +80,7 @@ defmodule Singyeong.Store.Mnesia do
     :ok = :mnesia.write {@clients, {app_id, client_id}, client}
     mapset = MapSet.put mapset, client_id
     :ok = :mnesia.write {@apps, app_id, mapset}
+    client
   end
 
   @impl Singyeong.Store
@@ -155,25 +157,11 @@ defmodule Singyeong.Store.Mnesia do
 
   @impl Singyeong.Store
   def get_clients(count) do
-    res =
-      :mnesia.transaction fn ->
-        # Ugh matchspecs are fucking awful to write
-        :mnesia.select @clients, [{{@clients, [:_], :_}, [], [:"$$"]}], count, :read
-      end
-
-    case res do
-      {:atomic, [{match, _}]} ->
-        {:ok, match}
-
-      {:atomic, []} ->
-        {:ok, []}
-
-      {:atomic, :"$end_of_table"} ->
-        {:ok, []}
-
-      {:aborted, reason} ->
-        {:error, {"mnesia transaction aborted", reason}}
-    end
+    :mnesia.transaction(fn ->
+      # Ugh matchspecs are fucking awful to write
+      :mnesia.select @clients, [{{@clients, :"$1", :"$2"}, [], [:"$$"]}], count, :read
+    end)
+    |> return_select_result_or_error
   end
 
   @impl Singyeong.Store
@@ -217,6 +205,55 @@ defmodule Singyeong.Store.Mnesia do
         |> Map.new
 
       {:error, error_messages}
+    end
+  end
+
+  defp return_select_result_or_error(mnesia_result) do
+    case mnesia_result do
+      {:atomic, [{match, _}]} ->
+        {:ok, match}
+
+      {:atomic, {match, _}} when is_list(match) ->
+        # If we have this ridiculous select return result, it's suddenly really
+        # not simple.
+        # The data that gets returned looks like:
+        #
+        #   {
+        #     :atomic,
+        #     {
+        #       [
+        #         [key, value],
+        #         rest...
+        #       ],
+        #       {
+        #         op,
+        #         table,
+        #         {?, pid},
+        #         node,
+        #         storage backend,
+        #         {ref, ?, ?, ref, ?, ?},
+        #         ?,
+        #         ?,
+        #         ?,
+        #         query
+        #       }
+        #     }
+        #   }
+        #
+        # and we just care about the matches in the first element of the tuple
+        # that comes after the :atomic.
+
+        # {:ok, Enum.map(match, fn [_key, value] -> value end)}
+        {:ok, Enum.map(match, &(&1 |> tl |> hd))}
+
+      {:atomic, []} ->
+        {:ok, []}
+
+      {:atomic, :"$end_of_table"} ->
+        {:ok, []}
+
+      {:aborted, reason} ->
+        {:error, {:transaction_aborted, reason}}
     end
   end
 

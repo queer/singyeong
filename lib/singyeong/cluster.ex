@@ -30,6 +30,7 @@ defmodule Singyeong.Cluster do
       :crypto.hash(:md5, now)
       |> Base.encode16
       |> String.downcase
+
     state =
       %{
         name: "singyeong_#{get_hostname()}_#{Config.port()}",
