@@ -30,8 +30,13 @@ Language   | Author                                             | Link          
 Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    | yes
 Elixir     | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-client-elixir  | yes
 .NET       | [@FiniteReality](https://github.com/FiniteReality) | https://github.com/finitereality/singyeong.net    | yes
-Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          | maybe; see [this PR](https://github.com/PendragonLore/shinkei/pull/2)
 Typescript | [@alula](https://github.com/alula)                 | https://github.com/KyokoBot/node-singyeong-client | looks like no?
+
+#### Unmaintained clients
+
+Language   | Author                                             | Link                                     |
+-----------|----------------------------------------------------|------------------------------------------|
+Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei |
 
 ### Credit
 
