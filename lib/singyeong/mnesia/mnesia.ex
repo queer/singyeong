@@ -3,7 +3,6 @@ defmodule Singyeong.Mnesia.Store do
 
   alias Singyeong.Metadata
   alias Singyeong.Metadata.Types
-  alias Singyeong.Repo
   alias Singyeong.Store.Client
 
   @behaviour Singyeong.Store

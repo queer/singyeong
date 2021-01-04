@@ -60,8 +60,6 @@ defmodule Singyeong.Mixfile do
       {:excoveralls, "~> 0.13.0", only: :test},
 
       {:singyeong_plugin, "~> 0.1.2"},
-
-      {:ecto3_mnesia, "~> 0.2.2"},
     ]
   end
 end
