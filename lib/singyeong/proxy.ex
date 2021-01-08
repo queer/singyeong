@@ -135,9 +135,7 @@ defmodule Singyeong.Proxy do
       |> Cluster.query
       |> Map.to_list
       # ...then filter on non-empty client lists...
-      |> Enum.filter(fn {_node, {_app_id, clients}} -> not Enum.empty?(clients) end)
-      # ...then convert into a [{node(), [Client.t()]}]...
-      |> Enum.map(fn {node, {_, clients}} -> {node, clients} end)
+      |> Enum.filter(fn {_node, clients} when is_list(clients) -> not Enum.empty?(clients) end)
       # ...and finally, pick only one node-client pair
       |> random_client
 

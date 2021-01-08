@@ -19,7 +19,9 @@ defmodule RaftHelpers do
   end
 end
 
+"Mnesia.*/" |> Path.wildcard |> File.rm_rf!
 :ok = RaftFleet.activate "test_zone"
 RaftHelpers.wait_for_activation Node.self(), 3
 
+IO.puts ">> Starting ExUnit!"
 ExUnit.start()

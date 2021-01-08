@@ -5,6 +5,7 @@ defmodule Singyeong.Store do
   """
 
   alias Singyeong.Config
+  alias Singyeong.Metadata.Query
   alias Singyeong.Store.Client
 
   @type app_id() :: String.t()
@@ -89,4 +90,10 @@ defmodule Singyeong.Store do
     :: {:ok, %{optional(String.t()) => any()}}
        | {:error, %{String.t() => String.t()}}
   defdelegate validate_metadata(metadata), to: Config.store_mod()
+
+  @doc """
+  Query the store for clients matching the specified query.
+  """
+  @callback query(Query.t()) :: {:ok, [Client.t()]} | {:error, Query.QueryError.t()}
+  defdelegate query(query), to: Config.store_mod()
 end

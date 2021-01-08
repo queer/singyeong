@@ -57,9 +57,6 @@ defmodule Singyeong.Cluster do
       {:ok, _} = Node.start node_atom, :longnames
       Node.set_cookie state[:cookie] |> String.to_atom
 
-      Logger.info "[CLUSTER] Bootstrapping store..."
-      Store.start()
-
       Logger.info "[CLUSTER] Updating registry..."
       new_state = %{state | longname: node_name}
       registry_write new_state
@@ -193,9 +190,10 @@ defmodule Singyeong.Cluster do
   """
   def query(query, broadcast \\ false) do
     run_clustered fn ->
-      query
-      # |> Query.json_to_query
-      |> Query.run_query(broadcast)
+      Singyeong.Store.query query
+      # query
+      # # |> Query.json_to_query
+      # |> Query.run_query(broadcast)
     end
   end
 

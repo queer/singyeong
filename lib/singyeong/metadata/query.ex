@@ -54,17 +54,11 @@ defmodule Singyeong.Metadata.Query do
     | :"$or"
     | :"$nor"
 
-  @type boolean_op() :: %{
-      required(boolean_op_name()) => value()
-    }
+  @type boolean_op() :: {boolean_op_name(), value()}
 
-  @type logical_op() :: %{
-    required(logical_op_name()) => maybe_improper_list(boolean_op(), logical_op())
-  }
+  @type logical_op() :: {logical_op_name(), maybe_improper_list(boolean_op(), logical_op())}
 
-  @type op() :: %{
-    required(binary()) => boolean_op() | logical_op()
-  }
+  @type op() :: {String.t(), boolean_op() | logical_op()}
 
   typedstruct do
     field :application, binary(), enforce: true
@@ -73,6 +67,10 @@ defmodule Singyeong.Metadata.Query do
     field :droppable, boolean() | nil
     field :optional, boolean() | nil
     field :ops, ops(), enforce: true
+  end
+
+  typedstruct module: QueryError do
+    ;
   end
 
   @spec json_to_query(map()) :: __MODULE__.t()
@@ -135,9 +133,9 @@ defmodule Singyeong.Metadata.Query do
     {op, value} = map |> Map.get(key) |> Enum.at(0)
     op_function = op |> String.to_atom |> operator_to_function
     if op in @logical_op_names and is_list(value) do
-      %{op_function => Enum.map(value, &recursive_atomify_op/1)}
+      {op_function, Enum.map(value, &recursive_atomify_op/1)}
     else
-      %{op_function => %{key => value}}
+      {op_function, {key, value}}
     end
   end
 
@@ -174,7 +172,7 @@ defmodule Singyeong.Metadata.Query do
         query.ops
       else
         # Otherwise, explicitly require clients to not be restricted
-        Utils.fast_list_concat query.ops, [%{:op_eq => %{"restricted" => false}}]
+        Utils.fast_list_concat query.ops, [{:op_eq, {"restricted", false}}]
       end
 
     {:ok, app_clients} = Store.get_app_clients app_id
@@ -230,7 +228,7 @@ defmodule Singyeong.Metadata.Query do
       [true]
     else
       # Otherwise, actually run it and see what comes out
-      # ops = [%{key: %{$eq: "value"}}]
+      # ops = [{key, {$eq, "value"}}]
       do_reduce_query client, ops
     end
   end
@@ -238,10 +236,7 @@ defmodule Singyeong.Metadata.Query do
   @spec do_reduce_query(Client.t(), list()) :: [boolean()]
   defp do_reduce_query(%Client{} = client, ops) when is_list(ops) do
     ops
-    |> Enum.map(fn(query_form_op) ->
-      # query_form_op = %{op_eq: %{key: "value"}}
-      {op_function, key_value} = Enum.at query_form_op, 0
-      {key, value} = Enum.at key_value, 0
+    |> Enum.map(fn({op_function, {key, value}}) ->
       # do_run_query(metadata, key, %{$eq: "value"})
       do_run_query client.metadata, op_function, key, value
     end)

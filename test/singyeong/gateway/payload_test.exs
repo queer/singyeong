@@ -39,11 +39,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           optional: false,
           droppable: false,
           ops: [
-            %{
-              op_eq: %{
-                "key" => "value",
-              },
-            },
+            {:op_eq, {"key", "value"}},
           ],
         },
       }
@@ -88,11 +84,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           optional: false,
           droppable: false,
           ops: [
-            %{
-              op_eq: %{
-                "key" => "value",
-              },
-            },
+            {:op_eq, {"key", "value"}},
           ],
         },
       },
