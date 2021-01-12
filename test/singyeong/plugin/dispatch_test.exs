@@ -87,7 +87,7 @@ defmodule Singyeong.Plugin.DispatchTest do
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
-    {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
+    {:text, %Payload{t: t, op: op, ts: ts, d: d}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
     %Error{
@@ -119,7 +119,7 @@ defmodule Singyeong.Plugin.DispatchTest do
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
-    {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
+    {:text, %Payload{t: t, op: op, ts: ts, d: d}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
     %Error{
@@ -151,7 +151,7 @@ defmodule Singyeong.Plugin.DispatchTest do
       }
 
     {:error, frames} = Dispatch.handle_dispatch socket, dispatch
-    {:close, {:text, %Payload{t: t, op: op, ts: ts, d: d}}} = frames
+    {:text, %Payload{t: t, op: op, ts: ts, d: d}} = frames
     assert Gateway.opcodes_name()[:invalid] == op
     assert nil == t
     %Error{
