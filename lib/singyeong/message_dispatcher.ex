@@ -86,7 +86,7 @@ defmodule Singyeong.MessageDispatcher do
 
   defp send_dispatch(clients, type, nonce, payload) do
     clients
-    |> Enum.map(fn {_, client} ->
+    |> Enum.map(fn client ->
       client.socket_pid
     end)
     |> Enum.filter(&(&1 != nil and Process.alive?(&1)))

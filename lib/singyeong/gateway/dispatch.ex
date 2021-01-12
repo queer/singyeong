@@ -24,7 +24,7 @@ defmodule Singyeong.Gateway.Dispatch do
 
   def can_dispatch?(socket, event) do
     cond do
-      socket.assigns[:restricted] && event == "UPDATE_METADATA" ->
+      socket.assigns[:restricted] and event == "UPDATE_METADATA" ->
         true
 
       socket.assigns[:restricted] ->
@@ -212,26 +212,13 @@ defmodule Singyeong.Gateway.Dispatch do
     apply plugin, :undo, [event, undo_state]
   end
 
-  defp get_possible_clients(query_res) do
-    # Query returns {app_id, [client]}
-    # Clustering it returns a %{node => {app_id, [client]}}
-    # This converts it to a [{node, [{app_id, client}]}]
-    clients =
-      query_res
-      |> Enum.map(fn
-        {node, {_app, []}} ->
-          {node, []}
-
-        {node, {app, clients}} ->
-          {node, Enum.map(clients, &{app, &1})}
-      end)
-
+  defp get_possible_clients(clients) do
     client_count =
       clients
       |> Enum.flat_map(fn {_, clients} -> clients end)
       |> Enum.count
 
-    {clients, client_count}
+    {Map.to_list(clients), client_count}
   end
 
   defp send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?) do
@@ -293,8 +280,8 @@ defmodule Singyeong.Gateway.Dispatch do
             {node, [next_client]} =
               matches
               |> Enum.filter(fn {_node, clients} ->
-                Enum.any? clients, fn {app, client} ->
-                  next_client_id == {app, client.client_id}
+                Enum.any? clients, fn client ->
+                  next_client_id == {client.app_id, client.client_id}
                 end
               end)
               |> hd
@@ -306,8 +293,7 @@ defmodule Singyeong.Gateway.Dispatch do
                 id: id,
               }
 
-            {app_id, %{client_id: client_id}} = next_client
-            :ok = Queue.remove_client queue_name, {app_id, client_id}
+            :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
 
             # Queues can only send to a single client, so client_count=1
             MessageDispatcher.send_with_retry nil, [{node, [next_client]}], 1, %Payload.Dispatch{
@@ -325,7 +311,7 @@ defmodule Singyeong.Gateway.Dispatch do
   defp intersection(pending_clients, matches) do
     matches
     |> Enum.flat_map(fn {_node, clients} -> clients end)
-    |> Enum.map(fn {app_id, client} -> {app_id, client.client_id} end)
+    |> Enum.map(fn client -> {client.app_id, client.client_id} end)
     |> Enum.filter(&Enum.member?(pending_clients, &1))
   end
 end

@@ -37,7 +37,7 @@ config :phoenix, :json_library, Jason
 config :singyeong,
   # The module to use for metadata storage. The default is the built-in mnesia
   # metadata store.
-  store: Singyeong.Store.Mnesia,
+  store: Singyeong.Mnesia.Store,
   # The password to use for authentication. This should be a long, secure
   # password. See the "Security" section in README.md for why. Plugins may
   # ignore this value and use their own authentication scheme. Defaults to no

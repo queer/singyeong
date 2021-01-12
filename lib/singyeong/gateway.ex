@@ -391,7 +391,7 @@ defmodule Singyeong.Gateway do
         queues: []
       }
 
-    Store.add_client client
+    {:ok, _} = Store.add_client client
 
     if restricted do
       Logger.info "[GATEWAY] Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"

@@ -38,7 +38,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {{app_id, client_id}, new_metadata, new_state} = process_updates nil, %{}, state
     if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
       # Only update metadata if there's new metadata
-      client = Store.get_client app_id, client_id
+      {:ok, client} = Store.get_client app_id, client_id
       Store.update_client %{
         client
         | metadata: Map.merge(client.metadata, new_metadata)

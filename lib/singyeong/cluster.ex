@@ -6,7 +6,6 @@ defmodule Singyeong.Cluster do
   use GenServer
   alias Singyeong.Config
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Metadata.Query
   alias Singyeong.Redis
   alias Singyeong.Store
   alias Singyeong.Utils
@@ -30,6 +29,7 @@ defmodule Singyeong.Cluster do
       :crypto.hash(:md5, now)
       |> Base.encode16
       |> String.downcase
+
     state =
       %{
         name: "singyeong_#{get_hostname()}_#{Config.port()}",
@@ -55,9 +55,6 @@ defmodule Singyeong.Cluster do
       Logger.info "[CLUSTER] Starting node: #{node_name}"
       {:ok, _} = Node.start node_atom, :longnames
       Node.set_cookie state[:cookie] |> String.to_atom
-
-      Logger.info "[CLUSTER] Bootstrapping store..."
-      Store.start()
 
       Logger.info "[CLUSTER] Updating registry..."
       new_state = %{state | longname: node_name}
@@ -190,11 +187,10 @@ defmodule Singyeong.Cluster do
   Run a metadata query across the entire cluster, and return a mapping of nodes
   to matching client ids.
   """
-  def query(query, broadcast \\ false) do
+  # TODO: Remove broadcast param
+  def query(query, _broadcast \\ false) do
     run_clustered fn ->
-      query
-      # |> Query.json_to_query
-      |> Query.run_query(broadcast)
+      Singyeong.Store.query query
     end
   end
 
