@@ -26,6 +26,36 @@ Does not require authorization.
 < }
 ```
 
+## Metadata querying
+
+### `POST /query`
+
+Runs the provided query against the metadata store and returns matching
+clients.
+
+#### Example
+
+```
+> POST /api/v1/query
+> Content-Type: application/json
+> Authorization: password
+> {
+>   "application": "users-service",
+>   "ops": [{"latency": {"$lte": "100"}}]
+> }
+
+< Content-Type: application/json
+< [
+<   {
+<     "app_id": "app",
+<     "client_id": "client",
+<     "metadata": {"latency": 50},
+<     "socket_ip": "127.0.0.1",
+<     "queues": ["test"],
+<   }
+< ]
+```
+
 ## Request proxying
 
 ### `POST /proxy`

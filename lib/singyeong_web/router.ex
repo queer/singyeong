@@ -25,6 +25,7 @@ defmodule SingyeongWeb.Router do
       pipe_through :authenticated_routes
       forward "/plugin", Plugs.PluginRouter
       post "/proxy", ProxyController, :proxy
+      post "/query", GenericController, :query
     end
 
     get "/version", GenericController, :versions
