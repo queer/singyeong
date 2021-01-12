@@ -228,22 +228,12 @@ defmodule Singyeong.Mnesia.Store do
   end
 
   defp with_ops(lethe, %Query{ops: ops}) do
-    Enum.reduce ops, lethe, fn {op, {key, value}}, query ->
-      case op do
-        :op_eq -> __MODULE__.QueryHelpers.op_eq query, key, value
-        :op_ne -> __MODULE__.QueryHelpers.op_ne query, key, value
-        :op_gt -> __MODULE__.QueryHelpers.op_gt query, key, value
-        :op_gte -> __MODULE__.QueryHelpers.op_gte query, key, value
-        :op_lt -> __MODULE__.QueryHelpers.op_lt query, key, value
-        :op_lte -> __MODULE__.QueryHelpers.op_lte query, key, value
-        :op_in -> __MODULE__.QueryHelpers.op_in query, key, value
-        :op_nin -> __MODULE__.QueryHelpers.op_nin query, key, value
-        :op_contains -> __MODULE__.QueryHelpers.op_contains query, key, value
-        :op_ncontains -> __MODULE__.QueryHelpers.op_ncontains query, key, value
-        :op_and -> __MODULE__.QueryHelpers.op_and query, key, value
-        :op_or -> __MODULE__.QueryHelpers.op_or query, key, value
-        :op_nor -> __MODULE__.QueryHelpers.op_nor query, key, value
-      end
+    Enum.reduce ops, lethe, fn
+      {_op, {_key, _value}} = operation, query ->
+        __MODULE__.QueryHelpers.compile_op query, operation
+
+      {_op, args} = operation, query when is_list args ->
+        __MODULE__.QueryHelpers.compile_op query, operation
     end
   end
 
@@ -325,62 +315,151 @@ defmodule Singyeong.Mnesia.Store do
     end
   end
 
+  def clients, do: @clients
+
   defmodule QueryHelpers do
     ## Functional ops ##
 
-    def op_eq(lethe, key, value) do
+    defp op_eq(lethe, key, value) do
       # TODO: map_is_key(^key, map_get(&:metadata, :client)) and
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) == ^value
     end
 
-    def op_ne(lethe, key, value) do
+    defp op_ne(lethe, key, value) do
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) != ^value
     end
 
-    def op_gt(lethe, key, value) do
+    defp op_gt(lethe, key, value) do
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) > ^value
     end
 
-    def op_gte(lethe, key, value) do
+    defp op_gte(lethe, key, value) do
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) >= ^value
     end
 
-    def op_lt(lethe, key, value) do
+    defp op_lt(lethe, key, value) do
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) < ^value
     end
 
-    def op_lte(lethe, key, value) do
+    defp op_lte(lethe, key, value) do
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) <= ^value
     end
 
-    def op_in(lethe, key, value) do
+    defp op_in(lethe, key, value) do
       Lethe.where lethe, map_is_key(map_get(^key, map_get(&:metadata, :client)), ^value)
     end
 
-    def op_nin(lethe, key, value) do
+    defp op_nin(lethe, key, value) do
       Lethe.where lethe, not map_is_key(map_get(^key, map_get(&:metadata, :client)), ^value)
     end
 
-    def op_contains(lethe, key, value) do
+    defp op_contains(lethe, key, value) do
       Lethe.where lethe, map_is_key(^value, map_get(^key, map_get(&:metadata, :client)))
     end
 
-    def op_ncontains(lethe, key, value) do
+    defp op_ncontains(lethe, key, value) do
       Lethe.where lethe, not map_is_key(^value, map_get(^key, map_get(&:metadata, :client)))
     end
 
     ## Logical ops ##
 
-    def op_and(lethe, key, value) do
-      lethe
+    defp op_and(lethe, args) do
+      and_op =
+        Enum.reduce args, nil, fn expr, acc ->
+          compiled_expr =
+            Singyeong.Mnesia.Store.clients()
+            |> Lethe.new
+            |> Lethe.select(:client)
+            |> compile_op(expr)
+            |> Map.from_struct
+            |> Map.get(:ops)
+            |> hd
+
+          case acc do
+            nil ->
+              compiled_expr
+
+            _ ->
+              {:andalso, compiled_expr, acc}
+          end
+        end
+
+      Lethe.where_raw lethe, and_op
     end
 
-    def op_or(lethe, key, value) do
-      lethe
+    defp op_or(lethe, args) do
+      or_op =
+        Enum.reduce args, nil, fn expr, acc ->
+          compiled_expr =
+            Singyeong.Mnesia.Store.clients()
+            |> Lethe.new
+            |> Lethe.select(:client)
+            |> compile_op(expr)
+            |> Map.from_struct
+            |> Map.get(:ops)
+            |> hd
+
+          case acc do
+            nil ->
+              compiled_expr
+
+            _ ->
+              {:orelse, compiled_expr, acc}
+          end
+        end
+
+      Lethe.where_raw lethe, or_op
     end
 
-    def op_nor(lethe, key, value) do
-      lethe
+    defp op_nor(lethe, args) do
+      or_op =
+        Enum.reduce args, nil, fn expr, acc ->
+          compiled_expr =
+            Singyeong.Mnesia.Store.clients()
+            |> Lethe.new
+            |> Lethe.select(:client)
+            |> compile_op(expr)
+            |> Map.from_struct
+            |> Map.get(:ops)
+            |> hd
+
+          case acc do
+            nil ->
+              compiled_expr
+
+            _ ->
+              {:orelse, compiled_expr, acc}
+          end
+        end
+
+      Lethe.where_raw lethe, {:not, or_op}
+    end
+
+    ## Helpers ##
+
+    def compile_op(query, {op, {key, value}}) do
+      case op do
+        :op_eq -> op_eq query, key, value
+        :op_ne -> op_ne query, key, value
+        :op_gt -> op_gt query, key, value
+        :op_gte -> op_gte query, key, value
+        :op_lt -> op_lt query, key, value
+        :op_lte -> op_lte query, key, value
+        :op_in -> op_in query, key, value
+        :op_nin -> op_nin query, key, value
+        :op_contains -> op_contains query, key, value
+        :op_ncontains -> op_ncontains query, key, value
+      end
+    end
+
+    def compile_op(query, {op, args}) when is_list(args) do
+      case op do
+        # TODO: Reducing these down is quite painful it turns out
+        # How to deal with?
+        :op_and -> op_and query, args
+        :op_or -> op_or query, args
+        :op_nor -> op_nor query, args
+      end
     end
   end
 end

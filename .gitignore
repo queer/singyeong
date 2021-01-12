@@ -19,7 +19,8 @@ erl_crash.dump
 *.sh
 !/coverage.sh
 !/docker-entrypoint.sh
-Mnesia*/
+/Mnesia*
+/Mnesia*/
 /plugins
 config/custom.exs
 /priv/test/plugin/*
