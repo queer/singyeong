@@ -330,20 +330,29 @@ Inner payload:
 
 ## 신경 node queries
 
-신경 implements a MongoDB-inspired query language. Specifically, 신경 supports
-the following query selectors:
+신경 implements a MongoDB-inspired query language.
+
+### Metadata types
+
+- `string`
+- `integer`
+- `float`
+- `version`
+- `list`
+
+### Query operators
 
 Comparison:
-- `$eq`
-- `$ne`
-- `$gt`
-- `$gte`
-- `$lt`
-- `$lte`
-- `$in` - list query values only
-- `$nin` - list query values only
-- `$contains` - list metadata values only
-- `$ncontains` - list metadata values only
+- `$eq`: metadata value `==` incoming value
+- `$ne`: metadata value `!=` incoming value
+- `$gt`: metadata value `>` incoming value
+- `$gte`: metadata value `>=` incoming value
+- `$lt`: metadata value `<` incoming value
+- `$lte`: metadata value `<=` incoming value
+- `$in` - metadata value `in` incoming list
+- `$nin` - metadata value `not in` incoming list
+- `$contains` - incoming value `in` metadata list
+- `$ncontains` - incoming value `not in` metadata list
 
 Logical:
 - `$and`
@@ -361,6 +370,8 @@ For more about MongoDB, see the following:
 
 - https://docs.mongodb.com/manual/tutorial/query-documents/
 - https://docs.mongodb.com/manual/reference/operator/query/
+
+### Query selectors
 
 ### Query formatting
 
@@ -447,22 +458,9 @@ if it cannot be routed. Specifically, if a message's routing query returns no
 results, and the value of `droppable` is `true`, the message will be silently
 dropped.
 
-### Optional queries
-
-Sometimes, it is desirable to have a message be routed even if the query fails.
-To make a routing query optional, simply add the `optional` key and set its
-value to `true`:
-
-```Javascript
-{
-  "application": "application id here",
-  "optional": true,
-  "ops": [
-    {"key": {"$eq": "value"}},
-    {"key2": {"$lte": 1234}},
-  ]
-}
-```
+The `optional` key marks the query as, well, optional -- if the query fails to
+return any matching clients, it is ignored and the query is rerun as though
+there were no ops / selectors specified.
 
 ### Why invent a new-ish query language?
 

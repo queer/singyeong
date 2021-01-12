@@ -15,8 +15,13 @@ defmodule Singyeong.Mnesia.Store do
 
   @impl Singyeong.Store
   def start do
+    # If we don't stop Mnesia first, then creating the schema will spuriously
+    # fail, but then creating the schema will fail in funny ways, meaning that
+    # Mnesia can never start properly. This ensures in a store-agnostic way
+    # that Mnesia can do the right thing.
+    :stopped = :mnesia.stop()
     :mnesia.create_schema []
-    :mnesia.start()
+    :ok = :mnesia.start()
 
     # General storage
     create_table_with_indexes @clients,   [attributes: [:composite_id, :client]], [:client]
@@ -163,10 +168,24 @@ defmodule Singyeong.Mnesia.Store do
         # doesn't pass, a descriptive error is generated and returned.
         cond do
           Types.type_exists?(type) and key not in Metadata.forbidden_keys() ->
-            if Types.get_type(type).validate.(value) do
-              {:ok, {key, value}}
-            else
-              {:error, {key, "#{key}: value fails validation for '#{type}'"}}
+            cond do
+              Types.get_type(type).validate.(value) and type == "list" ->
+                # Mnesia does not allow us to query `x in list types of things
+                # easily. This makes sense as that's not exactly an O(1) query
+                # to make. Instead, we reduce the list into a keymap that holds
+                # the relevant data, so that Mnesia can do an O(1) lookup.
+                reduced_list =
+                  Enum.reduce value, %{}, fn x, acc ->
+                    Map.put acc, x, nil
+                  end
+
+                {:ok, {key, reduced_list}}
+
+              Types.get_type(type).validate.(value) ->
+                {:ok, {key, value}}
+
+              true ->
+                {:error, {key, "#{key}: value fails validation for '#{type}'"}}
             end
 
           not Types.type_exists?(type) ->
@@ -331,7 +350,7 @@ defmodule Singyeong.Mnesia.Store do
     ## Functional ops ##
 
     defp op_eq(lethe, key, value) do
-      # TODO: map_is_key(^key, map_get(&:metadata, :client)) and
+      # TODO: is_map_key(^key, map_get(&:metadata, :client)) and
       Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) == ^value
     end
 
@@ -356,19 +375,19 @@ defmodule Singyeong.Mnesia.Store do
     end
 
     defp op_in(lethe, key, value) do
-      Lethe.where lethe, map_is_key(map_get(^key, map_get(&:metadata, :client)), ^value)
+      Lethe.where lethe, is_map_key(map_get(^key, map_get(&:metadata, :client)), ^value)
     end
 
     defp op_nin(lethe, key, value) do
-      Lethe.where lethe, not map_is_key(map_get(^key, map_get(&:metadata, :client)), ^value)
+      Lethe.where lethe, not is_map_key(map_get(^key, map_get(&:metadata, :client)), ^value)
     end
 
     defp op_contains(lethe, key, value) do
-      Lethe.where lethe, map_is_key(^value, map_get(^key, map_get(&:metadata, :client)))
+      Lethe.where lethe, is_map_key(^value, map_get(^key, map_get(&:metadata, :client)))
     end
 
     defp op_ncontains(lethe, key, value) do
-      Lethe.where lethe, not map_is_key(^value, map_get(^key, map_get(&:metadata, :client)))
+      Lethe.where lethe, not is_map_key(^value, map_get(^key, map_get(&:metadata, :client)))
     end
 
     ## Logical ops ##
