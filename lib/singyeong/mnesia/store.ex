@@ -1,5 +1,7 @@
 defmodule Singyeong.Mnesia.Store do
-  @moduledoc false
+  @moduledoc """
+  The default Mnesia-backed metadata etc. store.
+  """
 
   alias Singyeong.Metadata
   alias Singyeong.Metadata.{Query, Types}
@@ -318,6 +320,14 @@ defmodule Singyeong.Mnesia.Store do
   def clients, do: @clients
 
   defmodule QueryHelpers do
+    @moduledoc """
+    Query helpers for the Mnesia store. This module is the actual
+    implementation of all the query ops and selectors, converting them from
+    신경 form to Mnesia form via [Lethe](https://queer.gg/lethe).
+    """
+
+    alias Singyeong.Mnesia.Store
+
     ## Functional ops ##
 
     defp op_eq(lethe, key, value) do
@@ -367,7 +377,7 @@ defmodule Singyeong.Mnesia.Store do
       and_op =
         Enum.reduce args, nil, fn expr, acc ->
           compiled_expr =
-            Singyeong.Mnesia.Store.clients()
+            Store.clients()
             |> Lethe.new
             |> Lethe.select(:client)
             |> compile_op(expr)
@@ -391,7 +401,7 @@ defmodule Singyeong.Mnesia.Store do
       or_op =
         Enum.reduce args, nil, fn expr, acc ->
           compiled_expr =
-            Singyeong.Mnesia.Store.clients()
+            Store.clients()
             |> Lethe.new
             |> Lethe.select(:client)
             |> compile_op(expr)
@@ -415,7 +425,7 @@ defmodule Singyeong.Mnesia.Store do
       or_op =
         Enum.reduce args, nil, fn expr, acc ->
           compiled_expr =
-            Singyeong.Mnesia.Store.clients()
+            Store.clients()
             |> Lethe.new
             |> Lethe.select(:client)
             |> compile_op(expr)

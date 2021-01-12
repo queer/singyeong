@@ -70,7 +70,6 @@ defmodule Singyeong.Metadata.Query do
   end
 
   typedstruct module: QueryError do
-    ;
   end
 
   @spec json_to_query(map()) :: __MODULE__.t()
