@@ -119,12 +119,16 @@ defmodule Singyeong.Gateway.Payload do
     raise ArgumentError, "bad payload (op_atom = #{op_atom}, op_int = #{op_int}, t_bin = #{t_bin}, t_nil = #{t_nil}, d_map = #{d_map})"
   end
 
+  def error(err, extra_info \\ nil) do
+    create_payload :invalid, %Error{error: err, extra_info: extra_info}
+  end
+
   def close_with_payload(op, data) do
     {:close, create_payload(op, data)}
   end
 
   def close_with_error(err, extra_info \\ nil) do
-    close_with_op_and_error :invalid, err, extra_info
+    close_with_op_and_error :error, err, extra_info
   end
 
   def close_with_op_and_error(op, err, extra_info \\ nil) do

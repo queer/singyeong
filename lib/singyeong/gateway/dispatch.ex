@@ -55,7 +55,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:ok, []}
 
       {:error, errors} ->
-        {:error, Payload.close_with_error("invalid metadata", errors)}
+        {:error, Payload.error("invalid metadata", errors)}
     end
   end
 
@@ -108,7 +108,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:ok, []}
 
       {:error, value} ->
-        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+        {:error, Payload.error("Unroutable payload: #{value}", payload)}
     end
   end
 
@@ -118,7 +118,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:ok, []}
 
       {:error, value} ->
-        {:error, Payload.close_with_error("Unroutable payload: #{value}", payload)}
+        {:error, Payload.error("Unroutable payload: #{value}", payload)}
     end
   end
 
@@ -126,7 +126,7 @@ defmodule Singyeong.Gateway.Dispatch do
     plugins = PluginManager.plugins_for_event :custom_events, t
     case plugins do
       [] ->
-        {:error, Payload.close_with_error("invalid dispatch payload", payload)}
+        {:error, Payload.error("invalid dispatch payload", payload)}
 
       plugins when is_list(plugins) ->
         case run_pipeline(plugins, t, data, [], []) do
@@ -149,7 +149,7 @@ defmodule Singyeong.Gateway.Dispatch do
                 undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
               }
 
-            {:error, Payload.close_with_error("Error processing plugin event #{t}", error_info)}
+            {:error, Payload.error("Error processing plugin event #{t}", error_info)}
         end
     end
   end

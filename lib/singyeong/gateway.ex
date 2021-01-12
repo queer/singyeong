@@ -36,6 +36,8 @@ defmodule Singyeong.Gateway do
     :heartbeat_ack => 6,
     # recv
     :goodbye       => 7,
+    # recv
+    :error         => 8,
   }
 
   @opcodes_id %{
@@ -55,6 +57,8 @@ defmodule Singyeong.Gateway do
     6 => :heartbeat_ack,
     # recv
     7 => :goodbye,
+    # recv
+    8 => :error,
   }
 
   @valid_encodings [
@@ -161,7 +165,8 @@ defmodule Singyeong.Gateway do
             "cannot decode payload"
           end
 
-        Payload.close_with_error(error_msg)
+        error_msg
+        |> Payload.close_with_error
         |> craft_response
     end
   end
@@ -254,7 +259,8 @@ defmodule Singyeong.Gateway do
       end
 
     if should_disconnect do
-      Payload.close_with_error("heartbeat took too long")
+      "heartbeat took too long"
+      |> Payload.close_with_error
       |> craft_response
     else
       try_handle_event socket, payload
@@ -269,7 +275,8 @@ defmodule Singyeong.Gateway do
       # identified itself yet and as such shouldn't be allowed to do anything
       # BUT identify
       # We try to halt it as soon as possible so that we don't waste time on it
-      Payload.close_with_error("sent payload with non-identify opcode without identifying first")
+      "sent payload with non-identify opcode without identifying first"
+      |> Payload.close_with_error
       |> craft_response
     else
       try do
@@ -294,8 +301,8 @@ defmodule Singyeong.Gateway do
         e ->
           formatted = Exception.format :error, e, __STACKTRACE__
           Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
-          :invalid
-          |> Payload.close_with_error("internal server error")
+          "internal server error"
+          |> Payload.close_with_error
           |> craft_response
       end
     end
@@ -356,12 +363,14 @@ defmodule Singyeong.Gateway do
             finish_identify app_id, client_id, socket, ip, restricted, encoding
           else
             # If we already have a client, reject outright
-            Payload.close_with_error("#{client_id}: already registered for app #{app_id}")
+            "#{client_id}: already registered for app #{app_id}"
+            |> Payload.close_with_error
             |> craft_response
           end
 
         {:error, errors} ->
-          Payload.close_with_error("Errors occurred during auth:", errors)
+          "Errors occurred during auth"
+          |> Payload.close_with_error(errors)
           |> craft_response
       end
     else
@@ -507,7 +516,7 @@ defmodule Singyeong.Gateway do
                 undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
               }
 
-            {:error, Payload.close_with_error("Error processing plugin event #{type}", error_payload)}
+            {:error, Payload.error("Error processing plugin event #{type}", error_payload)}
         end
     end
   end
@@ -586,12 +595,14 @@ defmodule Singyeong.Gateway do
   end
 
   defp handle_missing_data do
-    Payload.close_with_error("payload has no data")
+    "payload has no data"
+    |> Payload.close_with_error
     |> craft_response
   end
 
   defp handle_invalid_op(_socket, op) do
-    Payload.close_with_error("invalid client op #{inspect op}")
+    "invalid client op #{inspect op}"
+    |> Payload.close_with_error
     |> craft_response
   end
 
