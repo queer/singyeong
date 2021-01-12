@@ -97,14 +97,15 @@ encoding is assumed.
 
 | opcode | name            | mode | description |
 |--------|-----------------|------|-------------|
-| 0      | `hello`         | recv | Sent on initial connection to the gateway |
-| 1      | `identify`      | send | Tell the gateway who you are |
-| 2      | `ready`         | recv | The gateway has accepted you, and will send you packets |
-| 3      | `invalid`       | recv | The gateway doesn't like you for some reason, and wants you to go away (more info will be included in the `error` field of `d`) |
-| 4      | `dispatch`      | both | The gateway is sending you an event, or you are sending the gateway an event |
-| 5      | `heartbeat`     | send | Send a heartbeat to the gateway |
-| 6      | `heartbeat_ack` | recv | Gateway acknowledging the last heartbeat you sent |
-| 7      | `goodbye`       | recv | Sent to tell you to heck off and try reconnecting. Used for eg. load balancing. |
+| 0      | `hello`         | recv | Sent on initial connection to the server. |
+| 1      | `identify`      | send | Tell the server who you are. |
+| 2      | `ready`         | recv | The server has accepted you, and will send you packets |
+| 3      | `invalid`       | recv | Sent to tell you that an application-level issue with your payload occurred. |
+| 4      | `dispatch`      | both | The server is sending you an event, or you are sending the gateway an event. |
+| 5      | `heartbeat`     | send | Send a heartbeat to the server. |
+| 6      | `heartbeat_ack` | recv | Server acknowledging the last heartbeat you sent. |
+| 7      | `goodbye`       | recv | Sent to tell you to reconnect. Used for eg. load balancing. |
+| 8      | `error`         | recv | Sent to tell you that an unrecoverable error occurred. |
 
 ## 신경 events, the right way
 
