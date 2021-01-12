@@ -228,6 +228,13 @@ defmodule Singyeong.Mnesia.Store do
       |> with_ops(query)
       |> Lethe.compile
       |> Lethe.run
+      |> case do
+        {:ok, clients} ->
+          __MODULE__.QueryHelpers.select clients, query
+
+        {:error, _} = err ->
+          err
+      end
 
     matching_clients
   end
@@ -464,6 +471,21 @@ defmodule Singyeong.Mnesia.Store do
       Lethe.where_raw lethe, {:not, or_op}
     end
 
+    ## Selectors ##
+
+    defp selector_min(clients, field) do
+      Enum.min_by clients, &(&1.metadata[field])
+    end
+
+    defp selector_max(clients, field) do
+      Enum.max_by clients, &(&1.metadata[field])
+    end
+
+    defp selector_avg(clients, field) do
+      avg = Enum.reduce(clients, fn sum, score -> sum + score end)
+      Enum.min_by clients, &(&1.metadata[field] - avg)
+    end
+
     ## Helpers ##
 
     def compile_op(query, {op, {key, value}}) do
@@ -483,12 +505,34 @@ defmodule Singyeong.Mnesia.Store do
 
     def compile_op(query, {op, args}) when is_list(args) do
       case op do
-        # TODO: Reducing these down is quite painful it turns out
-        # How to deal with?
         :op_and -> op_and query, args
         :op_or -> op_or query, args
         :op_nor -> op_nor query, args
       end
+    end
+
+    def select(clients, %Query{selector: {op, key}}) do
+      res =
+        op
+        |> Atom.to_string
+        |> String.replace("$", "selector_")
+        |> String.to_atom
+        |> case do
+          :selector_min ->
+            selector_min clients, key
+
+          :selector_max ->
+            selector_max clients, key
+
+          :selector_avg ->
+            selector_avg clients, key
+        end
+
+      {:ok, [res]}
+    end
+
+    def select(clients, _) do
+      {:ok, clients}
     end
   end
 end

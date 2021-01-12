@@ -6,7 +6,6 @@ defmodule Singyeong.Cluster do
   use GenServer
   alias Singyeong.Config
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Metadata.Query
   alias Singyeong.Redis
   alias Singyeong.Store
   alias Singyeong.Utils
@@ -188,12 +187,10 @@ defmodule Singyeong.Cluster do
   Run a metadata query across the entire cluster, and return a mapping of nodes
   to matching client ids.
   """
-  def query(query, broadcast \\ false) do
+  # TODO: Remove broadcast param
+  def query(query, _broadcast \\ false) do
     run_clustered fn ->
       Singyeong.Store.query query
-      # query
-      # # |> Query.json_to_query
-      # |> Query.run_query(broadcast)
     end
   end
 

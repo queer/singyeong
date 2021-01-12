@@ -30,6 +30,11 @@ defmodule Singyeong.Metadata.Query do
     "$or",
     "$nor",
   ]
+  @selector_names [
+    "$min",
+    "$max",
+    "$avg",
+  ]
 
   @opaque query_op_result() :: {:ok, boolean()} | {:error, binary()}
   @type key() :: binary()
@@ -60,13 +65,19 @@ defmodule Singyeong.Metadata.Query do
 
   @type op() :: {String.t(), boolean_op() | logical_op()}
 
+  @type selector_name() ::
+    :"$min"
+    | :"$max"
+    | :"$avg"
+
   typedstruct do
-    field :application, binary(), enforce: true
+    field :application, String.t(), enforce: true
     field :restricted, boolean() | nil
-    field :key, binary() | nil
+    field :key, String.t() | nil
     field :droppable, boolean() | nil
     field :optional, boolean() | nil
     field :ops, ops(), enforce: true
+    field :selector, {selector_name(), String.t()}
   end
 
   typedstruct module: QueryError do
@@ -80,7 +91,8 @@ defmodule Singyeong.Metadata.Query do
       key: coerce_to_nil_binary(json["key"]),
       droppable: coerce_to_boolean(json["droppable"]),
       optional: coerce_to_boolean(json["optional"]),
-      ops: extract_ops(json["ops"])
+      ops: extract_ops(json["ops"]),
+      selector: extract_selector(json["selector"]),
     }
   end
 
@@ -94,9 +106,21 @@ defmodule Singyeong.Metadata.Query do
     end
   end
 
-  defp coerce_to_nil_binary(term) do
-    if is_binary(term), do: term, else: nil
+  defp coerce_to_nil_binary(term), do: if is_binary(term), do: term, else: nil
+
+  defp extract_selector(%{} = selector_map) do
+    selector =
+      selector_map
+      |> Map.keys
+      |> hd
+
+    if selector in @selector_names do
+      {String.to_atom(selector), selector_map[selector]}
+    else
+      nil
+    end
   end
+  defp extract_selector(_), do: nil
 
   defp extract_ops(ops) do
     # Something something don't trust users X:

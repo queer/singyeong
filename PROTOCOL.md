@@ -373,6 +373,18 @@ For more about MongoDB, see the following:
 
 ### Query selectors
 
+Selectors allow you to select **one** matching client by means that would
+otherwise be impossible with a query. For example, "select the client with the
+lowest latency" would not be doable without selectors.
+
+The following selectors exist:
+- `$min`: Minimum value of `key`
+- `$max`: Maximum value of `key`
+- `$avg`: Average value of `key`
+
+Currently, each selector can only operate on a single metadata key, and only
+a single selector can be used. This is subject to change in the future.
+
 ### Query formatting
 
 Queries are effectively just JSON objects. At some point there may be a "nice"
@@ -420,7 +432,9 @@ object like the following:
         ]
       }
     }
-  ]
+  ],
+  // The selector used. May be null. See the description(s) above.
+  "selector": {"$min": "key"},
 }
 ```
 
