@@ -1,5 +1,6 @@
 defmodule SingyeongWeb.GenericController do
   use SingyeongWeb, :controller
+  alias Singyeong.Metadata.Query
 
   def not_found(conn, _params) do
     conn
@@ -13,6 +14,18 @@ defmodule SingyeongWeb.GenericController do
       "singyeong" => Singyeong.version(),
       "api" => "v1",
     })
+  end
+
+  def query(conn, params) do
+    clients =
+      params
+      |> Query.json_to_query
+      |> Singyeong.Store.query
+      |> Enum.map(&Map.from_struct/1)
+      |> Enum.map(&Map.drop(&1, [:socket_pid]))
+
+    conn
+    |> json(clients)
   end
 
   def gateway_redirect(conn, _params) do
