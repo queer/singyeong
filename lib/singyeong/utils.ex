@@ -102,5 +102,27 @@ defmodule Singyeong.Utils do
 
   def stringify_keys(not_map, _), do: not_map
 
+  def destructify(map) when is_map(map) do
+    map
+    |> Enum.map(fn {k, v} ->
+      cond do
+        is_struct(v) ->
+          {k, destructify(Map.from_struct(v))}
+
+        is_map(v) ->
+          {k, destructify(v)}
+
+        is_list(v) ->
+          {k, Enum.map(v, &destructify/1)}
+
+        true ->
+          {k, v}
+      end
+    end)
+    |> Enum.into(%{})
+  end
+
+  def destructify(not_map), do: not_map
+
   def now, do: :os.system_time :millisecond
 end

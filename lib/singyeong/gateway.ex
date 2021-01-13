@@ -131,7 +131,11 @@ defmodule Singyeong.Gateway do
         {:binary, IO.iodata_to_binary(term)}
 
       "etf" ->
-        term = :erlang.term_to_binary payload
+        term =
+          payload
+          |> Utils.destructify
+          |> :erlang.term_to_binary
+
         {:binary, term}
     end
   end
@@ -249,7 +253,7 @@ defmodule Singyeong.Gateway do
              metadata: metadata,
              client_id: ^client_id,
              app_id: ^app_id
-           }} <- Store.get_client(client_id),
+           }} <- Store.get_client(app_id, client_id),
            last_heartbeat when is_integer(last_heartbeat)
              <- metadata[Metadata.last_heartbeat_time()]
       do
@@ -314,29 +318,35 @@ defmodule Singyeong.Gateway do
     unless is_nil(socket.assigns[:app_id]) and is_nil(socket.assigns[:client_id]) do
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
-      Logger.info "[GATEWAY] Cleaning up #{app_id}:#{client_id}"
-
       cleanup app_id, client_id
     end
   end
 
   def cleanup(app_id, client_id) do
-    {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} = Store.get_client app_id, client_id
-    {:ok, :ok} = Store.remove_client client
+    case Store.get_client(app_id, client_id)do
+      {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} ->
+        Logger.info "[GATEWAY] Cleaning up #{app_id}:#{client_id}"
+        {:ok, :ok} = Store.remove_client client
 
-    Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
+        Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
 
-    queue_worker = UpdateQueue.name app_id, client_id
-    pid = Process.whereis queue_worker
-    if pid do
-      DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
-      Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Terminated update queue"
+        queue_worker = UpdateQueue.name app_id, client_id
+        pid = Process.whereis queue_worker
+        if pid do
+          DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
+          Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Terminated update queue"
+        end
+
+        for queue <- client.queues do
+          Queue.remove_client queue, {app_id, client_id}
+          Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from queue #{queue}"
+        end
+
+        Logger.info "[GATEWAY] Cleaned up #{app_id}:#{client_id}"
+
+      _ -> nil
     end
 
-    for queue <- client.queues do
-      Queue.remove_client queue, {app_id, client_id}
-      Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from queue #{queue}"
-    end
   end
 
   ## OP HANDLING ##

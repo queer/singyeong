@@ -108,12 +108,12 @@ defmodule Singyeong.Mnesia.Store do
       mapset = MapSet.delete mapset, client_id
       :ok = :mnesia.write({@apps, app_id, mapset})
     end
-    :mnesia.transaction(fn -> do_remove_client(client_id) end)
+    :mnesia.transaction(fn -> do_remove_client(app_id, client_id) end)
     |> return_result_or_error
   end
 
-  defp do_remove_client(client_id) do
-    :ok = :mnesia.delete {@clients, client_id}
+  defp do_remove_client(app_id, client_id) do
+    :ok = :mnesia.delete {@clients, {app_id, client_id}}
   end
 
   @impl Singyeong.Store
