@@ -17,11 +17,11 @@ defmodule SingyeongWeb.GenericController do
   end
 
   def query(conn, params) do
-    {:ok, clients} =
+    clients =
       params
       |> Query.json_to_query
       |> Singyeong.Store.query
-      |> Enum.map(&Map.from_struct)
+      |> Enum.map(&Map.from_struct/1)
       |> Enum.map(&Map.drop(&1, [:socket_pid]))
 
     conn
