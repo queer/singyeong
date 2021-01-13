@@ -29,21 +29,29 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {:ok, state}
   end
 
-  def handle_info({:queue, client_id, metadata}, %{queue: queue, queue_size: size} = state) do
-    new_queue = :queue.in {client_id, metadata}, queue
+  def handle_info({:queue, {app_id, client_id}, metadata}, %{queue: queue, queue_size: size} = state) do
+    new_queue = :queue.in {{app_id, client_id}, metadata}, queue
     {:noreply, %{state | queue: new_queue, queue_size: size + 1}}
   end
 
   def handle_info(:process, state) do
-    {{app_id, client_id}, new_metadata, new_state} = process_updates nil, %{}, state
-    if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
-      # Only update metadata if there's new metadata
-      {:ok, client} = Store.get_client app_id, client_id
-      Store.update_client %{
-        client
-        | metadata: Map.merge(client.metadata, new_metadata)
-      }
-    end
+    new_state =
+      case process_updates(nil, %{}, state) do
+        {{app_id, client_id}, new_metadata, new_state} ->
+          if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
+            # Only update metadata if there's new metadata
+            {:ok, client} = Store.get_client app_id, client_id
+            Store.update_client %{
+              client
+              | metadata: Map.merge(client.metadata, new_metadata)
+            }
+          end
+          new_state
+
+        {nil, _new_metadata, new_state} ->
+          new_state
+      end
+
     Process.send_after self(), :process, Config.metadata_queue_interval()
     {:noreply, new_state}
   end
