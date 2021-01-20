@@ -316,6 +316,18 @@ Inner payload:
 }
 ```
 
+### `QUEUE_REQUEST_CANCEL`
+
+Asks for this client's queue request to be cancelled, ie removed from the queue
+provided if the client is in said queue.
+
+Inner payload:
+```Javascript
+{
+  "queue": "my-queue-name"
+}
+```
+
 ### `QUEUE_ACK`
 
 Sent by the client to indicate acknowledgement of a message, telling the server

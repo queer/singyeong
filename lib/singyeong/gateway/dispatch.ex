@@ -96,6 +96,17 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, []}
   end
 
+  def handle_dispatch(socket, %Payload{t: "QUEUE_REQUEST_CANCEL", d: %QueueRequest{queue: queue_name}}) do
+    app_id = socket.assigns.app_id
+    client_id = socket.assigns.client_id
+    :ok = Queue.create! queue_name
+    :ok = Queue.remove_client queue_name, {app_id, client_id}
+    {:ok, client} = Store.get_client app_id, client_id
+    client = %{client | queues: Enum.reject(client.queues, &(&1 == Queue.queue_name(queue_name)))}
+    {:ok, _} = Store.update_client client
+    {:ok, []}
+  end
+
   def handle_dispatch(_, %Payload{t: "QUEUE_ACK", d: %QueueAck{queue: queue_name, id: id}}) do
     :ok = Queue.create! queue_name
     :ok = Queue.ack_message queue_name, id

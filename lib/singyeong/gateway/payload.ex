@@ -45,6 +45,14 @@ defmodule Singyeong.Gateway.Payload do
     }
   end
 
+  def data_from_json("QUEUE_REQUEST_CANCEL", %{
+    "queue" => queue
+  }) do
+    %__MODULE__.QueueRequest{
+      queue: queue
+    }
+  end
+
   def data_from_json("QUEUE_ACK", %{
     "queue" => queue,
     "id" => id,
