@@ -405,6 +405,12 @@ defmodule Singyeong.Gateway do
           Metadata.encoding() => encoding,
           Metadata.ip() => client_ip,
         },
+        metadata_types: %{
+          Metadata.last_heartbeat_time() => :integer,
+          Metadata.restricted() => :boolean,
+          Metadata.encoding() => :string,
+          Metadata.ip() => :string,
+        },
         socket_pid: socket.transport_pid,
         socket_ip: client_ip,
         queues: []

@@ -168,8 +168,9 @@ defmodule Singyeong.Mnesia.Store do
         # doesn't pass, a descriptive error is generated and returned.
         cond do
           Types.type_exists?(type) and key not in Metadata.forbidden_keys() ->
+            atom_type = String.to_atom type
             cond do
-              Types.get_type(type).validate.(value) and type == "list" ->
+              Types.get_type(type).validate.(value) and atom_type == :list ->
                 # Mnesia does not allow us to query `x in list types of things
                 # easily. This makes sense as that's not exactly an O(1) query
                 # to make. Instead, we reduce the list into a keymap that holds
@@ -179,10 +180,10 @@ defmodule Singyeong.Mnesia.Store do
                     Map.put acc, x, nil
                   end
 
-                {:ok, {key, reduced_list}}
+                {:ok, {atom_type, key, reduced_list}}
 
               Types.get_type(type).validate.(value) ->
-                {:ok, {key, value}}
+                {:ok, {atom_type, key, value}}
 
               true ->
                 {:error, {key, "#{key}: value fails validation for '#{type}'"}}
@@ -199,13 +200,13 @@ defmodule Singyeong.Mnesia.Store do
     errors = Enum.filter checked_data, &Kernel.===(elem(&1, 0), :error)
 
     if errors == [] do
-      # TODO: This should probably be Enum.reduce/3
-      validated =
-        checked_data
-        |> Enum.map(&elem(&1, 1))
-        |> Map.new
 
-      {:ok, validated}
+      {types, validated} =
+        Enum.reduce checked_data, {%{}, %{}}, fn {:ok, {type, key, value}}, {types, values} ->
+          {Map.put(types, key, type), Map.put(values, key, value)}
+        end
+
+      {:ok, {types, validated}}
     else
       error_messages =
         errors

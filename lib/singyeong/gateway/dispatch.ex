@@ -42,7 +42,7 @@ defmodule Singyeong.Gateway.Dispatch do
                | [{:text, Payload.t()}]}
   def handle_dispatch(socket, %Payload{t: "UPDATE_METADATA", d: data}) do
     case Store.validate_metadata(data) do
-      {:ok, metadata} ->
+      {:ok, {types, metadata}} ->
         app = socket.assigns.app_id
         client = socket.assigns.client_id
         pid =
@@ -50,7 +50,7 @@ defmodule Singyeong.Gateway.Dispatch do
           |> UpdateQueue.name(client)
           |> Process.whereis
 
-        send pid, {:queue, {app, client}, metadata}
+        send pid, {:queue, {app, client}, {types, metadata}}
         # TODO: ACK metadata updates
         {:ok, []}
 

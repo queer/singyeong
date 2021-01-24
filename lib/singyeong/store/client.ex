@@ -8,6 +8,7 @@ defmodule Singyeong.Store.Client do
     field :app_id, Store.app_id()
     field :client_id, Store.client_id()
     field :metadata, map()
+    field :metadata_types, map()
     field :socket_pid, pid()
     field :socket_ip, String.t() | nil
     field :queues, [atom()]

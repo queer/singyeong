@@ -29,21 +29,22 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {:ok, state}
   end
 
-  def handle_info({:queue, {app_id, client_id}, metadata}, %{queue: queue, queue_size: size} = state) do
-    new_queue = :queue.in {{app_id, client_id}, metadata}, queue
+  def handle_info({:queue, {app_id, client_id}, {types, metadata}}, %{queue: queue, queue_size: size} = state) do
+    new_queue = :queue.in {{app_id, client_id}, {types, metadata}}, queue
     {:noreply, %{state | queue: new_queue, queue_size: size + 1}}
   end
 
   def handle_info(:process, state) do
     new_state =
-      case process_updates(nil, %{}, state) do
-        {{app_id, client_id}, new_metadata, new_state} ->
+      case process_updates(nil, {%{}, %{}}, state) do
+        {{app_id, client_id}, {new_types, new_metadata}, new_state} ->
           if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
             # Only update metadata if there's new metadata
             {:ok, client} = Store.get_client app_id, client_id
             Store.update_client %{
               client
-              | metadata: Map.merge(client.metadata, new_metadata)
+              | metadata: Map.merge(client.metadata, new_metadata),
+                metadata_types: Map.merge(client.metadata_types, new_types),
             }
           end
           new_state
@@ -56,33 +57,33 @@ defmodule Singyeong.Metadata.UpdateQueue do
     {:noreply, new_state}
   end
 
-  defp process_updates(client_id, new_metadata, %{queue_size: 0} = state) do
-    {client_id, new_metadata, state}
+  defp process_updates(client_id, {new_types, new_metadata}, %{queue_size: 0} = state) do
+    {client_id, {new_types, new_metadata}, state}
   end
 
-  defp process_updates(_client_id, new_metadata, %{queue_size: queue_size, queue: queue} = state) do
+  defp process_updates(_client_id, {new_types, new_metadata}, %{queue_size: queue_size, queue: queue} = state) do
     next_payload = :queue.out queue
-    {new_client_id, next_metadata, new_queue, new_queue_size} =
+    {new_client_id, {next_types, next_metadata}, new_queue, new_queue_size} =
       case next_payload do
         {{:value, item}, new_queue} ->
           # If we get a value out of the queue, deconstruct it and do a
           # metadata update.
-          {client_id, input} = item
-          {client_id, Map.merge(new_metadata, input), new_queue, queue_size - 1}
+          {client_id, {incoming_types, incoming_metadata}} = item
+          {client_id, {Map.merge(new_types, incoming_types), Map.merge(new_metadata, incoming_metadata)}, new_queue, queue_size - 1}
 
         {:empty, new_queue} ->
           # If the queue is actually empty but we were out of sync, then we
           # reset the queue size.
           # This *shouldn't* be possible, but who knows /shrug
-          {nil, nil, new_queue, 0}
+          {nil, {nil, nil}, new_queue, 0}
 
         _ ->
           # If, for some reason, we get something unexpected, just return the
           # queue itself. This *shouldn't* happen, but who knows.
-          {nil, nil, queue, queue_size}
+          {nil, {nil, nil}, queue, queue_size}
       end
 
-    process_updates new_client_id, next_metadata, %{state | queue: new_queue, queue_size: new_queue_size}
+    process_updates new_client_id, {next_types, next_metadata}, %{state | queue: new_queue, queue_size: new_queue_size}
   end
 
   def name(app_id, client_id) do

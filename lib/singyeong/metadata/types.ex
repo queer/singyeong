@@ -12,7 +12,8 @@ defmodule Singyeong.Metadata.Types do
     "integer" => %Type{typename: :integer, validate: &is_integer/1},
     "float"   => %Type{typename: :float, validate: &is_float/1},
     "version" => %Type{typename: :version, validate: &Singyeong.Metadata.Types.validate_version/1},
-    "list"    => %Type{typename: :list, validate: &Singyeong.Metadata.Types.validate_list/1},
+    "list"    => %Type{typename: :list, validate: &is_list/1},
+    "boolean" => %Type{typename: :boolean, validate: &is_boolean/1}
   }
 
   @spec types() :: %{String.t() => Type.t()}
@@ -30,10 +31,5 @@ defmodule Singyeong.Metadata.Types do
   @spec validate_version(term()) :: boolean()
   def validate_version(x) do
     is_binary(x) and Version.parse(x) != :error
-  end
-
-  @spec validate_list(term()) :: boolean()
-  def validate_list(x) do
-    is_list x
   end
 end

@@ -352,6 +352,7 @@ Inner payload:
 - `float`
 - `version`
 - `list`
+- `boolean`
 
 ### Query operators
 

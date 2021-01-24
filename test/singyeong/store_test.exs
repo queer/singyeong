@@ -99,8 +99,10 @@ defmodule Singyeong.StoreTest do
           },
         }
 
-      {:ok, out} = Store.validate_metadata metadata
+      {:ok, {types, out}} = Store.validate_metadata metadata
+      assert :string == Map.get(types, "key")
       assert "value" == Map.get(out, "key")
+      assert :integer == Map.get(types, "key2")
       assert 123 == Map.get(out, "key2")
     end
 
@@ -124,6 +126,7 @@ defmodule Singyeong.StoreTest do
       client_id: @client_id,
       # TODO: Make this reflect reality
       metadata: %{},
+      metadata_types: %{},
       socket_pid: self(),
       socket_ip: nil,
       queues: [],
@@ -132,6 +135,10 @@ defmodule Singyeong.StoreTest do
 
   defp updated_client do
     client = client()
-    %{client | metadata: Map.put(client.metadata, "test", "value")}
+    %{
+      client
+      | metadata: Map.put(client.metadata, "test", "value"),
+        metadata_types: Map.put(client.metadata_types, "test", :string),
+    }
   end
 end
