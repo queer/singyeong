@@ -59,6 +59,11 @@ defmodule SingyeongWeb.GenericControllerTest do
         "ip" => nil,
         "restricted" => false
       },
+      "metadata_types" => %{
+        "encoding" => "string",
+        "ip" => "string",
+        "restricted" => "boolean",
+      },
       "queues" => [],
       "socket_ip" => nil,
     }] = res

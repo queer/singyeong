@@ -23,6 +23,20 @@ defmodule SingyeongWeb.GenericController do
       |> Singyeong.Store.query
       |> Enum.map(&Map.from_struct/1)
       |> Enum.map(&Map.drop(&1, [:socket_pid]))
+      |> Enum.map(fn client ->
+        cleaned_metadata =
+          client.metadata
+          |> Enum.map(fn {k, v} ->
+            if client.metadata_types[k] == :list do
+              {k, Map.keys(v)}
+            else
+              {k, v}
+            end
+          end)
+          |> Map.new
+
+        %{client | metadata: cleaned_metadata}
+      end)
 
     conn
     |> json(clients)
