@@ -6,7 +6,6 @@ defmodule Singyeong.Mnesia.Store do
   alias Singyeong.Metadata
   alias Singyeong.Metadata.{Query, Types}
   alias Singyeong.Store.Client
-  alias Singyeong.Utils
   require Lethe
 
   @behaviour Singyeong.Store
@@ -186,9 +185,13 @@ defmodule Singyeong.Mnesia.Store do
                       # for ex. the metadata query endpoint, we can simply map
                       # those values into a new list, and then merge everything
                       # together, sort by index, and call it a day.
-                      Map.put acc, x, Utils.fast_list_concat(acc[x], i)
+                      # However, mapping these values into plain old lists
+                      # doesn't work well enough for what we need. Instead, to
+                      # allow for faster queryring with ex. array indexes down
+                      # the road, we store them as map keys.
+                      Map.put acc, x, Map.put(acc[x], i, nil)
                     else
-                      Map.put acc, x, [i]
+                      Map.put acc, x, %{i => nil}
                     end
                   end)
 

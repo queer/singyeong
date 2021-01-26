@@ -32,7 +32,7 @@ defmodule SingyeongWeb.GenericController do
                 out =
                   v
                   |> Enum.flat_map(fn {item, indices} ->
-                    for i <- indices, do: {item, i}
+                    for i <- Map.keys(indices), do: {item, i}
                   end)
                   |> Enum.sort_by(&elem(&1, 1))
                   |> Enum.map(&elem(&1, 0))
