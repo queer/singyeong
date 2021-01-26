@@ -6,6 +6,7 @@ defmodule Singyeong.Mnesia.Store do
   alias Singyeong.Metadata
   alias Singyeong.Metadata.{Query, Types}
   alias Singyeong.Store.Client
+  alias Singyeong.Utils
   require Lethe
 
   @behaviour Singyeong.Store
@@ -176,9 +177,20 @@ defmodule Singyeong.Mnesia.Store do
                 # to make. Instead, we reduce the list into a keymap that holds
                 # the relevant data, so that Mnesia can do an O(1) lookup.
                 reduced_list =
-                  Enum.reduce value, %{}, fn x, acc ->
-                    Map.put acc, x, nil
-                  end
+                  value
+                  |> Enum.with_index
+                  |> Enum.reduce(%{}, fn {x, i}, acc ->
+                    if Map.has_key?(acc, x) do
+                      # Given a list, we store the item in the map, and a list
+                      # containing all of its indices. To extract it as a nice
+                      # for ex. the metadata query endpoint, we can simply map
+                      # those values into a new list, and then merge everything
+                      # together, sort by index, and call it a day.
+                      Map.put acc, x, Utils.fast_list_concat(acc[x], i)
+                    else
+                      Map.put acc, x, [i]
+                    end
+                  end)
 
                 {:ok, {atom_type, key, reduced_list}}
 
@@ -200,7 +212,6 @@ defmodule Singyeong.Mnesia.Store do
     errors = Enum.filter checked_data, &Kernel.===(elem(&1, 0), :error)
 
     if errors == [] do
-
       {types, validated} =
         Enum.reduce checked_data, {%{}, %{}}, fn {:ok, {type, key, value}}, {types, values} ->
           {Map.put(types, key, type), Map.put(values, key, value)}

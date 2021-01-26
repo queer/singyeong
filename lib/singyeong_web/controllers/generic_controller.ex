@@ -27,10 +27,20 @@ defmodule SingyeongWeb.GenericController do
         cleaned_metadata =
           client.metadata
           |> Enum.map(fn {k, v} ->
-            if client.metadata_types[k] == :list do
-              {k, Map.keys(v)}
-            else
-              {k, v}
+            case client.metadata_types[k] do
+              :list ->
+                out =
+                  v
+                  |> Enum.flat_map(fn {item, indices} ->
+                    for i <- indices, do: {item, i}
+                  end)
+                  |> Enum.sort_by(&elem(&1, 1))
+                  |> Enum.map(&elem(&1, 0))
+
+                {k, out}
+
+              _ ->
+                {k, v}
             end
           end)
           |> Map.new
