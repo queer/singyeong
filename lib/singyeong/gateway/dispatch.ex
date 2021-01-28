@@ -60,7 +60,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(_, %Payload{t: "QUERY_NODES", d: data}) do
-    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Query.run_query(data, true)})}
+    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Cluster.query(data, true)})}
   end
 
   def handle_dispatch(_, %Payload{t: "QUEUE", d: %QueueInsert{

@@ -221,13 +221,6 @@ The inner payloads for these events are as follows:
 }
 ```
 
-Available metadata types:
-- string
-- integer
-- float
-- [version](https://hexdocs.pm/elixir/Version.html)
-- list
-
 ### `SEND` / `BROADCAST`
 
 When sending:
@@ -350,7 +343,7 @@ Inner payload:
 - `string`
 - `integer`
 - `float`
-- `version`
+- [`version`](https://hexdocs.pm/elixir/Version.html)
 - `list`
 - `boolean`
 
@@ -421,50 +414,38 @@ object like the following:
   // The ops used for querying. See the description(s) above
   "ops": [
     {
-      "key": {
-        "$eq": "value"
-      }
+      "path": "/key",
+      "op": "$eq",
+      "to": {"value": "value"},
     },
     {
-      "key2": {
-        "$lte": 1234
-      }
+      "path": "/key2",
+      "op": "$lte",
+      "to": {"value": 1234},
     },
     {
-      "key3": {
-        "$and": [
-          {"$gt": "10"},
-          {"$lt": 20}
-        ]
-      }
+      "op": "$and",
+      "with": [
+        {
+          "path": "/key3",
+          "op": "$gt",
+          "to": {"value": 10}
+        },
+        {
+          "path": "/key3",
+          "op": "$lt",
+          "to": {"value": 20}
+        },
+      ]
     },
     {
-      "key4": {
-        "$in": [
-          "123",
-          "456"
-        ]
-      }
-    }
+      "path": "/key4",
+      "op": "$in",
+      "to": {"value": ["123", "456]},
+    },
   ],
   // The selector used. May be null. See the description(s) above.
   "selector": {"$min": "key"},
-}
-```
-
-For a more-compact example:
-
-```Javascript
-{
-  "application": "application id here",
-  "key": "1234567890",
-  "restricted": true,
-  "droppable": true,
-  "optional": true,
-  "ops": [
-    {"key": {"$eq": "value"}},
-    {"key2": {"$lte": 1234}},
-  ]
 }
 ```
 
