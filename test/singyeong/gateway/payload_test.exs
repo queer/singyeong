@@ -17,9 +17,9 @@ defmodule Singyeong.Gateway.PayloadTest do
             "droppable" => false,
             "ops" => [
               %{
-                "key" => %{
-                  "$eq" => "value",
-                },
+                "path" => "/key",
+                "op" => "$eq",
+                "to" => %{"value" => "value"}
               },
             ],
           },
@@ -39,7 +39,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           optional: false,
           droppable: false,
           ops: [
-            {:op_eq, {"key", "value"}},
+            {:boolean, :op_eq, "/key", {:value, "value"}},
           ],
         },
       }
@@ -61,9 +61,9 @@ defmodule Singyeong.Gateway.PayloadTest do
             "droppable" => false,
             "ops" => [
               %{
-                "key" => %{
-                  "$eq" => "value",
-                },
+                "path" => "/key",
+                "op" => "$eq",
+                "to" => %{"value" => "value"}
               },
             ],
           },
@@ -84,7 +84,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           optional: false,
           droppable: false,
           ops: [
-            {:op_eq, {"key", "value"}},
+            {:boolean, :op_eq, "/key", {:value, "value"}},
           ],
         },
       },

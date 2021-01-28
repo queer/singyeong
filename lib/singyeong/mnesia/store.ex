@@ -273,10 +273,13 @@ defmodule Singyeong.Mnesia.Store do
 
   defp with_ops(lethe, %Query{ops: ops}) do
     Enum.reduce ops, lethe, fn
-      {_op, {_key, _value}} = operation, query ->
+      {:boolean, _op, _path, {:value, _value}} = operation, query ->
         __MODULE__.QueryHelpers.compile_op query, operation
 
-      {_op, args} = operation, query when is_list args ->
+      {:boolean, _op, _path, {:path, _inner_path, _default}} = operation, query ->
+        __MODULE__.QueryHelpers.compile_op query, operation
+
+      {:logical, _op, _ops} = operation, query when is_list(ops) ->
         __MODULE__.QueryHelpers.compile_op query, operation
     end
   end
@@ -287,36 +290,6 @@ defmodule Singyeong.Mnesia.Store do
         {:ok, match}
 
       {:atomic, {match, _}} when is_list(match) ->
-        # If we have this ridiculous select return result, it's suddenly really
-        # not simple.
-        # The data that gets returned looks like:
-        #
-        #   {
-        #     :atomic,
-        #     {
-        #       [
-        #         [key, value],
-        #         rest...
-        #       ],
-        #       {
-        #         op,
-        #         table,
-        #         {?, pid},
-        #         node,
-        #         storage backend,
-        #         {ref, ?, ?, ref, ?, ?},
-        #         ?,
-        #         ?,
-        #         ?,
-        #         query
-        #       }
-        #     }
-        #   }
-        #
-        # and we just care about the matches in the first element of the tuple
-        # that comes after the :atomic.
-
-        # {:ok, Enum.map(match, fn [_key, value] -> value end)}
         {:ok, Enum.map(match, &(&1 |> tl |> hd))}
 
       {:atomic, []} ->
@@ -368,49 +341,50 @@ defmodule Singyeong.Mnesia.Store do
     신경 form to Mnesia form via [Lethe](https://queer.gg/lethe).
     """
 
+    alias Lethe.Ops
     alias Singyeong.Mnesia.Store
 
     ## Functional ops ##
 
-    defp op_eq(lethe, key, value) do
+    defp op_eq(lethe, path, {:value, value}) do
       # TODO: is_map_key(^key, map_get(&:metadata, :client)) and
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) == ^value
+      Lethe.where lethe, path == ^value
     end
 
-    defp op_ne(lethe, key, value) do
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) != ^value
+    defp op_ne(lethe, path, {:value, value}) do
+      Lethe.where lethe, path != ^value
     end
 
-    defp op_gt(lethe, key, value) do
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) > ^value
+    defp op_gt(lethe, path, {:value, value}) do
+      Lethe.where lethe, path > ^value
     end
 
-    defp op_gte(lethe, key, value) do
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) >= ^value
+    defp op_gte(lethe, path, {:value, value}) do
+      Lethe.where lethe, path >= ^value
     end
 
-    defp op_lt(lethe, key, value) do
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) < ^value
+    defp op_lt(lethe, path, {:value, value}) do
+      Lethe.where lethe, path < ^value
     end
 
-    defp op_lte(lethe, key, value) do
-      Lethe.where lethe, map_get(^key, map_get(&:metadata, :client)) <= ^value
+    defp op_lte(lethe, path, {:value, value}) do
+      Lethe.where lethe, path <= ^value
     end
 
-    defp op_in(lethe, key, value) do
-      Lethe.where lethe, is_map_key(map_get(^key, map_get(&:metadata, :client)), ^value)
+    defp op_in(lethe, path, {:value, value}) do
+      Lethe.where lethe, is_map_key(path, ^value)
     end
 
-    defp op_nin(lethe, key, value) do
-      Lethe.where lethe, not is_map_key(map_get(^key, map_get(&:metadata, :client)), ^value)
+    defp op_nin(lethe, path, {:value, value}) do
+      Lethe.where lethe, not is_map_key(path, ^value)
     end
 
-    defp op_contains(lethe, key, value) do
-      Lethe.where lethe, is_map_key(^value, map_get(^key, map_get(&:metadata, :client)))
+    defp op_contains(lethe, path, {:value, value}) do
+      Lethe.where lethe, is_map_key(^value, path)
     end
 
-    defp op_ncontains(lethe, key, value) do
-      Lethe.where lethe, not is_map_key(^value, map_get(^key, map_get(&:metadata, :client)))
+    defp op_ncontains(lethe, path, {:value, value}) do
+      Lethe.where lethe, not is_map_key(^value, path)
     end
 
     ## Logical ops ##
@@ -418,14 +392,7 @@ defmodule Singyeong.Mnesia.Store do
     defp op_and(lethe, args) do
       and_op =
         Enum.reduce args, nil, fn expr, acc ->
-          compiled_expr =
-            Store.clients()
-            |> Lethe.new
-            |> Lethe.select(:client)
-            |> compile_op(expr)
-            |> Map.from_struct
-            |> Map.get(:ops)
-            |> hd
+          compiled_expr = compile_expr expr
 
           case acc do
             nil ->
@@ -442,14 +409,7 @@ defmodule Singyeong.Mnesia.Store do
     defp op_or(lethe, args) do
       or_op =
         Enum.reduce args, nil, fn expr, acc ->
-          compiled_expr =
-            Store.clients()
-            |> Lethe.new
-            |> Lethe.select(:client)
-            |> compile_op(expr)
-            |> Map.from_struct
-            |> Map.get(:ops)
-            |> hd
+          compiled_expr = compile_expr expr
 
           case acc do
             nil ->
@@ -466,14 +426,7 @@ defmodule Singyeong.Mnesia.Store do
     defp op_nor(lethe, args) do
       or_op =
         Enum.reduce args, nil, fn expr, acc ->
-          compiled_expr =
-            Store.clients()
-            |> Lethe.new
-            |> Lethe.select(:client)
-            |> compile_op(expr)
-            |> Map.from_struct
-            |> Map.get(:ops)
-            |> hd
+          compiled_expr = compile_expr expr
 
           case acc do
             nil ->
@@ -485,6 +438,16 @@ defmodule Singyeong.Mnesia.Store do
         end
 
       Lethe.where_raw lethe, {:not, or_op}
+    end
+
+    defp compile_expr(expr) do
+      Store.clients()
+      |> Lethe.new
+      |> Lethe.select(:client)
+      |> compile_op(expr)
+      |> Map.from_struct
+      |> Map.get(:ops)
+      |> hd
     end
 
     ## Selectors ##
@@ -504,26 +467,55 @@ defmodule Singyeong.Mnesia.Store do
 
     ## Helpers ##
 
-    def compile_op(query, {op, {key, value}}) do
+    def compile_op(query, {:boolean, op, path, {:value, value}}) do
+      apply_boolean_op query, op, preprocess_path(path), {:value, value}
+    end
+
+    def compile_op(query, {:boolean, op, path, {:path, path, _default}}) do
+      apply_boolean_op query, op, preprocess_path(path), {:value, preprocess_path(path)} # , default}
+    end
+
+    def compile_op(query, {:logical, op, ops}) when is_list(ops) do
       case op do
-        :op_eq -> op_eq query, key, value
-        :op_ne -> op_ne query, key, value
-        :op_gt -> op_gt query, key, value
-        :op_gte -> op_gte query, key, value
-        :op_lt -> op_lt query, key, value
-        :op_lte -> op_lte query, key, value
-        :op_in -> op_in query, key, value
-        :op_nin -> op_nin query, key, value
-        :op_contains -> op_contains query, key, value
-        :op_ncontains -> op_ncontains query, key, value
+        :op_and -> op_and query, ops
+        :op_or -> op_or query, ops
+        :op_nor -> op_nor query, ops
       end
     end
 
-    def compile_op(query, {op, args}) when is_list(args) do
+    defp preprocess_path("/" <> path) do
+      metadata = Ops.map_get :metadata, :client
+
+      path
+      |> String.split("/")
+      |> to_mnesia_ops(metadata)
+    end
+
+    defp to_mnesia_ops([chunk | rest], query) do
+      if String.match?(chunk, ~r/\d+/) do
+        key = "__singyeong:internal:metadata-store:index:#{chunk}"
+        query = Ops.map_get key, query
+        to_mnesia_ops rest, query
+      else
+        query = Ops.map_get chunk, query
+        to_mnesia_ops rest, query
+      end
+    end
+
+    defp to_mnesia_ops([], query), do: query
+
+    defp apply_boolean_op(query, op, path, value) do
       case op do
-        :op_and -> op_and query, args
-        :op_or -> op_or query, args
-        :op_nor -> op_nor query, args
+        :op_eq -> op_eq query, path, value
+        :op_ne -> op_ne query, path, value
+        :op_gt -> op_gt query, path, value
+        :op_gte -> op_gte query, path, value
+        :op_lt -> op_lt query, path, value
+        :op_lte -> op_lte query, path, value
+        :op_in -> op_in query, path, value
+        :op_nin -> op_nin query, path, value
+        :op_contains -> op_contains query, path, value
+        :op_ncontains -> op_ncontains query, path, value
       end
     end
 
