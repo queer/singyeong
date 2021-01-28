@@ -30,7 +30,12 @@ defmodule SingyeongWeb.GenericController do
             case client.metadata_types[k] do
               :list ->
                 out =
+                  # Check notes in mnesia store for why this happens.
                   v
+                  |> Enum.reject(fn
+                    {"__singyeong:internal:metadata-store:index:" <> _i, _} -> true
+                    _ -> false
+                  end)
                   |> Enum.flat_map(fn {item, indices} ->
                     for i <- Map.keys(indices), do: {item, i}
                   end)

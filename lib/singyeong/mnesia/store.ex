@@ -178,8 +178,8 @@ defmodule Singyeong.Mnesia.Store do
                 reduced_list =
                   value
                   |> Enum.with_index
-                  |> Enum.reduce(%{}, fn {x, i}, acc ->
-                    if Map.has_key?(acc, x) do
+                  |> Enum.reduce(%{}, fn {list_element, i}, acc ->
+                    if Map.has_key?(acc, list_element) do
                       # Given a list, we store the item in the map, and a list
                       # containing all of its indices. To extract it as a nice
                       # for ex. the metadata query endpoint, we can simply map
@@ -189,10 +189,11 @@ defmodule Singyeong.Mnesia.Store do
                       # doesn't work well enough for what we need. Instead, to
                       # allow for faster queryring with ex. array indexes down
                       # the road, we store them as map keys.
-                      Map.put acc, x, Map.put(acc[x], i, nil)
+                      Map.put acc, list_element, Map.put(acc[list_element], i, nil)
                     else
-                      Map.put acc, x, %{i => nil}
+                      Map.put acc, list_element, %{i => nil}
                     end
+                    |> Map.put("__singyeong:internal:metadata-store:index:#{i}", list_element)
                   end)
 
                 {:ok, {atom_type, key, reduced_list}}
