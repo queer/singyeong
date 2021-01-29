@@ -27,16 +27,16 @@ If you like what I make, consider supporting me on Patreon:
 
 Language   | Author                                             | Link                                              | Maintained?
 -----------|----------------------------------------------------|---------------------------------------------------|-------------
-Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    | yes
 Elixir     | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-client-elixir  | yes
 .NET       | [@FiniteReality](https://github.com/FiniteReality) | https://github.com/finitereality/singyeong.net    | yes
-Typescript | [@alula](https://github.com/alula)                 | https://github.com/KyokoBot/node-singyeong-client | looks like no?
 
 #### Unmaintained clients
 
-Language   | Author                                             | Link                                     |
------------|----------------------------------------------------|------------------------------------------|
-Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei |
+Language   | Author                                             | Link                                              | Notes
+-----------|----------------------------------------------------|---------------------------------------------------|-----------
+Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          |
+Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    |
+Typescript | [@alula](https://github.com/alula)                 | https://github.com/KyokoBot/node-singyeong-client | Repo gone
 
 ### Credit
 
