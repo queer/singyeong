@@ -354,6 +354,75 @@ defmodule Singyeong.DispatchTest do
     assert 10 > abs(msg.ts - expected.ts)
   end
 
+  @tag capture_log: true
+  test "that map queries work as expected with paths", %{socket: socket} do
+    # Send a fake metadata update and pray
+    payload = %Payload{
+      t: "UPDATE_METADATA",
+      ts: Utils.now(),
+      op: 4,
+      d: %{
+        "test" => %{
+          "type" => "map",
+          "value" => %{"key" => [1, 2, 3, 4, 5]},
+        },
+      },
+    }
+    Dispatch.handle_dispatch socket, payload
+
+    # Wait a little bit and then try to SEND to check that it worked
+    Process.sleep 1_000
+
+    # Actually do and test the dispatch
+    target = Query.json_to_query %{
+      "application" => @app_id,
+      "optional" => true,
+      "ops" => [
+        %{
+          "path" => "/test/key/0",
+          "op" => "$eq",
+          "to" => %{"value" => 1},
+        },
+      ],
+    }
+    payload = %{}
+    nonce = "1"
+
+    dispatch =
+      %Payload{
+        op: 4,
+        t: "SEND",
+        d: %Payload.Dispatch{
+          target: target,
+          payload: payload,
+          nonce: nonce,
+        },
+        ts: Utils.now()
+      }
+
+    {:ok, frames} = Dispatch.handle_dispatch socket, dispatch
+    now = Utils.now()
+    assert [] == frames
+    expected =
+      %Payload{
+        op: 4,
+        d: %Payload.Dispatch{
+          payload: payload,
+          nonce: nonce,
+          target: nil,
+        },
+        ts: now,
+        t: "SEND",
+      }
+
+    {opcode, msg} = await_receive_message()
+    assert :text == opcode
+    assert expected.d == msg.d
+    assert expected.op == msg.op
+    assert expected.t == msg.t
+    assert 10 > abs(msg.ts - expected.ts)
+  end
+
   test "that logical ops work as expected", %{socket: socket} do
     # Send a fake metadata update and pray
     payload = %Payload{

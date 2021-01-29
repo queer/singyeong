@@ -97,6 +97,13 @@ defmodule Singyeong.StoreTest do
             "type" => "integer",
             "value" => 123,
           },
+          "key3" => %{
+            "type" => "map",
+            "value" => %{
+              "key" => "value",
+              "list" => [1, 2, 3],
+            },
+          },
         }
 
       {:ok, {types, out}} = Store.validate_metadata metadata
@@ -104,6 +111,8 @@ defmodule Singyeong.StoreTest do
       assert "value" == Map.get(out, "key")
       assert :integer == Map.get(types, "key2")
       assert 123 == Map.get(out, "key2")
+      assert :map == Map.get(types, "key3")
+      assert "value" == out["key3"]["key"]
     end
 
     test "it rejects invalid metadata" do
@@ -113,10 +122,15 @@ defmodule Singyeong.StoreTest do
             "type" => "string",
             "value" => 1_234_567_890,
           },
+          "key2" => %{
+            "type" => "map",
+            "value" => 7,
+          }
         }
 
       {:error, out} = Store.validate_metadata metadata
       assert Map.get(out, "key") =~ ~r/.*value fails validation.*/
+      assert Map.get(out, "key2") =~ ~r/.*value fails validation.*/
     end
   end
 

@@ -13,7 +13,8 @@ defmodule Singyeong.Metadata.Types do
     "float"   => %Type{typename: :float, validate: &is_float/1},
     "version" => %Type{typename: :version, validate: &Singyeong.Metadata.Types.validate_version/1},
     "list"    => %Type{typename: :list, validate: &is_list/1},
-    "boolean" => %Type{typename: :boolean, validate: &is_boolean/1}
+    "boolean" => %Type{typename: :boolean, validate: &is_boolean/1},
+    "map"     => %Type{typename: :map, validate: &is_map/1},
   }
 
   @spec types() :: %{String.t() => Type.t()}

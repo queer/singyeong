@@ -169,36 +169,22 @@ defmodule Singyeong.Mnesia.Store do
         cond do
           Types.type_exists?(type) and key not in Metadata.forbidden_keys() ->
             atom_type = String.to_atom type
+            valid? = Types.get_type(type).validate.(value)
             cond do
-              Types.get_type(type).validate.(value) and atom_type == :list ->
+              valid? and atom_type == :list ->
                 # Mnesia does not allow us to query `x in list types of things
                 # easily. This makes sense as that's not exactly an O(1) query
                 # to make. Instead, we reduce the list into a keymap that holds
                 # the relevant data, so that Mnesia can do an O(1) lookup.
-                reduced_list =
-                  value
-                  |> Enum.with_index
-                  |> Enum.reduce(%{}, fn {list_element, i}, acc ->
-                    if Map.has_key?(acc, list_element) do
-                      # Given a list, we store the item in the map, and a list
-                      # containing all of its indices. To extract it as a nice
-                      # for ex. the metadata query endpoint, we can simply map
-                      # those values into a new list, and then merge everything
-                      # together, sort by index, and call it a day.
-                      # However, mapping these values into plain old lists
-                      # doesn't work well enough for what we need. Instead, to
-                      # allow for faster queryring with ex. array indexes down
-                      # the road, we store them as map keys.
-                      Map.put acc, list_element, Map.put(acc[list_element], i, nil)
-                    else
-                      Map.put acc, list_element, %{i => nil}
-                    end
-                    |> Map.put("__singyeong:internal:metadata-store:index:#{i}", list_element)
-                  end)
+                reduced_list = reduce_list_to_map value
 
                 {:ok, {atom_type, key, reduced_list}}
 
-              Types.get_type(type).validate.(value) ->
+              valid? and atom_type == :map ->
+                reduced_map = reduce_map_contents value
+                {:ok, {atom_type, key, reduced_map}}
+
+              valid? ->
                 {:ok, {atom_type, key, value}}
 
               true ->
@@ -230,6 +216,59 @@ defmodule Singyeong.Mnesia.Store do
 
       {:error, error_messages}
     end
+  end
+
+  defp reduce_map_contents(map) do
+    map
+    |> Enum.map(fn {k, v} ->
+      cond do
+        is_map(v) ->
+          {k, reduce_map_contents(v)}
+
+        is_list(v) ->
+          out =
+            v
+            |> Enum.map(fn
+              x when is_map(x) -> reduce_map_contents x
+              x when is_list(x) -> reduce_list_to_map x
+              x -> x
+            end)
+            |> reduce_list_to_map
+
+          {k, out}
+
+        true ->
+          {k, v}
+      end
+    end)
+    |> Map.new
+  end
+
+  defp reduce_list_to_map(value) do
+    value
+    |> Enum.map(fn
+      x when is_map(x) -> reduce_map_contents x
+      x when is_list(x) -> reduce_list_to_map x
+      x -> x
+    end)
+    |> Enum.with_index
+    |> Enum.reduce(%{}, fn {list_element, i}, acc ->
+      if Map.has_key?(acc, list_element) do
+        # Given a list, we store the item in the map, and a list
+        # containing all of its indices. To extract it as a nice
+        # for ex. the metadata query endpoint, we can simply map
+        # those values into a new list, and then merge everything
+        # together, sort by index, and call it a day.
+        # However, mapping these values into plain old lists
+        # doesn't work well enough for what we need. Instead, to
+        # allow for faster queryring with ex. array indexes down
+        # the road, we store them as map keys.
+        Map.put acc, list_element, Map.put(acc[list_element], i, nil)
+      else
+        Map.put acc, list_element, %{i => nil}
+      end
+      |> Map.put("__singyeong:internal:metadata-store:index:#{i}", list_element)
+    end)
   end
 
   @impl Singyeong.Store
