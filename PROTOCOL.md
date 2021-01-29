@@ -346,6 +346,9 @@ Inner payload:
 - [`version`](https://hexdocs.pm/elixir/Version.html)
 - `list`
 - `boolean`
+- `map`
+
+Note that the inner values of `list`s and `map`s are **untyped**.
 
 ### Query operators
 
