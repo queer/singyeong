@@ -48,10 +48,12 @@ defmodule SingyeongWeb.GenericController do
     |> json(clients)
   end
 
-  defp flatten_list(list) do
+  defp flatten_list(%{"__singyeong:internal:metadata-store:empty" => true}), do: []
+  defp flatten_list(%{"__singyeong:internal:metadata-store:empty" => false} = list) do
     list
     |> Enum.reject(fn
       {"__singyeong:internal:metadata-store:index:" <> _i, _} -> true
+      {"__singyeong:internal:metadata-store:empty", _} -> true
       _ -> false
     end)
     |> Enum.flat_map(fn {item, indices} ->
@@ -89,7 +91,7 @@ defmodule SingyeongWeb.GenericController do
     map
     |> Map.keys
     |> Enum.any?(fn x ->
-      is_binary(x) and String.starts_with?(x, "__singyeong:internal:metadata-store:index:")
+      is_binary(x) and String.starts_with?(x, "__singyeong:internal:metadata-store:")
     end)
   end
 

@@ -244,6 +244,7 @@ defmodule Singyeong.Mnesia.Store do
     |> Map.new
   end
 
+  defp reduce_list_to_map([]), do: %{"__singyeong:internal:metadata-store:empty" => true}
   defp reduce_list_to_map(value) do
     value
     |> Enum.map(fn
@@ -269,6 +270,7 @@ defmodule Singyeong.Mnesia.Store do
       end
       |> Map.put("__singyeong:internal:metadata-store:index:#{i}", list_element)
     end)
+    |> Map.put("__singyeong:internal:metadata-store:empty", false)
   end
 
   @impl Singyeong.Store
