@@ -119,7 +119,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{
@@ -233,7 +233,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{
@@ -302,7 +302,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{
@@ -371,7 +371,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{
@@ -439,7 +439,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{
@@ -517,7 +517,7 @@ defmodule Singyeong.DispatchTest do
     Dispatch.handle_dispatch socket, payload
 
     # Wait a little bit and then try to SEND to check that it worked
-    Process.sleep 1_000
+    Process.sleep 200
 
     # Actually do and test the dispatch
     target = Query.json_to_query %{

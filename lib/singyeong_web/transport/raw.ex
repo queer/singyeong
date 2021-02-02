@@ -9,6 +9,7 @@ defmodule SingyeongWeb.Transport.Raw do
   @behaviour Phoenix.Socket.Transport
 
   alias Singyeong.Gateway
+  alias Singyeong.Gateway.Encoding
   alias Singyeong.Gateway.GatewayResponse
   alias Singyeong.Gateway.Payload
   alias Singyeong.Utils
@@ -44,7 +45,7 @@ defmodule SingyeongWeb.Transport.Raw do
       query
       |> URI.decode_query(%{"encoding" => "json"})
 
-    if Singyeong.Gateway.validate_encoding(query["encoding"]) do
+    if Encoding.validate_encoding(query["encoding"]) do
       socket =
         socket
         |> assign(:ip, ip)
@@ -78,13 +79,13 @@ defmodule SingyeongWeb.Transport.Raw do
 
     case response do
       {:text, payload} ->
-        {:push, Gateway.encode(socket, payload), {channels, socket}}
+        {:push, Encoding.encode(socket, payload), {channels, socket}}
 
       {:close, {:text, payload}} ->
         # My god, why can we not specify custom close codes?
         Gateway.handle_close socket
         Process.send_after self(), {:stop, {:shutdown, :closed}}, 100
-        {:push, Gateway.encode(socket, payload), {channels, socket}}
+        {:push, Encoding.encode(socket, payload), {channels, socket}}
 
       [] ->
         {:ok, {channels, socket}}
@@ -99,7 +100,7 @@ defmodule SingyeongWeb.Transport.Raw do
 
   def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
     outgoing = Gateway.process_outgoing_event payload
-    encoded_payload = Gateway.encode socket, outgoing
+    encoded_payload = Encoding.encode socket, outgoing
     {:push, encoded_payload, state}
   end
 

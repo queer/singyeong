@@ -9,6 +9,9 @@ config :singyeong,
     ack_timeout: 100,
     dlq_time: 100,
     gc_interval: 100,
+  ],
+  metadata: [
+    queue_interval: 100,
   ]
 
 config :logger, level: :warn
