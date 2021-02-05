@@ -50,7 +50,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
     client_id,
     socket,
     ip,
-    restricted,
+    restricted?,
     encoding,
     ns
   ) do

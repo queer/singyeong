@@ -36,7 +36,7 @@ defmodule Singyeong.Metadata do
       restricted() => restricted?,
       encoding() => encoding,
       ip() => client_ip,
-      namespace() => namespace,
+      namespace() => ns,
     }
   end
 
