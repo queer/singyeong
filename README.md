@@ -33,9 +33,9 @@ Elixir     | [@queer](https://queer.gg)                         | https://github
 #### Unmaintained clients
 
 Language   | Author                                             | Link                                              | Notes
------------|----------------------------------------------------|---------------------------------------------------|-----------
+-----------|----------------------------------------------------|---------------------------------------------------|------------------------------------
 Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          |
-Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    |
+Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    | I don't write much Java anymore S:
 Typescript | [@alula](https://github.com/alula)                 | https://github.com/KyokoBot/node-singyeong-client | Repo gone
 
 ### Credit
@@ -212,29 +212,52 @@ The code is intended to be pretty easy to read. The general direction that data
 flows is something like:
 
 ```
-client -> decoder -> message processor -> dispatch         -> process and dispatch response
-                                       -> identifier       -> allow or reject connection
-                                       -> metadata updater -> apply or reject metadata updates
+client -> decoder -> gateway -> dispatch         -> process and dispatch response
+                             -> identifier       -> allow or reject connection
+                             -> metadata updater -> apply or reject metadata updates
+```
+
+In terms of module structure, the way things go is something like:
+
+```
+|-> <phx/cowboy code>
+|           |
+|           V
+|   SingyeongWeb.Transport.Raw
+|           |
+|           V
+|   Singyeong.Gateway
+|           |
+|           |------------------------------------|-----------------------------------------|
+|           V                                    V                                         V
+|   Singyeong.Gateway.Handler.Identify   Singyeong.Gateway.Handler.DispatchEvent   Singyeong.Gateway.Handler.Heartbeat
+|           |                                    |                                         |
+|           V                                    V                                         V
+|   Singyeong.Gateway                    Singyeong.Gateway.Dispatch                Singyeong.Store ---------|
+|           |                                    |                                                          |
+|           V                     |--------------|-----------------|-----------------------------|          |
+|-- SingyeongWeb.Transport.Raw    |              V                 |                             |          |
+            ^                     V      (METADATA_UPDATE)         V                             V          |
+            |        Singyeong.Gateway   Singyeong.Store   Singyeong.MessageDispatcher   Singyeong.Queue    |
+            |----------------|                                     |                             |          |
+            |                                                      |                             |          |
+            |------------------------------------------------------|-----------------------------|----------|
 ```
 
 Additionally, I aim to keep the server fairly small, ideally <5k LoC, but
-absolutely <10kLoC. At the time of writing, the server is ~3100 LoC:
+absolutely <10kLoC no matter what.. At the time of writing, the server is ~3700
+LoC:
 
 ```
-git:(master) X | ->  cloc lib/
-      42 text files.
-      42 unique files.
-       0 files ignored.
-
-github.com/AlDanial/cloc v 1.88  T=0.03 s (1569.1 files/s, 161430.0 lines/s)
--------------------------------------------------------------------------------
-Language                     files          blank        comment           code
--------------------------------------------------------------------------------
-Elixir                          42            626            542           3153
--------------------------------------------------------------------------------
-SUM:                            42            626            542           3153
--------------------------------------------------------------------------------
-git:(master) X | ->
+git:(master) | ->  tokei lib/
+===============================================================================
+ Language            Files        Lines         Code     Comments       Blanks
+===============================================================================
+ Elixir                 48         4714         3743          280          691
+===============================================================================
+ Total                  48         4714         3743          280          691
+===============================================================================
+git:(master) | ->
 ```
 
 ## What about test coverage and the like?
