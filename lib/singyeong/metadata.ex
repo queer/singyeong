@@ -26,6 +26,7 @@ defmodule Singyeong.Metadata do
   def ip, do: @ip
   def restricted, do: @restricted
   def encoding, do: @encoding
+  def namespace, do: @namespace
 
   def forbidden_keys, do: @forbidden_keys
 
