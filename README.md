@@ -181,10 +181,10 @@ Metadata-based routing is useful for all sorts of things:
   relying on clients to drop them properly.
 - [Discord](https://discord.com) bot message-passing between services. No more
   pubsub or whatever, just "send this message to the service where
-  `123 in guild_ids`.
+  `123 in guild_ids`."
 - Websocket gateway. "Send this message to the client where `user_id = 123`."
-- [Container scheduling](https://github.com/queer/pig)
-- [Monitoring host stats](https://github.com/queer/agma)
+- [Container scheduling](https://github.com/queer/pig).
+- [Monitoring host stats](https://github.com/queer/agma).
 - Routing messages to an audit-logging service and a handler service at the
   same time.
 - Message queues that can only dispatch messages when a client is capable (ex.
