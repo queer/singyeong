@@ -5,9 +5,7 @@ defmodule Singyeong.Config do
 
   def auth, do: c :auth
   def port, do: c :port
-  def clustering, do: c :clustering
-  def cookie, do: c :cookie
-  def redis_dsn, do: c :redis_dsn
+  def topologies, do: c :topologies
 
   def queue_config, do: c :queue
   def queue_ack_timeout, do: queue_config() |> Keyword.get(:ack_timeout)

@@ -6,7 +6,6 @@ defmodule Singyeong.Cluster do
   use GenServer
   alias Singyeong.Config
   alias Singyeong.Gateway.Payload
-  alias Singyeong.Redis
   alias Singyeong.Store
   alias Singyeong.Utils
   require Logger
@@ -22,23 +21,8 @@ defmodule Singyeong.Cluster do
   end
 
   def init(_) do
-    hostname = get_hostname()
-    ip = get_hostaddr()
-    now = Utils.now() |> Integer.to_string
-    hash =
-      :crypto.hash(:md5, now)
-      |> Base.encode16
-      |> String.downcase
-
     state =
       %{
-        name: "singyeong_#{get_hostname()}_#{Config.port()}",
-        group: "singyeong",
-        cookie: Config.cookie(),
-        longname: nil,
-        hostname: hostname,
-        ip: ip,
-        hash: hash,
         rafted?: false,
         last_nodes: %{},
       }
@@ -48,60 +32,15 @@ defmodule Singyeong.Cluster do
   end
 
   def handle_info(:start_connect, state) do
-    unless Node.alive? do
-      node_name = "#{state[:name]}@#{state[:ip]}"
-      node_atom = node_name |> String.to_atom
+    last_nodes = Node.list()
 
-      Logger.info "[CLUSTER] Starting node: #{node_name}"
-      {:ok, _} = Node.start node_atom, :longnames
-      Node.set_cookie state[:cookie] |> String.to_atom
+    new_state = %{state | last_nodes: last_nodes}
+    Process.send_after self(), :connect, @start_delay
 
-      Logger.info "[CLUSTER] Updating registry..."
-      new_state = %{state | longname: node_name}
-      registry_write new_state
-
-      Logger.info "[CLUSTER] All done! Starting clustering..."
-      last_nodes = current_nodes new_state
-
-      new_state = %{new_state | last_nodes: last_nodes}
-      Process.send_after self(), :connect, @start_delay
-
-      {:noreply, new_state}
-    else
-      Logger.warn "[CLUSTER] Node already alive, doing nothing..."
-      {:noreply, state}
-    end
+    {:noreply, new_state}
   end
 
   def handle_info(:connect, state) do
-    registry_write state
-    nodes = registry_read state
-
-    for node <- nodes do
-      {hash, longname} = node
-
-      unless hash == state[:hash] do
-        atom = longname |> String.to_atom
-        case Node.connect(atom) do
-          true ->
-            # Don't need to do anything else
-            # This is NOT logged at :info to avoid spamme
-            # Logger.debug "[CLUSTER] Connected to #{longname}"
-            nil
-
-          false ->
-            # If we can't connect, prune it from the registry. If the remote
-            # node is still alive, it'll re-register itself.
-            delete_node state, hash, longname
-
-          :ignored ->
-            # In general we shouldn't reach it, so...
-            # Logger.debug "[CLUSTER] [CONCERN] Local node not alive for #{longname}!?"
-            nil
-        end
-      end
-    end
-
     load_balance()
 
     state = update_raft_state state
@@ -153,7 +92,7 @@ defmodule Singyeong.Cluster do
   end
 
   defp update_raft_state(state) do
-    needs_raft_reactivation = !state[:rafted?] or not Map.equal?(state[:last_nodes], current_nodes(state))
+    needs_raft_reactivation = !state[:rafted?] or state[:last_nodes] != Node.list()
 
     if needs_raft_reactivation do
       Logger.info "[CLUSTER] (Re)activating Raft zones"
@@ -175,7 +114,8 @@ defmodule Singyeong.Cluster do
         end
       end)
 
-      %{state | rafted?: true, last_nodes: current_nodes(state)}
+      Logger.info "[CLUSTER] Raft activated!"
+      %{state | rafted?: true, last_nodes: Node.list()}
     else
       state
     end
@@ -225,64 +165,6 @@ defmodule Singyeong.Cluster do
   end
 
   # CLUSTERING HELPERS #
-
-  defp delete_node(state, hash, longname) do
-    Logger.debug "[CLUSTER] [WARN] Couldn't connect to #{longname} (#{hash}), deleting..."
-    reg = registry_name state[:group]
-    {:ok, _} = Redis.q ["HDEL", reg, hash]
-    :ok
-  end
-
-  @spec get_network_state() :: %{hostname: binary(), hostaddr: binary()}
-  defp get_network_state do
-    {:ok, hostname} = :inet.gethostname()
-    {:ok, hostaddr} = :inet.getaddr(hostname, :inet)
-    hostaddr =
-      hostaddr
-      |> Tuple.to_list
-      |> Enum.join(".")
-    %{
-      hostname: to_string(hostname),
-      hostaddr: hostaddr
-    }
-  end
-
-  @spec get_hostname() :: binary()
-  def get_hostname do
-    get_network_state()[:hostname]
-  end
-
-  @spec get_hostaddr() :: binary()
-  def get_hostaddr do
-    get_network_state()[:hostaddr]
-  end
-
-  # Read all members of the registry
-  defp registry_read(state) do
-    reg = registry_name state[:group]
-    {:ok, res} = Redis.q ["HGETALL", reg]
-    res
-    |> Enum.chunk_every(2)
-    |> Enum.map(fn [a, b] -> {a, b} end)
-    |> Enum.to_list
-  end
-
-  # Write ourself to the registry
-  defp registry_write(state) do
-    reg = registry_name state[:group]
-    Redis.q ["HSET", reg, state[:hash], state[:longname]]
-  end
-
-  defp registry_name(name) do
-    "singyeong:cluster:registry:#{name}"
-  end
-
-  defp current_nodes(state), do: state |> registry_read |> Map.new
-
-  @spec clustered? :: boolean
-  def clustered? do
-    Config.clustering() == "true"
-  end
 
   @spec fake_local_node :: atom()
   def fake_local_node, do: @fake_local_node

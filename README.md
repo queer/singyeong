@@ -85,17 +85,8 @@ Plugins belong in a directory named `plugins` at the root directory. See the
 
 ## Clustering
 
-신경 is capable of bootstrapping the Erlang node and discovering cluster
-members automatically; you do ***not*** need to manually set the Erlang
-distribution flags, and *you should not set them*. 신경 will set everything up
-automatically. If you want to be able to seamlessly move from a 1-node cluster
-to a multi-node cluster, you **need** to have clustering enabled from the
-start, or else you have to restart your cluster and risk losing queued
-messages.
-
-신경 uses Redis for discovering cluster members. There are vague plans to support
-cluster formation via Kube API, UDP multicast, etc., but nothing solid yet. I'm
-open to ideas for it.
+신경 is capable of discovering cluster members automatically, using libcluster
+and the gossip strategy by default.
 
 ## What exactly is it?
 
@@ -253,17 +244,17 @@ In terms of module structure, the way things go is something like:
 ```
 
 Additionally, I aim to keep the server fairly small, ideally <5k LoC, but
-absolutely <10kLoC no matter what.. At the time of writing, the server is ~3700
-LoC:
+absolutely <10kLoC no matter what.. At the time of writing, the server is
+~3.600 LoC:
 
 ```
 git:(master) | ->  tokei lib/
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Elixir                 48         4714         3743          280          691
+ Elixir                 47         4578         3638          271          669
 ===============================================================================
- Total                  48         4714         3743          280          691
+ Total                  47         4578         3638          271          669
 ===============================================================================
 git:(master) | ->
 ```

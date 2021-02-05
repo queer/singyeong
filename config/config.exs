@@ -34,6 +34,22 @@ config :phoenix, :json_library, Jason
 ## with.                                                                   ##
 #############################################################################
 
+# Configuration for the gossip topology
+gossip_config =
+  if System.get_env("GOSSIP_AUTH") do
+    [secret: System.get_env("GOSSIP_AUTH")]
+  else
+    []
+  end
+
+gossip_topology =
+  [
+    singyeong_gossip: [
+      strategy: Cluster.Strategy.Gossip,
+      config: gossip_config,
+    ]
+  ]
+
 config :singyeong,
   # The module to use for metadata storage. The default is the built-in mnesia
   # metadata store.
@@ -46,20 +62,8 @@ config :singyeong,
   # The port to run on. No default. Ideally this will be 80 in prod, and maybe
   # something like 4567 in dev.
   port: System.get_env("PORT"),
-  # Whether or not clustering should be activated. Defaults to false. If this
-  # option is set, you will also need to set the `cookie` and `redis_dsn`
-  # options below.
-  clustering: System.get_env("CLUSTERING"),
-  # The cookie to use for Erlang distribution. See the following part of the
-  # Erlang docs: # http://erlang.org/doc/reference_manual/distributed.html §13.7 Security.
-  # This should be just as secure as your auth, as a weak value + a cluster
-  # that's open to the public internet = someone else can potentially connect
-  # more Erlang nodes to your cluster and work evil.
-  cookie: System.get_env("COOKIE"),
-  # The Redis connection string. Redis is used for discovery of other cluster
-  # members; someday this will be replaced with a more generic clustering
-  # strategy thing.
-  redis_dsn: System.get_env("REDIS_DSN"),
+  # libcluster topoligies, used for cluster formation.
+  topologies: gossip_topology,
   # Raft-specific configuration; this is used for message queuing.
   raft: [
     # The zone, or datacentre, that this node is running in. You can use

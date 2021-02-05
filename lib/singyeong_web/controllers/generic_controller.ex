@@ -1,5 +1,6 @@
 defmodule SingyeongWeb.GenericController do
   use SingyeongWeb, :controller
+  alias Singyeong.Cluster
   alias Singyeong.Metadata.Query
 
   def not_found(conn, _params) do
@@ -20,7 +21,8 @@ defmodule SingyeongWeb.GenericController do
     clients =
       params
       |> Query.json_to_query
-      |> Singyeong.Store.query
+      |> Cluster.query
+      |> Enum.flat_map(&elem(&1, 1))
       |> Enum.map(&Map.from_struct/1)
       |> Enum.map(&Map.drop(&1, [:socket_pid]))
       |> Enum.map(fn client ->

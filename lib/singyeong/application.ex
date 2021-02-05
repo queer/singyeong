@@ -2,31 +2,38 @@ defmodule Singyeong.Application do
   @moduledoc false
 
   use Application
-  alias Singyeong.{Config, PluginManager, Store, Utils}
+  alias Singyeong.{PluginManager, Store, Utils}
   require Logger
 
   def start(_type, _args) do
+    unless Node.alive?() do
+      node_name =
+        32
+        |> Utils.random_string
+        |> String.to_atom
+
+      Logger.info "[APP] No node, booting @ #{node_name}"
+
+      Node.start node_name, :shortnames
+    end
     PluginManager.init()
     # TODO: Correct place to start this?
     Store.start()
 
+    # topologies = Application.get_env :singyeong, :topologies
+    topologies = [
+      singyeong: [
+        strategy: Cluster.Strategy.Gossip
+      ]
+    ]
     children = [
       # Task supervisor
+      {Cluster.Supervisor, [topologies, [name: Singyeong.ClusterSupervisor]]},
+      # Singyeong.Cluster,
       {Task.Supervisor, name: Singyeong.TaskSupervisor},
       {DynamicSupervisor, strategy: :one_for_one, name: Singyeong.MetadataQueueSupervisor},
       {DynamicSupervisor, strategy: :one_for_one, name: Singyeong.QueueGcSupervisor},
     ]
-    # Add clustering children if needed
-    children =
-      if Config.clustering() == "true" do
-        Logger.info "[APP] Clustering enabled, setting up Redis and cluster workers..."
-        Utils.fast_list_concat children, [
-          Singyeong.Redis,
-          Singyeong.Cluster
-        ]
-      else
-        children
-      end
 
     # Load plugins and add their behaviours to the supervision tree
     children = Utils.fast_list_concat children, PluginManager.load_plugins()
