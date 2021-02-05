@@ -172,22 +172,17 @@ Nope.
 
 ## Why make this?
 
-I write [Discord](https://discordapp.com/) bots. With how Discord bot
-[sharding](https://discordapp.com/developers/docs/topics/gateway#sharding)
-works, it's INCREDIBLY convenient to be able to say "send this message to the
-shard for guild id 1234567890" rather than having to figure out which shard id
-that guild is on, figure out which container it's in (when running shards in a
-distributed manner), ... Not having to pay the price of doing a broadcast to
-all containers for an application type is also beneficial. This extends to
-other services that handle things on a per-guild basis, ex. having a cluster of
-voice nodes, where not needing to know which node holds a particular guild is
-very useful.
-
-Beyond this, it's useful for all sorts of other cases:
+Metadata-based routing is useful for all sorts of things:
 
 - Storing documentation about what messages your services send/recv, what REST
   endpoints they expose, ... and querying on it to route to a service that
   accepts a specific format of a specific message.
+- Sending a message to a subset of clients without doing a full pubsub and
+  relying on clients to drop them properly.
+- [Discord](https://discord.com) bot message-passing between services. No more
+  pubsub or whatever, just "send this message to the service where
+  `123 in guild_ids`.
+- Websocket gateway. "Send this message to the client where `user_id = 123`."
 - [Container scheduling](https://github.com/queer/pig)
 - [Monitoring host stats](https://github.com/queer/agma)
 - Routing messages to an audit-logging service and a handler service at the
@@ -201,7 +196,9 @@ conditions very easily.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
-I like Elixir :thumbsup:
+I like Elixir :thumbsup: Elixir is well-suited to the use-case of
+message-queuing, and imo is a lot friendlier to write scalable messaging code
+in with little effort relative to any of the above-mentioned languages.
 
 ### Why using Phoenix? Why not just use Cowboy directly?
 
