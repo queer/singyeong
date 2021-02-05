@@ -6,5 +6,6 @@ defmodule Singyeong.Gateway.Payload.IdentifyRequest do
     field :app_id, String.t()
     field :ip, String.t() | nil
     field :auth, term() | nil
+    field :namespace, String.t() | nil
   end
 end

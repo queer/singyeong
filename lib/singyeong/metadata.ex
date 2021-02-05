@@ -10,6 +10,7 @@ defmodule Singyeong.Metadata do
   @ip "ip"
   @restricted "restricted"
   @encoding "encoding"
+  @namespace "namespace"
 
   # We reserve some keys for internal use while still allowing them to be
   # metadata-queried on.
@@ -18,6 +19,7 @@ defmodule Singyeong.Metadata do
     @ip,
     @restricted,
     @encoding,
+    @namespace,
   ]
 
   def last_heartbeat_time, do: @last_heartbeat_time
@@ -27,12 +29,13 @@ defmodule Singyeong.Metadata do
 
   def forbidden_keys, do: @forbidden_keys
 
-  def base(restricted?, encoding, client_ip) do
+  def base(restricted?, encoding, client_ip, ns) do
     %{
       last_heartbeat_time() => Utils.now(),
       restricted() => restricted?,
       encoding() => encoding,
       ip() => client_ip,
+      namespace() => namespace,
     }
   end
 
@@ -42,6 +45,7 @@ defmodule Singyeong.Metadata do
       restricted() => :boolean,
       encoding() => :string,
       ip() => :string,
+      namespace() => :string,
     }
   end
 end

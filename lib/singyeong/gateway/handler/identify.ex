@@ -12,6 +12,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
       client_id: client_id,
       ip: ip,
       auth: auth,
+      namespace: ns,
     },
   }) do
     if is_binary(client_id) and is_binary(app_id) do
@@ -25,7 +26,8 @@ defmodule Singyeong.Gateway.Handler.Identify do
           encoding = socket.assigns[:encoding]
           unless Store.client_exists?(app_id, client_id) do
             # Client doesn't exist, add to store and okay it
-            finish_identify app_id, client_id, socket, ip, restricted, encoding
+            finish_identify app_id, client_id, socket, ip,
+                restricted, encoding, ns
           else
             # If we already have a client, reject outright
             "#{client_id}: already registered for app #{app_id}"
@@ -43,7 +45,15 @@ defmodule Singyeong.Gateway.Handler.Identify do
     end
   end
 
-  defp finish_identify(app_id, client_id, socket, ip, restricted?, encoding) do
+  defp finish_identify(
+    app_id,
+    client_id,
+    socket,
+    ip,
+    restricted,
+    encoding,
+    ns,
+  ) do
     queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
       {UpdateQueue, %{name: queue_worker}}
@@ -54,7 +64,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
       %Client{
         app_id: app_id,
         client_id: client_id,
-        metadata: Metadata.base(restricted?, encoding, client_ip),
+        metadata: Metadata.base(restricted?, encoding, client_ip, ns),
         metadata_types: Metadata.base_types(),
         socket_pid: socket.transport_pid,
         socket_ip: client_ip,

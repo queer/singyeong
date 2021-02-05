@@ -146,7 +146,10 @@ The payload you send to tell the gateway who you are.
   // client's IP for HTTP request proxying. This can be useful for a case where
   // you may want to have proxied requests to the client sent somewhere else.
   // This field is only applicable to non-restricted clients.
-  "ip": "1.2.3.4"
+  "ip": "1.2.3.4",
+  // Optional value. If you provide this, it's added as the "namespace"
+  // metadata key, which can be used to query on.
+  "namespace": "my-namespace",
 }
 ```
 

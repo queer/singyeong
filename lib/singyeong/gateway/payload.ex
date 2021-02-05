@@ -83,6 +83,7 @@ defmodule Singyeong.Gateway.Payload do
       client_id: client_id,
       auth: map["auth"],
       ip: map["ip"] || socket.assigns[:ip],
+      namespace: map["namespace"]
     }
   end
 
