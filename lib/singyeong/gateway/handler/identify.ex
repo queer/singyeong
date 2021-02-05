@@ -52,7 +52,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
     ip,
     restricted,
     encoding,
-    ns,
+    ns
   ) do
     queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,

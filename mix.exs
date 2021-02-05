@@ -61,6 +61,7 @@ defmodule Singyeong.Mixfile do
 
       {:singyeong_plugin, "~> 0.1.2"},
       {:lethe, "~> 0.6.0"},
+      {:libcluster, "~> 3.2"},
     ]
   end
 end
