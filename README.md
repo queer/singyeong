@@ -183,10 +183,21 @@ other services that handle things on a per-guild basis, ex. having a cluster of
 voice nodes, where not needing to know which node holds a particular guild is
 very useful.
 
-Beyond this, it's useful for all sorts of other cases. Routing messages to a
-release version and a beta version without paying the cost of a pubsub or
-multiple queues or something similar. 신경 can get messages to the right place
-with some very complicated conditions very easily.
+Beyond this, it's useful for all sorts of other cases:
+
+- Storing documentation about what messages your services send/recv, what REST
+  endpoints they expose, ... and querying on it to route to a service that
+  accepts a specific format of a specific message.
+- [Container scheduling](https://github.com/queer/pig)
+- [Monitoring host stats](https://github.com/queer/agma)
+- Routing messages to an audit-logging service and a handler service at the
+  same time.
+- Message queues that can only dispatch messages when a client is capable (ex.
+  "dispatch this message from the queue to a client where `latency < 10`")
+- Anything you can think of!
+
+In general, 신경 can get messages to the right place with some very complicated
+conditions very easily.
 
 ### Why Elixir? Why not Go, Rust, Java, ...?
 
