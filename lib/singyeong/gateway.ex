@@ -6,10 +6,10 @@ defmodule Singyeong.Gateway do
   """
 
   use TypedStruct
-  alias Singyeong.Gateway.{Dispatch, Encoding, Payload}
+  alias Singyeong.Gateway.{Encoding, Payload}
+  alias Singyeong.Gateway.Handler.{DispatchEvent, Heartbeat, Identify}
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
-  alias Singyeong.PluginManager
   alias Singyeong.Queue
   alias Singyeong.Store
   alias Singyeong.Store.Client
@@ -84,7 +84,8 @@ defmodule Singyeong.Gateway do
   @spec opcodes_id() :: %{integer() => atom()}
   def opcodes_id, do: @opcodes_id
 
-  defp craft_response(response, assigns \\ %{})
+  @spec craft_response(term(), map()) :: GatewayResponse.t()
+  def craft_response(response, assigns \\ %{})
       when (is_tuple(response) or is_list(response)) and is_map(assigns)
       do
     %GatewayResponse{response: response, assigns: assigns}
@@ -97,13 +98,12 @@ defmodule Singyeong.Gateway do
     encoding = socket.assigns[:encoding]
     restricted = socket.assigns[:restricted]
     # Decode incoming packets based on the state of the socket
-    {status, msg} = Encoding.decode_payload opcode, payload, encoding, restricted
 
-    case status do
-      :ok ->
-        handle_payload socket, msg
+    case Encoding.decode_payload(socket, opcode, payload, encoding, restricted) do
+      {:ok, payload} ->
+        handle_payload socket, payload
 
-      :error ->
+      {:error, msg} ->
         error_msg =
           if msg do
             msg
@@ -145,10 +145,8 @@ defmodule Singyeong.Gateway do
     end
   end
 
-  defp try_handle_event(socket, payload) do
-    op = payload.op
-    named = @opcodes_id[op]
-    if named != :identify and socket.assigns[:client_id] == nil do
+  defp try_handle_event(%Phoenix.Socket{assigns: assigns} = socket, %Payload{op: op} = payload) do
+    if op != :identify and assigns[:client_id] == nil do
       # If we don't have a client id assigned, then the client hasn't
       # identified itself yet and as such shouldn't be allowed to do anything
       # BUT identify
@@ -158,19 +156,19 @@ defmodule Singyeong.Gateway do
       |> craft_response
     else
       try do
-        case named do
+        case op do
           :identify ->
-            handle_identify socket, payload
+            Identify.handle socket, payload
 
           :dispatch ->
-            handle_dispatch socket, payload
+            DispatchEvent.handle socket, payload
 
           :heartbeat ->
             # We only really do heartbeats to keep clients alive.
             # The cowboy server will automatically disconnect after some period
             # if no messages come over the socket, so the client is responsible
             # for keeping itself alive.
-            handle_heartbeat socket, payload
+            Heartbeat.handle socket, payload
 
           _ ->
             handle_invalid_op socket, op
@@ -225,266 +223,7 @@ defmodule Singyeong.Gateway do
 
   ## OP HANDLING ##
 
-  @spec handle_identify(Phoenix.Socket.t(), Payload.t()) :: GatewayResponse.t()
-  def handle_identify(socket, payload) do
-    d = payload.d
-    client_id = d["client_id"]
-    app_id = d["application_id"]
-
-    if is_binary(client_id) and is_binary(app_id) do
-      # If the client doesn't specify its own ip (eg. for routing to a specific
-      # port for HTTP), we fall back to the socket-assign port, which is
-      # derived from peer data in the transport.
-      ip = d["ip"] || socket.assigns[:ip]
-      auth_status = PluginManager.plugin_auth d["auth"], ip
-
-      case auth_status do
-        status when status in [:ok, :restricted] ->
-          restricted = status == :restricted
-          encoding = socket.assigns[:encoding]
-          unless Store.client_exists?(app_id, client_id) do
-            # Client doesn't exist, add to store and okay it
-            finish_identify app_id, client_id, socket, ip, restricted, encoding
-          else
-            # If we already have a client, reject outright
-            "#{client_id}: already registered for app #{app_id}"
-            |> Payload.close_with_error
-            |> craft_response
-          end
-
-        {:error, errors} ->
-          "Errors occurred during auth"
-          |> Payload.close_with_error(errors)
-          |> craft_response
-      end
-    else
-      handle_missing_data()
-    end
-  end
-
-  defp finish_identify(app_id, client_id, socket, ip, restricted, encoding) do
-    queue_worker = UpdateQueue.name app_id, client_id
-    DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
-      {UpdateQueue, %{name: queue_worker}}
-
-    client_ip = if restricted, do: nil, else: ip
-
-    client =
-      %Client{
-        app_id: app_id,
-        client_id: client_id,
-        metadata: %{
-          Metadata.last_heartbeat_time() => Utils.now(),
-          Metadata.restricted() => restricted,
-          Metadata.encoding() => encoding,
-          Metadata.ip() => client_ip,
-        },
-        metadata_types: %{
-          Metadata.last_heartbeat_time() => :integer,
-          Metadata.restricted() => :boolean,
-          Metadata.encoding() => :string,
-          Metadata.ip() => :string,
-        },
-        socket_pid: socket.transport_pid,
-        socket_ip: client_ip,
-        queues: []
-      }
-
-    {:ok, _} = Store.add_client client
-
-    if restricted do
-      Logger.info "[GATEWAY] Got new RESTRICTED socket #{app_id}:#{client_id} @ #{ip}"
-    else
-      Logger.info "[GATEWAY] Got new socket #{app_id}:#{client_id} @ #{ip}"
-    end
-    :ready
-    |> Payload.create_payload(%{"client_id" => client_id, "restricted" => restricted})
-    |> craft_response(%{app_id: app_id, client_id: client_id, restricted: restricted, encoding: encoding})
-  end
-
-  def handle_dispatch(socket, payload) do
-    dispatch_type = payload.t
-    if Dispatch.can_dispatch?(socket, dispatch_type) do
-      processed_payload = process_event_via_pipeline payload, :server
-      case processed_payload do
-        {:ok, processed} ->
-          socket
-          |> Dispatch.handle_dispatch(processed)
-          |> handle_dispatch_response
-
-        :halted ->
-          craft_response []
-
-        {:error, close_payload} ->
-          craft_response [close_payload]
-      end
-    else
-      :invalid
-      |> Payload.create_payload(%{"error" => "invalid dispatch type #{dispatch_type} (are you restricted?)"})
-      |> craft_response
-    end
-  end
-
-  defp handle_dispatch_response(dispatch_result) do
-    case dispatch_result do
-      {:ok, %Payload{} = frame} ->
-        [frame]
-        |> process_outgoing_event
-        |> craft_response
-
-      {:ok, {:text, %Payload{}} = frame} ->
-        frame
-        |> process_outgoing_event
-        |> craft_response
-
-      {:ok, frames} when is_list(frames) ->
-        frames
-        |> process_outgoing_event
-        |> craft_response
-
-      {:error, error} ->
-        craft_response error
-    end
-  end
-
-  def process_outgoing_event({:text, %Payload{} = payload}) do
-    {:text, process_outgoing_event(payload)}
-  end
-  def process_outgoing_event(%Payload{} = payload) do
-    case process_event_via_pipeline(payload, :client) do
-      {:ok, frame} ->
-        frame
-
-      :halted ->
-        []
-
-      {:error, close_frame} ->
-        close_frame
-    end
-  end
-  def process_outgoing_event(payloads) when is_list(payloads) do
-    res = Enum.map payloads, &process_outgoing_event/1
-    invalid_filter = fn {:text, frame} -> frame.op == @opcodes_name[:invalid] end
-
-    cond do
-      Enum.any?(res, &is_nil/1) ->
-        []
-
-      Enum.any?(res, invalid_filter) ->
-        Enum.filter res, invalid_filter
-
-      true ->
-        res
-    end
-  end
-
-  defp process_event_via_pipeline(%Payload{t: type} = payload, _) when is_nil(type), do: {:ok, payload}
-  defp process_event_via_pipeline(%Payload{t: type} = payload, direction) when not is_nil(type) do
-    plugins = PluginManager.plugins :all_events
-    case plugins do
-      [] ->
-        {:ok, payload}
-
-      plugins when is_list(plugins) ->
-        case run_pipeline(plugins, type, direction, payload, []) do
-          {:ok, _frame} = res ->
-            res
-
-          :halted ->
-            :halted
-
-          {:error, reason, undo_states} ->
-            undo_errors =
-              undo_states
-              # TODO: This should really just append undo states in reverse...
-              |> Enum.reverse
-              |> unwind_global_undo_stack(direction, type)
-
-            error_payload =
-              %{
-                reason: reason,
-                undo_errors: Enum.map(undo_errors, fn {:error, msg} -> msg end)
-              }
-
-            {:error, Payload.error("Error processing plugin event #{type}", error_payload)}
-        end
-    end
-  end
-
-  # credo:disable-for-next-line
-  defp run_pipeline([plugin | rest], event, direction, data, undo_states) do
-    case plugin.handle_global_event(event, direction, data) do
-      {:next, out_frame, plugin_undo_state} when not is_nil(out_frame) and not is_nil(plugin_undo_state) ->
-        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
-        run_pipeline rest, event, data, out_frame, out_undo_states
-
-      {:next, out_frame, nil} when not is_nil(out_frame) ->
-        run_pipeline rest, event, data, out_frame, undo_states
-
-      {:next, out_frame} when not is_nil(out_frame) ->
-        run_pipeline rest, event, data, out_frame, undo_states
-
-      {:halt, _} ->
-        # Halts do not return execution to the pipeline, nor do they return any
-        # side-effects (read: frames) to the client.
-        :halted
-
-      :halt ->
-        :halted
-
-      {:error, reason} when is_binary(reason) ->
-        {:error, reason, undo_states}
-
-      {:error, reason, plugin_undo_state} when is_binary(reason) and not is_nil(plugin_undo_state) ->
-        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
-        {:error, reason, out_undo_states}
-
-      {:error, reason, nil} when is_binary(reason) ->
-        {:error, reason, undo_states}
-    end
-  end
-
-  defp run_pipeline([], _event, _direction, payload, _undo_states) do
-    {:ok, payload}
-  end
-
-  defp unwind_global_undo_stack(undo_states, direction, event) do
-    undo_states
-    |> Enum.filter(fn {_, state} -> state != nil end)
-    |> Enum.map(fn undo_state -> global_undo(undo_state, direction, event) end)
-    # We only want the :error tuple results so that we can report them to the
-    # client; successful undos don't need to be reported.
-    |> Enum.filter(fn res -> res != :ok end)
-  end
-
-  defp global_undo({plugin, undo_state}, direction, event) do
-    # We don't just take a list of the undo states here, because really we do
-    # not want to halt undo when one encounters an error; instead, we want to
-    # continue the undo and then report all errors to the client.
-    apply plugin, :global_undo, [event, direction, undo_state]
-  end
-
-  def handle_heartbeat(%Phoenix.Socket{assigns: %{app_id: app_id, client_id: client_id}}, _payload) do
-    {:ok, client} = Store.get_client app_id, client_id
-    if client != nil do
-      {:ok, _} =
-        Store.update_client %{
-          client | metadata: Map.put(
-              client.metadata,
-              Metadata.last_heartbeat_time(),
-              Utils.now()
-            )
-        }
-
-      :heartbeat_ack
-      |> Payload.create_payload(%{"client_id" => client_id})
-      |> craft_response
-    else
-      handle_missing_data()
-    end
-  end
-
-  defp handle_missing_data do
+  def handle_missing_data do
     "payload has no data"
     |> Payload.close_with_error
     |> craft_response

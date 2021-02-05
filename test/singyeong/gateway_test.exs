@@ -2,22 +2,20 @@ defmodule Singyeong.GatewayTest do
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
   alias Singyeong.Gateway.GatewayResponse
-  alias Singyeong.Gateway.Payload
   alias Singyeong.PluginManager
   alias Singyeong.Store
   alias Singyeong.Utils
 
   @app_id "test-app-1"
   @client_id "client-1"
-  @identify %Payload{
-    op: Gateway.opcodes_name()[:identify],
-    d: %{
+  @identify %{
+    "op" => 1,
+    "d" => %{
       "client_id" => @client_id,
       "application_id" => @app_id,
-      "auth" => nil,
     },
-    t: nil,
-    ts: Utils.now(),
+    "t" => nil,
+    "ts" => Utils.now(),
   }
 
   setup do
@@ -59,10 +57,7 @@ defmodule Singyeong.GatewayTest do
   test "that ETF identify works" do
     socket = socket SingyeongWeb.Transport.Raw, nil, %{encoding: "etf"}
 
-    identify =
-      @identify
-      |> Map.from_struct
-      |> :erlang.term_to_binary
+    identify = :erlang.term_to_binary @identify
 
     # Test actually setting ETF mode
     %GatewayResponse{

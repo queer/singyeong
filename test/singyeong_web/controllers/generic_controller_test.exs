@@ -2,6 +2,8 @@ defmodule SingyeongWeb.GenericControllerTest do
   use SingyeongWeb.ConnCase
   use SingyeongWeb.ChannelCase
   alias Singyeong.Gateway
+  alias Singyeong.Gateway.Handler.Identify
+  alias Singyeong.Gateway.Payload
   alias Singyeong.PluginManager
   alias Singyeong.Store
   alias Singyeong.Utils
@@ -23,12 +25,11 @@ defmodule SingyeongWeb.GenericControllerTest do
   end
 
   defp identify(socket, @app_id, @client_id) do
-    Gateway.handle_identify socket, %{
+    Identify.handle socket, %Payload{
       op: Gateway.opcodes_name()[:identify],
-      d: %{
-        "client_id" => @client_id,
-        "application_id" => @app_id,
-        "auth" => nil,
+      d: %Payload.IdentifyRequest{
+        client_id: @client_id,
+        app_id: @app_id,
       },
       t: nil,
       ts: Utils.now(),

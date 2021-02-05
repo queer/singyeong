@@ -6,6 +6,7 @@ defmodule Singyeong.DispatchCase do
     quote do
       # Copied from channel_case.ex
       import Phoenix.ChannelTest
+      alias Singyeong.Gateway.Handler.Identify
       import Singyeong.QueueCase
       import Phoenix.Socket, only: [assign: 3]
       alias Singyeong.{
@@ -31,12 +32,11 @@ defmodule Singyeong.DispatchCase do
         # IDENTIFY with the gateway so that we have everything we need set up
         # This is tested in gateway_test.exs
         %GatewayResponse{assigns: assigns} =
-          Gateway.handle_identify socket, %Payload{
+          Identify.handle socket, %Payload{
             op: Gateway.opcodes_name()[:identify],
-            d: %{
-              "client_id" => @client_id,
-              "application_id" => @app_id,
-              "auth" => nil,
+            d: %Payload.IdentifyRequest{
+              client_id: @client_id,
+              app_id: @app_id,
             },
             ts: Utils.now(),
             t: nil,

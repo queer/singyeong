@@ -2,6 +2,7 @@ defmodule Singyeong.Gateway.Encoding do
   alias Phoenix.Socket
   alias Singyeong.Gateway.Payload
   alias Singyeong.Utils
+  require Logger
 
   @valid_encodings [
     "json",
@@ -47,15 +48,16 @@ defmodule Singyeong.Gateway.Encoding do
     end
   end
 
-  @spec decode_payload(:text | :binary, binary(), String.t(), boolean()) :: {:ok, Payload.t()} | {:error, term()}
-  def decode_payload(opcode, payload, encoding, restricted) do
+  @spec decode_payload(Phoenix.Socket.t(), :text | :binary, binary(), String.t(), boolean())
+      :: {:ok, Payload.t()} | {:error, term()}
+  def decode_payload(socket, opcode, payload, encoding, restricted) do
     case {opcode, encoding} do
       {:text, "json"} ->
         # JSON has to be error-checked for error conversion properly
         {status, data} = Jason.decode payload
         case status do
           :ok ->
-            {:ok, Payload.from_map(data)}
+            {:ok, Payload.from_map(data, socket)}
 
           :error ->
             {:error, Exception.message(data)}
@@ -66,7 +68,7 @@ defmodule Singyeong.Gateway.Encoding do
         {status, data} = Msgpax.unpack payload
         case status do
           :ok ->
-            {:ok, Payload.from_map(data)}
+            {:ok, Payload.from_map(data, socket)}
 
           :error ->
             # We convert the exception into smth more useful
@@ -74,17 +76,18 @@ defmodule Singyeong.Gateway.Encoding do
         end
 
       {:binary, "etf"} ->
-        decode_etf payload, restricted
+        decode_etf socket, payload, restricted
 
       _ ->
-        {:error, "invalid opcode/encoding combo: {#{opcode}, #{encoding}}"}
+        {:error, "decode: payload: invalid websocket opcode/encoding combo: {#{opcode}, #{encoding}}"}
     end
   rescue
-    _ ->
-      {:error, "Couldn't decode payload"}
+    err ->
+      Logger.error "[GATEWAY] [DECODE] #{inspect err, pretty: true}"
+      {:error, "decode: payload: unrecoverable"}
   end
 
-  defp decode_etf(payload, restricted) do
+  defp decode_etf(socket, payload, restricted) do
     case restricted do
       true ->
         # If the client is restricted, but is sending us ETF, make it go
@@ -99,7 +102,7 @@ defmodule Singyeong.Gateway.Encoding do
           payload
           |> :erlang.binary_to_term
           |> Utils.stringify_keys
-          |> Payload.from_map
+          |> Payload.from_map(socket)
 
         {:ok, term}
 
@@ -110,7 +113,7 @@ defmodule Singyeong.Gateway.Encoding do
           payload
           |> :erlang.binary_to_term([:safe])
           |> Utils.stringify_keys
-          |> Payload.from_map
+          |> Payload.from_map(socket)
 
         {:ok, term}
     end

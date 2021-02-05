@@ -5,6 +5,7 @@ defmodule Singyeong.DispatchTest do
   alias Singyeong.Gateway
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.Gateway.Handler.DispatchEvent
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
   alias Singyeong.Store
@@ -193,7 +194,7 @@ defmodule Singyeong.DispatchTest do
         ts: Utils.now(),
       }
 
-    %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
+    %GatewayResponse{assigns: %{}, response: frames} = DispatchEvent.handle socket, dispatch
     now = Utils.now()
     assert [] == frames
     expected =

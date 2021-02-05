@@ -5,6 +5,7 @@ defmodule Singyeong.Plugin.DispatchTest do
   alias Singyeong.{Gateway, PluginManager, Utils}
   alias Singyeong.Gateway.Dispatch
   alias Singyeong.Gateway.GatewayResponse
+  alias Singyeong.Gateway.Handler.DispatchEvent
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Payload.Error
   alias Singyeong.Metadata.Query
@@ -189,7 +190,7 @@ defmodule Singyeong.Plugin.DispatchTest do
         ts: Utils.now(),
       }
 
-    %GatewayResponse{assigns: %{}, response: frames} = Gateway.handle_dispatch socket, dispatch
+    %GatewayResponse{assigns: %{}, response: frames} = DispatchEvent.handle socket, dispatch
     now = Utils.now()
     op = Gateway.opcodes_name()[:dispatch]
     assert [] == frames

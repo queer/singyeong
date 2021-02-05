@@ -4,6 +4,8 @@ defmodule Singyeong.Metadata do
   for internal use.
   """
 
+  alias Singyeong.Utils
+
   @last_heartbeat_time "last_heartbeat_time"
   @ip "ip"
   @restricted "restricted"
@@ -24,4 +26,22 @@ defmodule Singyeong.Metadata do
   def encoding, do: @encoding
 
   def forbidden_keys, do: @forbidden_keys
+
+  def base(restricted?, encoding, client_ip) do
+    %{
+      last_heartbeat_time() => Utils.now(),
+      restricted() => restricted?,
+      encoding() => encoding,
+      ip() => client_ip,
+    }
+  end
+
+  def base_types do
+    %{
+      last_heartbeat_time() => :integer,
+      restricted() => :boolean,
+      encoding() => :string,
+      ip() => :string,
+    }
+  end
 end

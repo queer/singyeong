@@ -3,6 +3,8 @@ defmodule Singyeong.Gateway.PayloadTest do
   alias Singyeong.Gateway.Payload
   alias Singyeong.Metadata.Query
 
+  @fake_socket %{assigns: %{}}
+
   test "that SEND decoding works" do
     json =
       %{
@@ -28,7 +30,7 @@ defmodule Singyeong.Gateway.PayloadTest do
       }
 
     assert %Payload{
-      op: 4,
+      op: :dispatch,
       t: "SEND",
       d: %Payload.Dispatch{
         nonce: nil,
@@ -43,7 +45,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           ],
         },
       }
-    } = Payload.from_map json
+    } = Payload.from_map json, @fake_socket
   end
 
   test "that QUEUE decoding works" do
@@ -72,7 +74,7 @@ defmodule Singyeong.Gateway.PayloadTest do
       }
 
     assert %Payload{
-      op: 4,
+      op: :dispatch,
       t: "QUEUE",
       d: %Payload.QueueInsert{
         queue: "test",
@@ -88,7 +90,7 @@ defmodule Singyeong.Gateway.PayloadTest do
           ],
         },
       },
-    } = Payload.from_map json
+    } = Payload.from_map json, @fake_socket
   end
 
   test "that QUEUE_REQUEST decoding works" do
@@ -102,12 +104,12 @@ defmodule Singyeong.Gateway.PayloadTest do
       }
 
     assert %Payload{
-      op: 4,
+      op: :dispatch,
       t: "QUEUE_REQUEST",
       d: %Payload.QueueRequest{
         queue: "test",
       },
-    } = Payload.from_map json
+    } = Payload.from_map json, @fake_socket
   end
 
   test "that QUEUE_ACK decoding works" do
@@ -122,12 +124,12 @@ defmodule Singyeong.Gateway.PayloadTest do
       }
 
     assert %Payload{
-      op: 4,
+      op: :dispatch,
       t: "QUEUE_ACK",
       d: %Payload.QueueAck{
         queue: "test",
         id: "1234",
       },
-    } = Payload.from_map json
+    } = Payload.from_map json, @fake_socket
   end
 end

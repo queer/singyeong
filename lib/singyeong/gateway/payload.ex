@@ -77,12 +77,36 @@ defmodule Singyeong.Gateway.Payload do
 
   def data_from_json(_, map), do: map
 
-  @spec from_map(map()) :: __MODULE__.t()
-  def from_map(map) do
+  def identify_from_json(socket, %{"application_id" => app_id, "client_id" => client_id} = map) do
+    %__MODULE__.IdentifyRequest{
+      app_id: app_id,
+      client_id: client_id,
+      auth: map["auth"],
+      ip: map["ip"] || socket.assigns[:ip],
+    }
+  end
+
+  @spec from_map(map(), Phoenix.Socket.t()) :: __MODULE__.t()
+  def from_map(map, socket) do
     map = Utils.stringify_keys map
+    d = map["d"]
+
+    opcode = Gateway.opcodes_id()[map["op"]]
+    data =
+      case opcode do
+        :dispatch ->
+          data_from_json map["t"], map["d"]
+
+        :identify ->
+          identify_from_json socket, map["d"]
+
+        _ ->
+          d
+      end
+
     %__MODULE__{
-      op: map["op"],
-      d: data_from_json(map["t"], map["d"]),
+      op: opcode,
+      d: data,
       t: map["t"],
       ts: map["ts"],
     }
