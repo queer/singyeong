@@ -65,12 +65,11 @@ defmodule Singyeong.Gateway.Payload do
 
   def data_from_json(_, %{
     "target" => target,
-    "nonce" => nonce,
     "payload" => payload,
-  }) do
+  } = json) do
     %__MODULE__.Dispatch{
       target: Query.json_to_query(target),
-      nonce: nonce,
+      nonce: json["nonce"],
       payload: payload,
     }
   end
