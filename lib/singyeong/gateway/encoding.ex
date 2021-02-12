@@ -83,7 +83,7 @@ defmodule Singyeong.Gateway.Encoding do
     end
   rescue
     err ->
-      Logger.error "[GATEWAY] [DECODE] #{inspect err, pretty: true}"
+      Logger.error "[GATEWAY] [DECODE] #{inspect err, pretty: true}\n#{inspect __STACKTRACE__, pretty: true}"
       {:error, "decode: payload: unrecoverable"}
   end
 
