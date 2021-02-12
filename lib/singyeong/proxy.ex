@@ -189,7 +189,7 @@ defmodule Singyeong.Proxy do
 
         _ ->
           # We assume that targets are smart enough to upgrade to SSL if needed
-          "http://#{target_ip}"
+          "http://#{target_ip}/#{request.route}"
 
       end
 
