@@ -29,6 +29,8 @@ Language   | Author                                             | Link          
 -----------|----------------------------------------------------|---------------------------------------------------|-------------
 Elixir     | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-client-elixir  | yes
 .NET       | [@FiniteReality](https://github.com/FiniteReality) | https://github.com/finitereality/singyeong.net    | yes
+Python     | [@PanKlipcio](https://github.com/PanKlipcio)       | https://github.com/StartITBot/singyeong.py        | yes
+
 
 #### Unmaintained clients
 
