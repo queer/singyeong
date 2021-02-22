@@ -28,6 +28,7 @@ defmodule Singyeong.Cluster do
       }
     # Start clustering after a smol delay
     Process.send_after self(), :start_connect, @start_delay
+    Logger.info "[CLUSTER] up"
     {:ok, state}
   end
 

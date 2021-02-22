@@ -29,7 +29,7 @@ defmodule Singyeong.Application do
     children = [
       # Task supervisor
       {Cluster.Supervisor, [topologies, [name: Singyeong.ClusterSupervisor]]},
-      # Singyeong.Cluster,
+      Singyeong.Cluster,
       {Task.Supervisor, name: Singyeong.TaskSupervisor},
       {DynamicSupervisor, strategy: :one_for_one, name: Singyeong.MetadataQueueSupervisor},
       {DynamicSupervisor, strategy: :one_for_one, name: Singyeong.QueueGcSupervisor},
