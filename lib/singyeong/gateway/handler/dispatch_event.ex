@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Handler.DispatchEvent do
+  @moduledoc false
+
   use Singyeong.Gateway.Handler
   alias Singyeong.Gateway.{Dispatch, Pipeline}
 

@@ -302,7 +302,7 @@ defmodule Singyeong.Mnesia.Store do
       some_dead ->
         # If we have some actually-dead clients for whatever reason, prune them
         # from the store and rerun the query
-        Enum.map some_dead, &remove_client/1
+        :ok = Enum.each some_dead, &remove_client/1
         query query
     end
   end

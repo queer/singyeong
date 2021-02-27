@@ -1,4 +1,10 @@
 defmodule Singyeong.Gateway.Handler do
+  @moduledoc """
+  A gateway event handler.
+
+      use Singyeong.Gateway.Handler
+  """
+
   alias Phoenix.Socket
   alias Singyeong.Gateway.Payload
 

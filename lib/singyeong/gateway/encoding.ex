@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Encoding do
+  @moduledoc false
+
   alias Phoenix.Socket
   alias Singyeong.Gateway.Payload
   alias Singyeong.Utils

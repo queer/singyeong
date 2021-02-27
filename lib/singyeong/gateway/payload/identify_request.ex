@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Payload.IdentifyRequest do
+  @moduledoc false
+
   use TypedStruct
 
   typedstruct do

@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Handler.Heartbeat do
+  @moduledoc false
+
   use Singyeong.Gateway.Handler
   alias Singyeong.{Metadata, Utils}
 

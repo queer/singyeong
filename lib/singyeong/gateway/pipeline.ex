@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Pipeline do
+  @moduledoc false
+
   alias Singyeong.{Gateway, PluginManager, Utils}
   alias Singyeong.Gateway.Payload
 

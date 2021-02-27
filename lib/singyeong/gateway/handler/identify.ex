@@ -1,4 +1,6 @@
 defmodule Singyeong.Gateway.Handler.Identify do
+  @moduledoc false
+
   use Singyeong.Gateway.Handler
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
