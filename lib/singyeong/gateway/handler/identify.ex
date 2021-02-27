@@ -3,6 +3,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
   alias Singyeong.PluginManager
+  alias Singyeong.Store
   alias Singyeong.Store.Client
 
   @impl Singyeong.Gateway.Handler
@@ -13,6 +14,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
       ip: ip,
       auth: auth,
       namespace: ns,
+      initial_metadata: initial_metadata,
     },
   }) do
     if is_binary(client_id) and is_binary(app_id) do
@@ -27,7 +29,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
           unless Store.client_exists?(app_id, client_id) do
             # Client doesn't exist, add to store and okay it
             finish_identify app_id, client_id, socket, ip,
-                restricted, encoding, ns
+                restricted, encoding, ns, process_initial_metadata(initial_metadata)
           else
             # If we already have a client, reject outright
             "#{client_id}: already registered for app #{app_id}"
@@ -36,13 +38,28 @@ defmodule Singyeong.Gateway.Handler.Identify do
           end
 
         {:error, errors} ->
-          "Errors occurred during auth"
+          "auth: failed: internal error"
           |> Payload.close_with_error(errors)
           |> Gateway.craft_response
       end
     else
       Gateway.handle_missing_data()
     end
+  end
+
+  defp process_initial_metadata(data) when not is_nil(data) do
+    case Store.validate_metadata(data) do
+      {:ok, _} = out -> out
+      {:error, _} = err -> err
+    end
+  end
+
+  defp process_initial_metadata(_), do: {:ok, {%{}, %{}}}
+
+  defp finish_identify(_app, _client, _socket, _ip, _restricted?, _encoding, _ns, {:error, errors}) do
+    "initial metadata: invalid"
+    |> Payload.close_with_error(errors)
+    |> Gateway.craft_response
   end
 
   defp finish_identify(
@@ -52,20 +69,25 @@ defmodule Singyeong.Gateway.Handler.Identify do
     ip,
     restricted?,
     encoding,
-    ns
+    ns,
+    {:ok, {initial_types, initial_metadata}}
   ) do
     queue_worker = UpdateQueue.name app_id, client_id
     DynamicSupervisor.start_child Singyeong.MetadataQueueSupervisor,
       {UpdateQueue, %{name: queue_worker}}
 
     client_ip = if restricted?, do: nil, else: ip
+    base_metadata = Metadata.base(restricted?, encoding, client_ip, ns)
+    # We merge base into initial because base needs to win
+    metadata = Map.merge initial_metadata, base_metadata
+    types = Map.merge initial_types, Metadata.base_types()
 
     client =
       %Client{
         app_id: app_id,
         client_id: client_id,
-        metadata: Metadata.base(restricted?, encoding, client_ip, ns),
-        metadata_types: Metadata.base_types(),
+        metadata: metadata,
+        metadata_types: types,
         socket_pid: socket.transport_pid,
         socket_ip: client_ip,
         queues: []

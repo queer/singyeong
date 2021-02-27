@@ -150,6 +150,12 @@ The payload you send to tell the gateway who you are.
   // Optional value. If you provide this, it's added as the "namespace"
   // metadata key, which can be used to query on.
   "namespace": "my-namespace",
+  // Optional value. If you provide this, this metadata will be set for your
+  // client when it identifies successfully. Use this for ex. restoring
+  // metadata on reconnect.
+  "metadata": {
+    // ...
+  },
 }
 ```
 
