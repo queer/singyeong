@@ -54,6 +54,7 @@ defmodule Singyeong.Mixfile do
       {:rafted_value, "~> 0.11.1"},
       {:raft_fleet, "~> 0.10.1"},
       {:elixir_uuid, "~> 1.2"},
+      {:manifold, "~> 1.4"},
 
       {:dialyxir, "~> 1.0.0-rc.4", only: [:dev], runtime: false},
       {:credo, "~> 1.5.1", only: [:dev, :test], runtime: false},

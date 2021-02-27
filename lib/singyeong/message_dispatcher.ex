@@ -4,7 +4,6 @@ defmodule Singyeong.MessageDispatcher do
   client pids inside of an application id.
   """
 
-  alias Singyeong.Cluster
   alias Singyeong.Gateway.Payload
   alias Singyeong.Gateway.Payload.Dispatch
   alias Singyeong.Metadata.Query
@@ -47,54 +46,37 @@ defmodule Singyeong.MessageDispatcher do
     {:error, :no_route}
   end
 
-  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{} = payload, broadcast?, type)
-      when client_count > 0 do
-    if broadcast? do
-      # All nodes and all clients
-      for {node, node_clients} <- clients do
-        distributed_send node, node_clients, type || "BROADCAST", payload.nonce, payload.payload
+  def send_with_retry(_socket, [_ | _] = clients, client_count, %Payload.Dispatch{
+    nonce: nonce,
+    payload: payload,
+  }, broadcast?, type) when client_count > 0 do
+    live_clients =
+      Enum.flat_map clients, fn {_, clients} ->
+        Enum.map(clients, &(&1.socket_pid))
       end
+
+    payload_type =
+      if broadcast? do
+        type || "BROADCAST"
+      else
+        type || "SEND"
+      end
+
+    payload =
+      Payload.create_payload(:dispatch, payload_type, %Dispatch{
+        nonce: nonce,
+        payload: payload,
+      })
+
+    if broadcast? do
+      Manifold.send live_clients, payload
     else
-      # Pick random node
-      {node, clients} = Enum.random clients
-      # Pick a random client from that node's targets
-      target_client = [Enum.random(clients)]
-      distributed_send node, target_client, type || "SEND", payload.nonce, payload.payload
+      Manifold.send Enum.random(live_clients), payload
     end
     {:ok, :sent}
   end
 
   def send_with_retry(_, _, 0, _, _, _) do
     {:error, :no_route}
-  end
-
-  defp distributed_send(node, clients, type, nonce, payload) do
-    fake_local_node = Cluster.fake_local_node()
-    send_fn =
-      fn ->
-        send_dispatch clients, type, nonce, payload
-      end
-
-    case node do
-      ^fake_local_node ->
-        Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
-
-      _ ->
-        Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
-    end
-  end
-
-  defp send_dispatch(clients, type, nonce, payload) do
-    clients
-    |> Enum.map(fn client ->
-      client.socket_pid
-    end)
-    |> Enum.filter(&(&1 != nil and Process.alive?(&1)))
-    |> Enum.each(fn pid ->
-      send pid, Payload.create_payload(:dispatch, type, %Dispatch{
-        nonce: nonce,
-        payload: payload,
-      })
-    end)
   end
 end

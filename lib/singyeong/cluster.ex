@@ -118,7 +118,7 @@ defmodule Singyeong.Cluster do
       Logger.info "[CLUSTER] Raft activated!"
       %{state | rafted?: true, last_nodes: Node.list()}
     else
-      state
+      %{state | rafted?: true, last_nodes: Node.list()}
     end
   end
 
