@@ -294,6 +294,17 @@ defmodule Singyeong.Mnesia.Store do
       end
 
     matching_clients
+    |> Enum.reject(&Process.alive?(&1.socket_pid))
+    |> case do
+      [] ->
+        matching_clients
+
+      some_dead ->
+        # If we have some actually-dead clients for whatever reason, prune them
+        # from the store and rerun the query
+        Enum.map some_dead, &remove_client/1
+        query query
+    end
   end
 
   defp with_application(lethe, %Query{application: app}) do
