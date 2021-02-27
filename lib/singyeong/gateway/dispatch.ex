@@ -7,7 +7,7 @@ defmodule Singyeong.Gateway.Dispatch do
   """
 
   alias Singyeong.{Cluster, MessageDispatcher, PluginManager, Queue, Utils}
-  alias Singyeong.Gateway.Payload
+  alias Singyeong.Gateway.{Payload, Pipeline}
   alias Singyeong.Gateway.Payload.{
     QueueAck,
     QueueConfirm,
@@ -140,7 +140,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:error, Payload.error("invalid dispatch payload", payload)}
 
       plugins when is_list(plugins) ->
-        case run_pipeline(plugins, t, data, [], []) do
+        case Pipeline.run_pipeline(plugins, t, data, [], []) do
           {:ok, _frames} = res ->
             res
 
@@ -152,7 +152,7 @@ defmodule Singyeong.Gateway.Dispatch do
               undo_states
               # TODO: This should really just append undo states in reverse...
               |> Enum.reverse
-              |> unwind_undo_stack(t)
+              |> Pipeline.unwind_undo_stack(t)
 
             error_info =
               %{
@@ -163,64 +163,6 @@ defmodule Singyeong.Gateway.Dispatch do
             {:error, Payload.error("Error processing plugin event #{t}", error_info)}
         end
     end
-  end
-
-  @spec run_pipeline([atom()], binary(), any(), [Payload.t()], [any()]) ::
-          {:ok, [Payload.t()]}
-          | :halted
-          | {:error, binary(), [{atom(), any()}]}
-  # credo:disable-for-next-line
-  defp run_pipeline([plugin | rest], event, data, frames, undo_states) do
-    case plugin.handle_event(event, data) do
-      {:next, plugin_frames, plugin_undo_state} when not is_nil(plugin_frames) and not is_nil(plugin_undo_state) ->
-        out_frames = Utils.fast_list_concat frames, plugin_frames
-        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
-        run_pipeline rest, event, data, out_frames, out_undo_states
-
-      {:next, plugin_frames, nil} when not is_nil(plugin_frames) ->
-        out_frames = Utils.fast_list_concat frames, plugin_frames
-        run_pipeline rest, event, data, out_frames, undo_states
-
-      {:next, plugin_frames} when not is_nil(plugin_frames) ->
-        out_frames = Utils.fast_list_concat frames, plugin_frames
-        run_pipeline rest, event, data, out_frames, undo_states
-
-      {:halt, _} ->
-        # Halts do not return execution to the pipeline, nor do they return any
-        # side-effects (read: frames) to the client.
-        :halted
-
-      :halt ->
-        :halted
-
-      {:error, reason} when is_binary(reason) ->
-        {:error, reason, undo_states}
-
-      {:error, reason, plugin_undo_state} when is_binary(reason) and not is_nil(plugin_undo_state) ->
-        out_undo_states = Utils.fast_list_concat undo_states, {plugin, plugin_undo_state}
-        {:error, reason, out_undo_states}
-
-      {:error, reason, nil} when is_binary(reason) ->
-        {:error, reason, undo_states}
-    end
-  end
-  defp run_pipeline([], _, _, frames, _undo_states) do
-    {:ok, frames}
-  end
-
-  defp unwind_undo_stack(undo_states, event) do
-    undo_states
-    |> Enum.filter(fn {_, state} -> state != nil end)
-    |> Enum.map(fn undo_state -> undo(undo_state, event) end)
-    # We only want the :error tuple results so that we can report them to the
-    # client; successful undos don't need to be reported.
-    |> Enum.filter(fn res -> res != :ok end)
-  end
-  defp undo({plugin, undo_state}, event) do
-    # We don't just take a list of the undo states here, because really we do
-    # not want to halt undo when one encounters an error; instead, we want to
-    # continue the undo and then report all errors to the client.
-    apply plugin, :undo, [event, undo_state]
   end
 
   defp get_possible_clients(clients) do

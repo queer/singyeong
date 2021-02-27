@@ -22,14 +22,17 @@ end
 # Clean up old Mnesia directories on disks.
 "Mnesia*"
 |> Path.wildcard
-|> IO.inspect
 |> Enum.map(&File.rm_rf!/1)
+|> length
+# credo:disable-for-next-line
 |> IO.inspect(label: "Mnesia disk dir cleanup")
 # Clean up Mnesia coredumps. This SHOULDN'T ever have to clean up stuff, but it
 # can happen...
 "MnesiaCore*"
 |> Path.wildcard
 |> Enum.map(&File.rm_rf!/1)
+|> length
+# credo:disable-for-next-line
 |> IO.inspect(label: "MnesiaCore cleanup")
 :ok = RaftFleet.activate "test_zone"
 RaftHelpers.wait_for_activation Node.self(), 3
