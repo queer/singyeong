@@ -93,6 +93,12 @@ config :singyeong,
     # updates. This value shouldn't be too low, or the Erlang scheduler will be
     # thrashing the CPU.
     queue_interval: 500,
+    # The strategy to use to update metadata keys. Currently supported
+    # strategies are:
+    # - `:merge`: The default behaviour. Merges incoming data into the existing
+    #   metadata. Overwrites old keys with new keys.
+    # - `:replace`: Replaces the old metadata entirely with the new metadata.
+    update_strategy: :merge,
   ]
 
 # Configuration for the plugin API

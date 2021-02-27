@@ -41,11 +41,22 @@ defmodule Singyeong.Metadata.UpdateQueue do
           if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
             # Only update metadata if there's new metadata
             {:ok, client} = Store.get_client app_id, client_id
-            Store.update_client %{
-              client
-              | metadata: Map.merge(client.metadata, new_metadata),
-                metadata_types: Map.merge(client.metadata_types, new_types),
-            }
+            {:ok, _} =
+              case Config.metadata_update_strategy() do
+                :merge ->
+                  Store.update_client %{
+                    client
+                    | metadata: Map.merge(client.metadata, new_metadata),
+                      metadata_types: Map.merge(client.metadata_types, new_types),
+                  }
+
+                :replace ->
+                  Store.update_client %{
+                    client
+                    | metadata: new_metadata,
+                      metadata_types: new_types,
+                  }
+              end
           end
           new_state
 

@@ -15,6 +15,7 @@ defmodule Singyeong.Config do
 
   def metadata_config, do: c :metadata
   def metadata_queue_interval, do: metadata_config() |> Keyword.get(:queue_interval)
+  def metadata_update_strategy, do: metadata_config() |> Keyword.get(:update_strategy)
 
   def raft_config, do: c :raft
   def raft_zone, do: raft_config() |> Keyword.get(:zone)
