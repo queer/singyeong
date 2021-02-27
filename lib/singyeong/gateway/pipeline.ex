@@ -11,6 +11,7 @@ defmodule Singyeong.Gateway.Pipeline do
   def process_outgoing_event({:text, %Payload{} = payload}) do
     {:text, process_outgoing_event(payload)}
   end
+
   def process_outgoing_event(%Payload{} = payload) do
     case process_event_via_pipeline(payload, :client) do
       {:ok, frame} ->
@@ -23,6 +24,7 @@ defmodule Singyeong.Gateway.Pipeline do
         close_frame
     end
   end
+
   def process_outgoing_event(payloads) when is_list(payloads) do
     res = Enum.map payloads, &process_outgoing_event/1
     invalid_filter = fn {:text, frame} -> frame.op == Gateway.opcodes_name()[:invalid] end
@@ -40,6 +42,7 @@ defmodule Singyeong.Gateway.Pipeline do
   end
 
   def process_event_via_pipeline(%Payload{t: type} = payload, _) when is_nil(type), do: {:ok, payload}
+
   def process_event_via_pipeline(%Payload{t: type} = payload, direction) when not is_nil(type) do
     plugins = PluginManager.plugins :all_events
     case plugins do
@@ -118,6 +121,7 @@ defmodule Singyeong.Gateway.Pipeline do
         {:error, reason, undo_states}
     end
   end
+
   def run_pipeline([], _event, _data, frames, _undo_states, direction) do
     if direction do
       {:ok, hd(frames)}
