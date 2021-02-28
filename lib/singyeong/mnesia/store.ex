@@ -13,6 +13,8 @@ defmodule Singyeong.Mnesia.Store do
   @clients :clients
   @apps :apps
 
+  @empty_key "__singyeong:internal:metadata-store:empty"
+
   @impl Singyeong.Store
   def start do
     # If we don't stop Mnesia first, then creating the schema will spuriously
@@ -24,8 +26,8 @@ defmodule Singyeong.Mnesia.Store do
     :ok = :mnesia.start()
 
     # General storage
-    create_table_with_indexes @clients,   [attributes: [:composite_id, :client]], [:client]
-    create_table_with_indexes @apps,      [attributes: [:app_id, :app]], [:app_id]
+    create_table_with_indexes @clients, [attributes: [:composite_id, :client]], [:client]
+    create_table_with_indexes @apps,    [attributes: [:app_id, :app]], [:app_id]
 
     :ok
   end
@@ -153,6 +155,7 @@ defmodule Singyeong.Mnesia.Store do
   def get_clients(count) do
     :mnesia.transaction(fn ->
       # Ugh matchspecs are fucking awful to write
+      # TODO: Port to Lethe
       :mnesia.select @clients, [{{@clients, :"$1", :"$2"}, [], [:"$$"]}], count, :read
     end)
     |> return_select_result_or_error
@@ -244,7 +247,7 @@ defmodule Singyeong.Mnesia.Store do
     |> Map.new
   end
 
-  defp reduce_list_to_map([]), do: %{"__singyeong:internal:metadata-store:empty" => true}
+  defp reduce_list_to_map([]), do: %{@empty_key => true}
   defp reduce_list_to_map(value) do
     value
     |> Enum.map(fn
@@ -270,7 +273,7 @@ defmodule Singyeong.Mnesia.Store do
       end
       |> Map.put("__singyeong:internal:metadata-store:index:#{i}", list_element)
     end)
-    |> Map.put("__singyeong:internal:metadata-store:empty", false)
+    |> Map.put(@empty_key, false)
   end
 
   @impl Singyeong.Store
@@ -398,46 +401,17 @@ defmodule Singyeong.Mnesia.Store do
 
     ## Functional ops ##
 
-    defp op_eq(lethe, path, {:value, value}) do
-      # TODO: is_map_key(^key, map_get(&:metadata, :client)) and
-      Lethe.where lethe, path == ^value
-    end
-
-    defp op_ne(lethe, path, {:value, value}) do
-      Lethe.where lethe, path != ^value
-    end
-
-    defp op_gt(lethe, path, {:value, value}) do
-      Lethe.where lethe, path > ^value
-    end
-
-    defp op_gte(lethe, path, {:value, value}) do
-      Lethe.where lethe, path >= ^value
-    end
-
-    defp op_lt(lethe, path, {:value, value}) do
-      Lethe.where lethe, path < ^value
-    end
-
-    defp op_lte(lethe, path, {:value, value}) do
-      Lethe.where lethe, path <= ^value
-    end
-
-    defp op_in(lethe, path, {:value, value}) do
-      Lethe.where lethe, is_map_key(path, ^value)
-    end
-
-    defp op_nin(lethe, path, {:value, value}) do
-      Lethe.where lethe, not is_map_key(path, ^value)
-    end
-
-    defp op_contains(lethe, path, {:value, value}) do
-      Lethe.where lethe, is_map_key(^value, path)
-    end
-
-    defp op_ncontains(lethe, path, {:value, value}) do
-      Lethe.where lethe, not is_map_key(^value, path)
-    end
+    # TODO: is_map_key(^key, map_get(&:metadata, :client)) and
+    defp op_eq(lethe, path, {:value, value}),        do: Lethe.where lethe, path == ^value
+    defp op_ne(lethe, path, {:value, value}),        do: Lethe.where lethe, path != ^value
+    defp op_gt(lethe, path, {:value, value}),        do: Lethe.where lethe, path > ^value
+    defp op_gte(lethe, path, {:value, value}),       do: Lethe.where lethe, path >= ^value
+    defp op_lt(lethe, path, {:value, value}),        do: Lethe.where lethe, path < ^value
+    defp op_lte(lethe, path, {:value, value}),       do: Lethe.where lethe, path <= ^value
+    defp op_in(lethe, path, {:value, value}),        do: Lethe.where lethe, is_map_key(path, ^value)
+    defp op_nin(lethe, path, {:value, value}),       do: Lethe.where lethe, not is_map_key(path, ^value)
+    defp op_contains(lethe, path, {:value, value}),  do: Lethe.where lethe, is_map_key(^value, path)
+    defp op_ncontains(lethe, path, {:value, value}), do: Lethe.where lethe, not is_map_key(^value, path)
 
     ## Logical ops ##
 
@@ -524,7 +498,7 @@ defmodule Singyeong.Mnesia.Store do
     end
 
     def compile_op(query, {:boolean, op, path, {:path, path, _default}}) do
-      apply_boolean_op query, op, preprocess_path(path), {:value, preprocess_path(path)} # , default}
+      apply_boolean_op query, op, preprocess_path(path), {:value, preprocess_path(path)}
     end
 
     def compile_op(query, {:logical, op, ops}) when is_list(ops) do

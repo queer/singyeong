@@ -250,15 +250,15 @@ absolutely <10kLoC no matter what.. At the time of writing, the server is
 ~3.600 LoC:
 
 ```
-git:(master) | ->  tokei lib/
+git:(master) X | ->  tokei lib/
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Elixir                 47         4578         3638          271          669
+ Elixir                 48         4558         3621          267          670
 ===============================================================================
- Total                  47         4578         3638          271          669
+ Total                  48         4558         3621          267          670
 ===============================================================================
-git:(master) | ->
+git:(master) X | ->
 ```
 
 ## What about test coverage and the like?

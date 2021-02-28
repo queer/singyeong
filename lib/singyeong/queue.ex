@@ -28,7 +28,6 @@ defmodule Singyeong.Queue do
       :ok ->
         queue_debug name_atom, "Created new queue consensus group and awaiting leader."
         ^name_atom = await_leader name_atom, Config.queue_group_size()
-        queue_debug name_atom, "Done!"
         :ok
 
       {:error, :already_added} ->
@@ -40,7 +39,6 @@ defmodule Singyeong.Queue do
       {:error, :no_leader} ->
         queue_debug name_atom, "No leader, awaiting..."
         ^name_atom = await_leader name_atom, Config.queue_group_size()
-        queue_debug name_atom, "Leader acquired!"
         :ok
 
       # {:error, :cleanup_ongoing} ->
@@ -53,7 +51,7 @@ defmodule Singyeong.Queue do
     # FIXME: This should be linked to the relevant Raft consensus group so that
     #        this dies when that does, but how?
     DynamicSupervisor.start_child Singyeong.QueueGcSupervisor,
-      {Gc, [name: queue_readable_name(name_atom)]}
+        {Gc, [name: queue_readable_name(name_atom)]}
 
     :ok
   end
@@ -89,14 +87,12 @@ defmodule Singyeong.Queue do
   # PROHIBITIVELY expensive!
 
   defp command(queue, cmd) do
-    # group, command, timeout \\ 500, retry_count \\ 3, retry_interval \\ 1_000, call_module \\ :gen_statem
     queue
     |> RaftFleet.command(cmd, 5_000, 5, 100)
     |> unwrap_command
   end
 
   defp query(queue, cmd) do
-    # group, command, timeout \\ 500, retry_count \\ 3, retry_interval \\ 1_000, call_module \\ :gen_statem
     queue
     |> RaftFleet.query(cmd, 5_000, 5, 100)
     |> unwrap_command
@@ -241,20 +237,11 @@ defmodule Singyeong.Queue do
 
   defp unwrap_command(res) do
     case res do
-      {:ok, :ok} ->
-        :ok
-
-      {:ok, {:error, _} = err} ->
-        err
-
-      {:ok, {:ok, _} = out} ->
-        out
-
-      {:ok, _} = out ->
-        out
-
-      {:error, _} = err ->
-        err
+      {:ok, :ok} -> :ok
+      {:ok, {:error, _} = err} -> err
+      {:ok, {:ok, _} = out} -> out
+      {:ok, _} = out -> out
+      {:error, _} = err -> err
     end
   end
 end

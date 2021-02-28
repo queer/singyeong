@@ -13,19 +13,29 @@ defmodule Singyeong.PluginManager do
   @ets_opts [:named_table, :public, :set, read_concurrency: true]
 
   def init(files \\ nil) do
+    # If we're booting the plugin manager when the table already exists, it's
+    # probably a test run, so we clear out everything
     unless :ets.whereis(:plugins) == :undefined do
       shutdown()
     end
+
+    # Make a new plugin table and so cache
     :ets.new :plugins, @ets_opts
     if :ets.whereis(:loaded_so_cache) == :undefined do
       Logger.debug "[PLUGIN] Created new so cache"
       :ets.new :loaded_so_cache, @ets_opts
     end
+
+    # Create cap tables
     for capability <- Capabilities.capabilities() do
       :ets.new capability, @ets_opts
     end
+
     Logger.info "[PLUGIN] Loading plugins..."
+
+    # Ensure exists
     File.mkdir_p! @plugins
+
     plugin_mods =
       if files == nil do
         @plugins
@@ -60,6 +70,8 @@ defmodule Singyeong.PluginManager do
   end
 
   def shutdown do
+    # Purge native code modules (others will be overwritten) and clear out ETS
+    # tables.
     plugins_with_manifest()
     |> Enum.each(fn {mod, manifest} ->
       if manifest.native_modules != [] do
@@ -141,6 +153,7 @@ defmodule Singyeong.PluginManager do
         else
           :restricted
         end
+
       plugins when is_list(plugins) ->
         plugin_auth_results =
           plugins

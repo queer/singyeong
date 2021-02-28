@@ -38,35 +38,44 @@ defmodule Singyeong.Metadata.UpdateQueue do
     new_state =
       case process_updates(nil, {%{}, %{}}, state) do
         {{app_id, client_id}, {new_types, new_metadata}, new_state} ->
-          if app_id != nil and client_id != nil and new_metadata != nil and new_metadata != %{} do
-            # Only update metadata if there's new metadata
-            {:ok, client} = Store.get_client app_id, client_id
-            {:ok, _} =
-              case Config.metadata_update_strategy() do
-                :merge ->
-                  Store.update_client %{
-                    client
-                    | metadata: Map.merge(client.metadata, new_metadata),
-                      metadata_types: Map.merge(client.metadata_types, new_types),
-                  }
-
-                :replace ->
-                  Store.update_client %{
-                    client
-                    | metadata: new_metadata,
-                      metadata_types: new_types,
-                  }
-              end
-          end
+          :ok = update_metadata app_id, client_id, new_types, new_metadata
           new_state
 
-        {nil, _new_metadata, new_state} ->
-          new_state
+        {nil, _new_metadata, new_state} -> new_state
+        {_, _, new_state} -> new_state
       end
 
     Process.send_after self(), :process, Config.metadata_queue_interval()
     {:noreply, new_state}
   end
+
+  defp update_metadata(app_id, client_id, new_types, new_metadata) when nil not in [
+    app_id,
+    client_id,
+    new_types,
+    new_metadata,
+  ] do
+    {:ok, client} = Store.get_client app_id, client_id
+    {:ok, _} =
+      case Config.metadata_update_strategy() do
+        :merge ->
+          Store.update_client %{
+            client
+            | metadata: Map.merge(client.metadata, new_metadata),
+              metadata_types: Map.merge(client.metadata_types, new_types),
+          }
+
+        :replace ->
+          Store.update_client %{
+            client
+            | metadata: new_metadata,
+              metadata_types: new_types,
+          }
+      end
+
+    :ok
+  end
+  defp update_metadata(_, _, _, _), do: :ok
 
   defp process_updates(client_id, {new_types, new_metadata}, %{queue_size: 0} = state) do
     {client_id, {new_types, new_metadata}, state}

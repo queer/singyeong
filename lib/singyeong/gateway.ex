@@ -85,9 +85,7 @@ defmodule Singyeong.Gateway do
   def opcodes_id, do: @opcodes_id
 
   @spec craft_response(term(), map()) :: GatewayResponse.t()
-  def craft_response(response, assigns \\ %{})
-      when (is_tuple(response) or is_list(response)) and is_map(assigns)
-      do
+  def craft_response(response, assigns \\ %{}) when (is_tuple(response) or is_list(response)) and is_map(assigns) do
     %GatewayResponse{response: response, assigns: assigns}
   end
 
@@ -104,14 +102,8 @@ defmodule Singyeong.Gateway do
         handle_payload socket, payload
 
       {:error, msg} ->
-        error_msg =
-          if msg do
-            msg
-          else
-            "cannot decode payload"
-          end
-
-        error_msg
+        msg
+        |> if(do: msg, else: "cannot decode payload")
         |> Payload.close_with_error
         |> craft_response
     end
@@ -126,10 +118,9 @@ defmodule Singyeong.Gateway do
            {:ok, %Client{
              metadata: metadata,
              client_id: ^client_id,
-             app_id: ^app_id
+             app_id: ^app_id,
            }} <- Store.get_client(app_id, client_id),
-           last_heartbeat when is_integer(last_heartbeat)
-             <- metadata[Metadata.last_heartbeat_time()]
+           last_heartbeat when is_integer(last_heartbeat) <- metadata[Metadata.last_heartbeat_time()]
       do
         last_heartbeat + (@heartbeat_interval * 1.5) < Utils.now()
       else
@@ -155,33 +146,31 @@ defmodule Singyeong.Gateway do
       |> Payload.close_with_error
       |> craft_response
     else
-      try do
-        case op do
-          :identify ->
-            Identify.handle socket, payload
+      case op do
+        :identify ->
+          Identify.handle socket, payload
 
-          :dispatch ->
-            DispatchEvent.handle socket, payload
+        :dispatch ->
+          DispatchEvent.handle socket, payload
 
-          :heartbeat ->
-            # We only really do heartbeats to keep clients alive.
-            # The cowboy server will automatically disconnect after some period
-            # if no messages come over the socket, so the client is responsible
-            # for keeping itself alive.
-            Heartbeat.handle socket, payload
+        :heartbeat ->
+          # We only really do heartbeats to keep clients alive.
+          # The cowboy server will automatically disconnect after some period
+          # if no messages come over the socket, so the client is responsible
+          # for keeping itself alive.
+          Heartbeat.handle socket, payload
 
-          _ ->
-            handle_invalid_op socket, op
-        end
-      rescue
-        e ->
-          formatted = Exception.format :error, e, __STACKTRACE__
-          Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
-          "internal server error"
-          |> Payload.close_with_error
-          |> craft_response
+        _ ->
+          handle_invalid_op socket, op
       end
     end
+  rescue
+    e ->
+      formatted = Exception.format :error, e, __STACKTRACE__
+      Logger.error "[GATEWAY] Encountered error handling gateway payload:\n#{formatted}"
+      "internal server error"
+      |> Payload.close_with_error
+      |> craft_response
   end
 
   ## SOCKET CLOSED ##
@@ -197,21 +186,16 @@ defmodule Singyeong.Gateway do
   def cleanup(app_id, client_id) do
     case Store.get_client(app_id, client_id)do
       {:ok, %Client{app_id: ^app_id, client_id: ^client_id} = client} ->
-        Logger.info "[GATEWAY] Cleaning up #{app_id}:#{client_id}"
         {:ok, :ok} = Store.remove_client client
-
-        Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from store"
-
         queue_worker = UpdateQueue.name app_id, client_id
         pid = Process.whereis queue_worker
+
         if pid do
           DynamicSupervisor.terminate_child Singyeong.MetadataQueueSupervisor, pid
-          Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Terminated update queue"
         end
 
         for queue <- client.queues do
           Queue.remove_client queue, {app_id, client_id}
-          Logger.debug "[GATEWAY] [#{app_id}:#{client_id}] Removed from queue #{queue}"
         end
 
         Logger.info "[GATEWAY] Cleaned up #{app_id}:#{client_id}"
@@ -237,9 +221,5 @@ defmodule Singyeong.Gateway do
 
   # This is here because we need to be able to send it immediately from the
   # socket transport layer, but it wouldn't really make sense elsewhere.
-  def hello do
-    %{
-      "heartbeat_interval" => @heartbeat_interval
-    }
-  end
+  def hello, do: %{"heartbeat_interval" => @heartbeat_interval}
 end

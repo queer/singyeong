@@ -12,8 +12,6 @@ defmodule Singyeong.Metadata do
   @encoding "encoding"
   @namespace "namespace"
 
-  # We reserve some keys for internal use while still allowing them to be
-  # metadata-queried on.
   @forbidden_keys [
     @last_heartbeat_time,
     @ip,
