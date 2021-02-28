@@ -50,6 +50,29 @@ gossip_topology =
     ]
   ]
 
+# Erlang distribution cookie
+cookie =
+  if Mix.env() == :prod do
+    System.get_env("COOKIE") || raise """
+      \n
+      ### ERROR ###
+
+      You did not provide a cookie! This is REALLY DANGEROUS. You MUST provide a
+      cookie, via the `COOKIE` environment variable, for 신경 to run!
+
+      ## Why?
+
+      신경 enables Erlang distribution by default, to allow for automagic cluster
+      formation. However, this means that, without a cookie, anyone can connect to
+      your cluster and do all sorts of evil.
+
+      See https://erlang.org/doc/reference_manual/distributed.html#security for
+      more info.
+      """
+  else
+    System.get_env("COOKIE") || "a"
+  end
+
 config :singyeong,
   # The module to use for metadata storage. The default is the built-in mnesia
   # metadata store.
@@ -64,6 +87,8 @@ config :singyeong,
   port: System.get_env("PORT"),
   # libcluster topoligies, used for cluster formation.
   topologies: gossip_topology,
+  # https://erlang.org/doc/reference_manual/distributed.html#security
+  cookie: cookie,
   # Raft-specific configuration; this is used for message queuing.
   raft: [
     # The zone, or datacentre, that this node is running in. You can use

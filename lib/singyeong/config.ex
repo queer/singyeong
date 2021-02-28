@@ -6,6 +6,7 @@ defmodule Singyeong.Config do
   def auth, do: c :auth
   def port, do: c :port
   def topologies, do: c :topologies
+  def node_cookie, do: :cookie |> c |> String.to_atom
 
   def queue_config, do: c :queue
   def queue_ack_timeout, do: queue_config() |> Keyword.get(:ack_timeout)

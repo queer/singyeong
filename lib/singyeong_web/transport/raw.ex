@@ -41,19 +41,19 @@ defmodule SingyeongWeb.Transport.Raw do
 
     # Check querystring for ex. requested encoding
     %URI{query: query} = map[:connect_info][:uri]
-    query =
-      query
-      |> URI.decode_query(%{"encoding" => "json"})
+    query = URI.decode_query query, %{"encoding" => "json"}
+    encoding = query["json"]
 
-    if Encoding.validate_encoding(query["encoding"]) do
+    if Encoding.validate_encoding(encoding) do
       socket =
         socket
         |> assign(:ip, ip)
-        |> assign(:encoding, query["encoding"])
+        |> assign(:encoding, encoding)
+
       {:ok, {channels, socket}}
     else
       # If the encoding is invalid, just throw away the connection
-      Logger.warn "[TRANSPORT] Rejecting client from #{ip} with invalid encoding #{query["encoding"]}"
+      Logger.warn "[TRANSPORT] Rejecting client from #{ip} with invalid encoding #{encoding}"
       :error
     end
   end
@@ -73,9 +73,7 @@ defmodule SingyeongWeb.Transport.Raw do
     socket =
       assigns
       |> Map.keys
-      |> Enum.reduce(socket, fn(x, acc) ->
-        assign acc, x, assigns[x]
-      end)
+      |> Enum.reduce(socket, &assign(&2, &1, assigns[&1]))
 
     case response do
       {:text, payload} ->
@@ -98,13 +96,13 @@ defmodule SingyeongWeb.Transport.Raw do
     end
   end
 
-  def handle_info({:text, payload} = _msg, {%{channels: _channels, channels_inverse: _channels_inverse}, socket} = state) do
+  def handle_info({:text, payload}, {%{channels: _, channels_inverse: _}, socket} = state) do
     outgoing = Gateway.Pipeline.process_outgoing_event payload
     encoded_payload = Encoding.encode socket, outgoing
     {:push, encoded_payload, state}
   end
 
-  def handle_info({:stop, reason} = _msg, state) do
+  def handle_info({:stop, reason}, state) do
     {:stop, reason, state}
   end
 
