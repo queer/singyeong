@@ -42,7 +42,7 @@ defmodule SingyeongWeb.Transport.Raw do
     # Check querystring for ex. requested encoding
     %URI{query: query} = map[:connect_info][:uri]
     query = URI.decode_query query, %{"encoding" => "json"}
-    encoding = query["json"]
+    encoding = query["encoding"]
 
     if Encoding.validate_encoding(encoding) do
       socket =

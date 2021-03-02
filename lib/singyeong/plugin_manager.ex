@@ -9,7 +9,7 @@ defmodule Singyeong.PluginManager do
   alias Singyeong.Utils
   require Logger
 
-  @plugins "./plugins"
+  @plugins if Mix.env() == :test, do: "./priv/test/plugin", else: "./plugins"
   @ets_opts [:named_table, :public, :set, read_concurrency: true]
 
   def init(files \\ nil) do
