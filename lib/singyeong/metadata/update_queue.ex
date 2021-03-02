@@ -8,8 +8,7 @@ defmodule Singyeong.Metadata.UpdateQueue do
   """
 
   use GenServer
-  alias Singyeong.Config
-  alias Singyeong.Store
+  alias Singyeong.{Config, Metadata, Store}
 
   def start_link(opts) do
     GenServer.start_link __MODULE__, opts, name: opts[:name]
@@ -66,10 +65,15 @@ defmodule Singyeong.Metadata.UpdateQueue do
           }
 
         :replace ->
+          base =
+            client.metadata
+            |> Enum.filter(fn {k, _} -> k in Metadata.forbidden_keys() end)
+            |> Map.new
+
           Store.update_client %{
             client
-            | metadata: new_metadata,
-              metadata_types: new_types,
+            | metadata: Map.merge(new_metadata, base),
+              metadata_types: Map.merge(new_types, Metadata.base_types()),
           }
       end
 
