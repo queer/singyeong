@@ -30,13 +30,13 @@ Language   | Author                                             | Link          
 Elixir     | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-client-elixir  | yes
 .NET       | [@FiniteReality](https://github.com/FiniteReality) | https://github.com/finitereality/singyeong.net    | yes
 Python     | [@PanKlipcio](https://github.com/PanKlipcio)       | https://github.com/StartITBot/singyeong.py        | yes
-
+Typescript | [@cyyynthia](https://github.com/cyyynthia)         | https://github.com/borkenware/singyeongjs         | looks like yes (used in [squirrelchat](https://github.com/squirrelchat/squirrel)?)
 
 #### Unmaintained clients
 
 Language   | Author                                             | Link                                              | Notes
 -----------|----------------------------------------------------|---------------------------------------------------|------------------------------------
-Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          |
+Python     | [@PendragonLore](https://github.com/PendragonLore) | https://github.com/PendragonLore/shinkei          | Owner said it's unmaintained
 Java       | [@queer](https://queer.gg)                         | https://github.com/queer/singyeong-java-client    | I don't write much Java anymore S:
 Typescript | [@alula](https://github.com/alula)                 | https://github.com/KyokoBot/node-singyeong-client | Repo gone
 
