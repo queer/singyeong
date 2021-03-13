@@ -201,16 +201,18 @@ clients must follow.
 
 ### 신경 dispatch events
 
-| name              | mode | description |
-|-------------------|------|-------------|
-| `UPDATE_METADATA` | send | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
-| `SEND`            | both | Send a payload to a single client that matches the routing query |
-| `BROADCAST`       | both | Send a payload to all clients that match the routing query |
-| `QUERY_NODES`     | send | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
-| `QUEUE`           | both | Queues a new message into the specified queue when sent. Indicates a queued message being received when received. |
-| `QUEUE_CONFIRM`   | recv | Sends an acknowledgement of message queuing to the client. |
-| `QUEUE_REQUEST`   | send | Adds the client to the list of clients awaiting messages. |
-| `QUEUE_ACK`       | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
+| name                   | mode | description |
+|------------------------|------|-------------|
+| `UPDATE_METADATA`      | send | Update metadata on the server. The inner payload should be a key-value mapping of metadata |
+| `SEND`                 | both | Send a payload to a single client that matches the routing query |
+| `BROADCAST`            | both | Send a payload to all clients that match the routing query |
+| `QUERY_NODES`          | send | Returns all nodes matching the given routing query. This is intended to help with debugging, and SHOULD NOT BE USED OTHERWISE |
+| `QUEUE`                | both | Queues a new message into the specified queue when sent. Indicates a queued message being received when received. |
+| `QUEUE_CONFIRM`        | recv | Sends an acknowledgement of message queuing to the client. |
+| `QUEUE_REQUEST`        | send | Adds the client to the list of clients awaiting messages. |
+| `QUEUE_REQUEST_CANCEL` | send | Removes the client from the list of clients awaiting messages. Basically the opposite of QUEUE_REQUEST. |
+| `QUEUE_ACK`            | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
+
 
 The inner payloads for these events are as follows:
 
