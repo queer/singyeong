@@ -261,6 +261,59 @@ git:(master) X | ->  tokei lib/
 git:(master) X | ->
 ```
 
+### How does querying / messaging work?
+
+When you send a message, the server inspects its target (ie. its metadata
+query) and queries its own internal metadata store to find clients that can be
+routed to that match said query. In the case of a multi-node setup, each node
+is only aware of its own clients, and thus metadata queries are a parallel RPC
+across the cluster.
+
+A very basic query looks like this:
+
+```javascript
+{
+  "application": "api",
+  "ops": [],
+}
+```
+
+That is, "route this message to any client that's a member of the `api`
+application." More-complex queries may do things like specifying constraints
+based on latency:
+
+```javascript
+{
+  "application": "api",
+  "ops": [
+    {
+      "path": "/latency/http",
+      "op": "$lte",
+      "to": {"value": 100},
+    }
+  ],
+}
+```
+
+That is, "route this message to any client that's a member of the `api`
+application, where the value at that application's `/latency/http` key is less
+than or equal to `100`."
+
+As metadata is arbitrary JSON -- the only restriction being that the top-level
+JSON is an object -- you can query effectively-infinitely-nested structures.
+You can query paths with a syntax inspired by
+[JSON Patch](http://jsonpatch.com/).
+
+For more about how the query language works, see
+[the relevant docs](https://github.com/queer/singyeong/blob/master/PROTOCOL.md#%EC%8B%A0%EA%B2%BD-node-queries)
+
+#### Delivery guarantees
+
+Messages are delivered at-least-zero times. That is, speaking broadly, your
+messages will be delivered exactly once, but there are cases (network issues
+etc.) that can lead to either no delivery, or more than one delivery, of the
+same message.
+
 ## What about test coverage and the like?
 
 You can run tests with `mix test`. Note that the plugin tests **WILL FAIL**
