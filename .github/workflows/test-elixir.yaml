@@ -9,10 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-elixir@v1
+      - uses: erlef/setup-beam@v1
         with:
           otp-version: 23.1.2
-          elixir-version: 1.11.2
+          elixir-version: 1.11.3
       - run: env MIX_ENV=test mix deps.get
       - run: env MIX_ENV=test mix compile --warnings-as-errors
       - run: |
