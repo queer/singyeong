@@ -35,7 +35,7 @@ defmodule Singyeong.Proxy do
   alias Singyeong.Metadata.Query
   require Logger
 
-  @timeout 60_000
+  @timeout :infinity
 
   @methods [
     "GET",
