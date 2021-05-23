@@ -147,7 +147,7 @@ defmodule Singyeong.Proxy do
       {node, client} = target
       node
       |> run_proxied_request(client, request, headers)
-      |> Task.await
+      |> Task.await(:infinity)
     end
   end
 
@@ -172,10 +172,10 @@ defmodule Singyeong.Proxy do
     # Actually run the send function
     case node do
       ^fake_local_node ->
-        Task.Supervisor.async Singyeong.TaskSupervisor, send_fn
+        Task.Supervisor.async Singyeong.TaskSupervisor, send_fn, timeout: :infinity
 
       _ ->
-        Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn
+        Task.Supervisor.async {Singyeong.TaskSupervisor, node}, send_fn, timeout: :infinity
     end
   end
 
