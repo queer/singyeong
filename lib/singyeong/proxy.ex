@@ -35,6 +35,8 @@ defmodule Singyeong.Proxy do
   alias Singyeong.Metadata.Query
   require Logger
 
+  @timeout 60_000
+
   @methods [
     "GET",
     "HEAD",
@@ -196,7 +198,7 @@ defmodule Singyeong.Proxy do
     {status, response} =
       HTTPoison.request method_atom, dest_with_protocol,
         encoded_body, headers,
-        [timeout: 5_000, follow_redirect: true, max_redirects: 10]
+        [timeout: @timeout, recv_timeout: @timeout, follow_redirect: true, max_redirects: 10]
 
     case status do
       :ok ->
