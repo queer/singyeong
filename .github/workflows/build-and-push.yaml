@@ -2,7 +2,7 @@ name: Publish Docker
 on:
   push:
     branches:
-    - master
+    - mistress
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +12,7 @@ jobs:
     - name: Publish to Docker Hub
       uses: queer/Publish-Docker-Github-Action@master
       env:
-        GITHUB_REF: master
+        GITHUB_REF: mistress
         CERT_FILE: ${{ secrets.CA_CERT }}
       with:
         name: queer/singyeong
