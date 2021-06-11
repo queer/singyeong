@@ -77,7 +77,7 @@ defmodule Singyeong.Metadata.Query do
     | {:path, path(), term() | nil}
 
   typedstruct do
-    field :application, String.t(), enforce: true
+    field :application, String.t() | nil
     field :restricted, boolean() | nil
     field :key, String.t() | nil
     field :droppable, boolean() | nil

@@ -7,7 +7,12 @@ defmodule Singyeong.Gateway do
 
   use TypedStruct
   alias Singyeong.Gateway.{Encoding, Payload}
-  alias Singyeong.Gateway.Handler.{DispatchEvent, Heartbeat, Identify}
+  alias Singyeong.Gateway.Handler.{
+    ConnState,
+    DispatchEvent,
+    Heartbeat,
+    Identify,
+  }
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
   alias Singyeong.Queue
@@ -98,9 +103,7 @@ defmodule Singyeong.Gateway do
     # Decode incoming packets based on the state of the socket
 
     case Encoding.decode_payload(socket, opcode, payload, encoding, restricted) do
-      {:ok, payload} ->
-        handle_payload socket, payload
-
+      {:ok, payload} -> handle_payload socket, payload
       {:error, msg} ->
         msg
         |> if(do: msg, else: "cannot decode payload")
@@ -147,12 +150,8 @@ defmodule Singyeong.Gateway do
       |> craft_response
     else
       case op do
-        :identify ->
-          Identify.handle socket, payload
-
-        :dispatch ->
-          DispatchEvent.handle socket, payload
-
+        :identify -> Identify.handle socket, payload
+        :dispatch -> DispatchEvent.handle socket, payload
         :heartbeat ->
           # We only really do heartbeats to keep clients alive.
           # The cowboy server will automatically disconnect after some period
@@ -160,8 +159,7 @@ defmodule Singyeong.Gateway do
           # for keeping itself alive.
           Heartbeat.handle socket, payload
 
-        _ ->
-          handle_invalid_op socket, op
+        _ -> handle_invalid_op socket, op
       end
     end
   rescue
@@ -180,6 +178,7 @@ defmodule Singyeong.Gateway do
       app_id = socket.assigns[:app_id]
       client_id = socket.assigns[:client_id]
       cleanup app_id, client_id
+      ConnState.send_update app_id, :disconnect
     end
   end
 
@@ -202,7 +201,6 @@ defmodule Singyeong.Gateway do
 
       _ -> nil
     end
-
   end
 
   ## OP HANDLING ##

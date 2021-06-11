@@ -156,6 +156,10 @@ The payload you send to tell the gateway who you are.
   "metadata": {
     // ...
   },
+  // Optional value. If set to `true`, this client will receive events over the
+  // websocket whenever a client dis/connects to/from the server. This value
+  // has no effect on restricted-mode clients.
+  "receive_client_updates": true,
 }
 ```
 
@@ -212,6 +216,8 @@ clients must follow.
 | `QUEUE_REQUEST`        | send | Adds the client to the list of clients awaiting messages. |
 | `QUEUE_REQUEST_CANCEL` | send | Removes the client from the list of clients awaiting messages. Basically the opposite of QUEUE_REQUEST. |
 | `QUEUE_ACK`            | send | ACKs the message in the payload, indicating that it's been handled and doesn't need to be re-queued. |
+| `CLIENT_CONNECTED`     | recv | Received when a client connects to the server, if this client is not in restricted mode and `receive_client_updates` is set to true. |
+| `CLIENT_DISCONNECTED`  | recv | Received when a client disconnects from the server, if this client is not in restricted mode and `receive_client_updates` is set to true. |
 
 
 The inner payloads for these events are as follows:
@@ -342,6 +348,24 @@ Inner payload:
 {
   "queue": "my-queue-name",
   "id": "id-to-ack"
+}
+```
+
+### `CLIENT_CONNECTED`
+
+Inner payload:
+```js
+{
+  "app": "app id",
+}
+```
+
+### `CLIENT_DISCONNECTED`
+
+Inner payload:
+```js
+{
+  "app": "app id",
 }
 ```
 

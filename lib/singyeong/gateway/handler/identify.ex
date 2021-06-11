@@ -2,6 +2,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
   @moduledoc false
 
   use Singyeong.Gateway.Handler
+  alias Singyeong.Gateway.Handler.ConnState
   alias Singyeong.Metadata
   alias Singyeong.Metadata.UpdateQueue
   alias Singyeong.PluginManager
@@ -17,6 +18,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
       auth: auth,
       namespace: ns,
       initial_metadata: initial_metadata,
+      receive_client_updates: receive_client_updates,
     },
   }) do
     if is_binary(client_id) and is_binary(app_id) do
@@ -27,11 +29,13 @@ defmodule Singyeong.Gateway.Handler.Identify do
       case PluginManager.plugin_auth(auth, ip) do
         status when status in [:ok, :restricted] ->
           restricted = status == :restricted
+          receive_client_updates = if restricted, do: false, else: receive_client_updates
           encoding = socket.assigns[:encoding]
           unless Store.client_exists?(app_id, client_id) do
             # Client doesn't exist, add to store and okay it
             finish_identify app_id, client_id, socket, ip,
-                restricted, encoding, ns, process_initial_metadata(initial_metadata)
+                restricted, encoding, ns, receive_client_updates,
+                process_initial_metadata(initial_metadata)
           else
             # If we already have a client, reject outright
             "#{client_id}: already registered for app #{app_id}"
@@ -58,7 +62,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
 
   defp process_initial_metadata(_), do: {:ok, {%{}, %{}}}
 
-  defp finish_identify(_app, _client, _socket, _ip, _restricted?, _encoding, _ns, {:error, errors}) do
+  defp finish_identify(_, _, _, _, _, _, _, _, {:error, errors}) do
     "initial metadata: invalid"
     |> Payload.close_with_error(errors)
     |> Gateway.craft_response
@@ -72,6 +76,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
     restricted?,
     encoding,
     ns,
+    receive_client_updates,
     {:ok, {initial_types, initial_metadata}}
   ) do
     queue_worker = UpdateQueue.name app_id, client_id
@@ -79,7 +84,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
       {UpdateQueue, %{name: queue_worker}}
 
     client_ip = if restricted?, do: nil, else: ip
-    base_metadata = Metadata.base(restricted?, encoding, client_ip, ns)
+    base_metadata = Metadata.base restricted?, encoding, client_ip, ns, receive_client_updates
     # We merge base into initial because base needs to win
     metadata = Map.merge initial_metadata, base_metadata
     types = Map.merge initial_types, Metadata.base_types()
@@ -92,7 +97,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
         metadata_types: types,
         socket_pid: socket.transport_pid,
         socket_ip: client_ip,
-        queues: []
+        queues: [],
       }
 
     {:ok, _} = Store.add_client client
@@ -102,6 +107,7 @@ defmodule Singyeong.Gateway.Handler.Identify do
     else
       Logger.info "[GATEWAY] Got new socket #{app_id}:#{client_id} @ #{ip}"
     end
+    ConnState.send_update app_id, :connect
     :ready
     |> Payload.create_payload(%{"client_id" => client_id, "restricted" => restricted?})
     |> Gateway.craft_response(%{app_id: app_id, client_id: client_id, restricted: restricted?, encoding: encoding})

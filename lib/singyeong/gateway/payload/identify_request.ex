@@ -10,5 +10,6 @@ defmodule Singyeong.Gateway.Payload.IdentifyRequest do
     field :auth, term() | nil
     field :namespace, String.t() | nil
     field :initial_metadata, map() | nil
+    field :receive_client_updates, boolean() | nil
   end
 end

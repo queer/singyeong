@@ -11,6 +11,7 @@ defmodule Singyeong.Metadata do
   @restricted "restricted"
   @encoding "encoding"
   @namespace "namespace"
+  @receive_client_updates "receive_client_updates"
 
   @forbidden_keys [
     @last_heartbeat_time,
@@ -18,6 +19,7 @@ defmodule Singyeong.Metadata do
     @restricted,
     @encoding,
     @namespace,
+    @receive_client_updates,
   ]
 
   def last_heartbeat_time, do: @last_heartbeat_time
@@ -25,16 +27,18 @@ defmodule Singyeong.Metadata do
   def restricted, do: @restricted
   def encoding, do: @encoding
   def namespace, do: @namespace
+  def receive_client_updates, do: @receive_client_updates
 
   def forbidden_keys, do: @forbidden_keys
 
-  def base(restricted?, encoding, client_ip, ns) do
+  def base(restricted?, encoding, client_ip, ns, receive_client_updates) do
     %{
       last_heartbeat_time() => Utils.now(),
       restricted() => restricted?,
       encoding() => encoding,
       ip() => client_ip,
       namespace() => ns,
+      receive_client_updates() => receive_client_updates,
     }
   end
 
@@ -45,6 +49,7 @@ defmodule Singyeong.Metadata do
       encoding() => :string,
       ip() => :string,
       namespace() => :string,
+      receive_client_updates() => :string,
     }
   end
 end

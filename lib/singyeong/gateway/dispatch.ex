@@ -174,13 +174,14 @@ defmodule Singyeong.Gateway.Dispatch do
     {Map.to_list(clients), client_count}
   end
 
-  defp send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?) do
+  def send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?, type \\ nil) do
+    # TODO: Relocate this type of code to MessageDispatcher?
     {possible_clients, client_count} =
       data.target
       |> Cluster.query(broadcast?)
       |> get_possible_clients
 
-    MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?
+    MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?, type
   end
 
   defp attempt_queue_dispatch(queue_name) do
