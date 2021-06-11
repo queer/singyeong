@@ -13,7 +13,7 @@
 > <small style="color:grey;">"the optic nerve"</small>
 
 신경 is the nerve-center of your microservices, providing a message bus + message
-queue with powerful routing, automatic load-balaincing + failover, powerful HTTP
+queue with powerful routing, automatic load-balancing + failover, powerful HTTP
 request proxying + routing, and more. 신경 aims to be simple to get started with
 while still providing the features for a variety of use-cases.
 
