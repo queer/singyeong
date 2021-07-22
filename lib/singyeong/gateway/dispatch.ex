@@ -181,7 +181,7 @@ defmodule Singyeong.Gateway.Dispatch do
       |> Cluster.query(broadcast?)
       |> get_possible_clients
 
-    MessageDispatcher.send_with_retry socket, possible_clients, client_count, data, broadcast?, type
+    MessageDispatcher.send_message socket, possible_clients, client_count, data, broadcast?, type
   end
 
   defp attempt_queue_dispatch(queue_name) do
@@ -212,9 +212,6 @@ defmodule Singyeong.Gateway.Dispatch do
           {_, 0} ->
             {:ok, next_message} = Queue.pop queue_name
             # No clients, DLQ it
-            # {{:value, %QueuedMessage{} = message}, new_queue} = :queue.out queue
-            # dlq = Utils.fast_list_concat dlq, %DeadLetter{message: message, dead_since: now}
-            # {{:error, :dlq}, %{state | dlq: dlq, queue: new_queue}}
             :ok = Queue.add_dlq queue_name, next_message
 
           {matches, count} when count > 0 ->
@@ -250,7 +247,7 @@ defmodule Singyeong.Gateway.Dispatch do
                 :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
 
                 # Queues can only send to a single client, so client_count=1
-                MessageDispatcher.send_with_retry nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+                MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
                     target: target,
                     nonce: nonce,
                     payload: outgoing_payload

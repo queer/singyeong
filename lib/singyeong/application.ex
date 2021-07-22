@@ -14,7 +14,7 @@ defmodule Singyeong.Application do
 
       Logger.info "[APP] No node, booting @ #{node_name}"
 
-      Node.start node_name, :shortnames
+      {:ok, _} = Node.start node_name, :shortnames
       Node.set_cookie Node.self(), Config.node_cookie()
     end
     PluginManager.init()
