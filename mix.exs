@@ -52,7 +52,7 @@ defmodule Singyeong.Mixfile do
       {:msgpax, "~> 2.2"},
       {:typed_struct, "~> 0.2.1"},
       {:rafted_value, "~> 0.11.1"},
-      {:raft_fleet, "~> 0.10.1"},
+      {:raft_fleet, "~> 0.10.2"},
       {:elixir_uuid, "~> 1.2"},
       {:manifold, "~> 1.4"},
 
