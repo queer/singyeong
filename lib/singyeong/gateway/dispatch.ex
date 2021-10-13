@@ -227,33 +227,33 @@ defmodule Singyeong.Gateway.Dispatch do
                   hd res
               end
 
-              if next_client_id != nil do
-                {node, [next_client]} =
-                  matches
-                  |> Enum.filter(fn {_node, clients} ->
-                    Enum.any? clients, fn client ->
-                      next_client_id == {client.app_id, client.client_id}
-                    end
-                  end)
-                  |> hd
+            if next_client_id != nil do
+              {node, [next_client]} =
+                matches
+                |> Enum.filter(fn {_node, clients} ->
+                  Enum.any? clients, fn client ->
+                    next_client_id == {client.app_id, client.client_id}
+                  end
+                end)
+                |> hd
 
-                outgoing_payload =
-                  %QueueDispatch{
-                    queue: queue_name,
-                    payload: payload,
-                    id: id,
-                  }
+              outgoing_payload =
+                %QueueDispatch{
+                  queue: queue_name,
+                  payload: payload,
+                  id: id,
+                }
 
-                :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
+              :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
 
-                # Queues can only send to a single client, so client_count=1
-                MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
-                    target: target,
-                    nonce: nonce,
-                    payload: outgoing_payload
-                  }, false, "QUEUE"
+              # Queues can only send to a single client, so client_count=1
+              MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+                  target: target,
+                  nonce: nonce,
+                  payload: outgoing_payload
+                }, false, "QUEUE"
 
-                Queue.add_unacked queue_name, {id, message}
+              Queue.add_unacked queue_name, {id, message}
             end
         end
     end
