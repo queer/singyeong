@@ -65,8 +65,18 @@ defmodule SingyeongWeb.Router do
       PluginManager.plugins_for_auth() == [] and Config.auth() == nil ->
         conn
 
-      PluginManager.plugins_for_auth() == [] and Config.auth() != nil ->
+      PluginManager.plugins_for_auth() == [] and auth == nil ->
         if auth == Config.auth() do
+          conn
+        else
+          conn
+          |> put_status(401)
+          |> json(%{"status" => "error", "error" => "not authorized"})
+          |> halt()
+        end
+
+      PluginManager.plugins_for_auth() == [] and Config.auth() != nil ->
+        if Plug.Crypto.secure_compare(Config.auth(), auth) do
           conn
         else
           conn
