@@ -148,7 +148,19 @@ defmodule Singyeong.PluginManager do
   def plugin_auth(auth, ip) do
     case plugins_for_auth() do
       [] ->
-        if Config.auth() == auth do
+        auth_comparison =
+          cond do
+            auth == nil ->
+              Config.auth() == nil
+
+            Config.auth() == nil ->
+              auth == nil
+
+            true ->
+              Plug.Crypto.secure_compare(Config.auth(), auth)
+          end
+
+        if auth_comparison do
           :ok
         else
           :restricted
