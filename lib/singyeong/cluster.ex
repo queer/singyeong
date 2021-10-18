@@ -56,7 +56,7 @@ defmodule Singyeong.Cluster do
     {:ok, client_count} = Store.count_clients()
     node_count = length(Node.list()) + 1
 
-    Logger.debug "[DEBUG] node_count=#{node_count}"
+    # Logger.debug "[DEBUG] node_count=#{node_count}"
     if node_count > 1 do
       client_counts =
         run_clustered fn ->
@@ -75,7 +75,7 @@ defmodule Singyeong.Cluster do
       # node_count-based buffer), disconnect clients until we're under the
       # limit.
       max_clients = average_clients + node_count - 1
-      Logger.debug "[DEBUG] max_clients=#{max_clients}, client_count=#{client_count}"
+      # Logger.debug "[DEBUG] max_clients=#{max_clients}, client_count=#{client_count}"
       if client_count > max_clients do
         to_disconnect = client_count - max_clients
         Logger.info "Disconnecting #{to_disconnect} sockets for load-balancing!"
