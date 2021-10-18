@@ -102,6 +102,13 @@ defmodule SingyeongWeb.Transport.Raw do
     {:push, encoded_payload, state}
   end
 
+  def handle_info({:close, {:text, payload}}, {%{channels: _, channels_inverse: _}, socket} = state) do
+    outgoing = Gateway.Pipeline.process_outgoing_event payload
+    encoded_payload = Encoding.encode socket, outgoing
+    Process.send_after self(), {:stop, {:shutdown, :closed}}, 100
+    {:push, encoded_payload, state}
+  end
+
   def handle_info({:stop, reason}, state) do
     {:stop, reason, state}
   end
