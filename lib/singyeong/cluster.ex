@@ -78,9 +78,9 @@ defmodule Singyeong.Cluster do
             {status, result} = Store.get_clients to_disconnect
             case status do
               :ok ->
-                for socket <- result do
+                for client <- result do
                   payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
-                  send socket, payload
+                  send client.socket_pid, payload
                 end
 
               :error ->
