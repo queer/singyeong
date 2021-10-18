@@ -42,7 +42,7 @@ defmodule Singyeong.Cluster do
   end
 
   def handle_info(:connect, state) do
-    load_balance()
+    spawn fn -> load_balance() end
 
     state = update_raft_state state
 
@@ -53,40 +53,42 @@ defmodule Singyeong.Cluster do
   end
 
   defp load_balance do
-    spawn fn ->
-      {:ok, count} = Store.count_clients()
-      threshold = length(Node.list()) - 1
-      if threshold > 0 do
-        counts =
-          run_clustered fn ->
-            {:ok, count} = Store.count_clients()
-            count
-          end
+    {:ok, client_count} = Store.count_clients()
+    node_count = length(Node.list()) + 1
 
-        average =
-          counts
-          |> Map.drop([@fake_local_node])
-          |> Map.values
-          |> Enum.sum
-          |> :erlang./(threshold)
+    Logger.debug "[DEBUG] node_count=#{node_count}"
+    if node_count > 1 do
+      client_counts =
+        run_clustered fn ->
+          {:ok, count} = Store.count_clients()
+          count
+        end
 
-        goal = threshold / 2
-        if count > average + goal do
-          to_disconnect = Kernel.trunc count - (average + goal + 1)
-          if to_disconnect > 0 do
-            Logger.info "Disconnecting #{to_disconnect} sockets to load balance!"
-            {status, result} = Store.get_clients to_disconnect
-            case status do
-              :ok ->
-                for client <- result do
-                  payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
-                  send client.socket_pid, payload
-                end
+      average_clients =
+        client_counts
+        |> Map.values
+        |> Enum.sum
+        |> :erlang./(node_count)
+        |> round
 
-              :error ->
-                Logger.error "Couldn't get sockets to load-balance away: #{result}"
+      # If the number of clients on this node is more than the average (plus
+      # node_count-based buffer), disconnect clients until we're under the
+      # limit.
+      max_clients = average_clients + node_count - 1
+      Logger.debug "[DEBUG] max_clients=#{max_clients}, client_count=#{client_count}"
+      if client_count > max_clients do
+        to_disconnect = client_count - max_clients
+        Logger.info "Disconnecting #{to_disconnect} sockets for load-balancing!"
+        {status, result} = Store.get_clients to_disconnect
+        case status do
+          :ok ->
+            for client <- result do
+              payload = Payload.close_with_payload(:goodbye, %{"reason" => "load balancing"})
+              send client.socket_pid, payload
             end
-          end
+
+          :error ->
+            Logger.error "Couldn't get sockets to load-balance away: #{result}"
         end
       end
     end
