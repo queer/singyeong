@@ -193,68 +193,72 @@ defmodule Singyeong.Gateway.Dispatch do
         :ok
 
       {:ok, true} ->
-        {:ok, {%QueuedMessage{
-          target: target,
-        } = message, pending_clients}} = Queue.peek queue_name
+        attempt_queue_dispatch0 queue_name
+    end
+  end
 
-        # Query the metadata store to find matching clients, and dispatch the
-        # queued message to the client that's been waiting the longest. Due to
-        # current limitations of the query engine, this queries all clients for
-        # the pending application, then computes the intersection of that set of
-        # clients with the set of pending clients, picking the first match,
-        # ie hd(pending ∩ matches).
-        # TODO: This query should only be run over pending clients
-        target
-        |> Cluster.query
-        |> get_possible_clients
-        # {matches, count}
-        |> case do
-          {_, 0} ->
-            {:ok, next_message} = Queue.pop queue_name
-            # No clients, DLQ it
-            :ok = Queue.add_dlq queue_name, next_message
+  defp attempt_queue_dispatch0(queue_name) do
+    {:ok, {%QueuedMessage{
+      target: target,
+    } = message, pending_clients}} = Queue.peek queue_name
 
-          {matches, count} when count > 0 ->
-            {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}} = Queue.pop queue_name
-            next_client_id =
-              pending_clients
-              |> intersection(matches)
-              |> case do
-                [] ->
-                  nil
+    # Query the metadata store to find matching clients, and dispatch the
+    # queued message to the client that's been waiting the longest. Due to
+    # current limitations of the query engine, this queries all clients for
+    # the pending application, then computes the intersection of that set of
+    # clients with the set of pending clients, picking the first match,
+    # ie hd(pending ∩ matches).
+    # TODO: This query should only be run over pending clients
+    target
+    |> Cluster.query
+    |> get_possible_clients
+    # {matches, count}
+    |> case do
+      {_, 0} ->
+        {:ok, next_message} = Queue.pop queue_name
+        # No clients, DLQ it
+        :ok = Queue.add_dlq queue_name, next_message
 
-                [_ | _] = res ->
-                  hd res
+      {matches, count} when count > 0 ->
+        {:ok, %QueuedMessage{payload: payload, id: id, nonce: nonce}} = Queue.pop queue_name
+        next_client_id =
+          pending_clients
+          |> intersection(matches)
+          |> case do
+            [] ->
+              nil
+
+            [_ | _] = res ->
+              hd res
+          end
+
+        if next_client_id != nil do
+          {node, [next_client]} =
+            matches
+            |> Enum.filter(fn {_node, clients} ->
+              Enum.any? clients, fn client ->
+                next_client_id == {client.app_id, client.client_id}
               end
+            end)
+            |> hd
 
-            if next_client_id != nil do
-              {node, [next_client]} =
-                matches
-                |> Enum.filter(fn {_node, clients} ->
-                  Enum.any? clients, fn client ->
-                    next_client_id == {client.app_id, client.client_id}
-                  end
-                end)
-                |> hd
+          outgoing_payload =
+            %QueueDispatch{
+              queue: queue_name,
+              payload: payload,
+              id: id,
+            }
 
-              outgoing_payload =
-                %QueueDispatch{
-                  queue: queue_name,
-                  payload: payload,
-                  id: id,
-                }
+          :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
 
-              :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
+          # Queues can only send to a single client, so client_count=1
+          MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+              target: target,
+              nonce: nonce,
+              payload: outgoing_payload
+            }, false, "QUEUE"
 
-              # Queues can only send to a single client, so client_count=1
-              MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
-                  target: target,
-                  nonce: nonce,
-                  payload: outgoing_payload
-                }, false, "QUEUE"
-
-              Queue.add_unacked queue_name, {id, message}
-            end
+          Queue.add_unacked queue_name, {id, message}
         end
     end
   end
