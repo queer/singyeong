@@ -150,14 +150,9 @@ defmodule Singyeong.PluginManager do
       [] ->
         auth_comparison =
           cond do
-            auth == nil ->
-              Config.auth() == nil
-
-            Config.auth() == nil ->
-              auth == nil
-
-            true ->
-              Plug.Crypto.secure_compare(Config.auth(), auth)
+            auth == nil -> Config.auth() == nil
+            Config.auth() == nil -> auth == nil
+            true -> Plug.Crypto.secure_compare Config.auth(), auth
           end
 
         if auth_comparison do
@@ -177,14 +172,11 @@ defmodule Singyeong.PluginManager do
           |> Enum.map(fn {:error, msg} -> msg end)
 
         cond do
-          length(errors) > 0 ->
-            {:error, errors}
-
+          length(errors) > 0 -> {:error, errors}
           Enum.any?(plugin_auth_results, fn elem -> elem == :restricted end) ->
             :restricted
 
-          true ->
-            :ok
+          true -> :ok
         end
     end
   end
@@ -192,14 +184,9 @@ defmodule Singyeong.PluginManager do
   @spec manifest(atom()) :: {:ok, Manifest.t()} | {:error, :no_plugin}
   def manifest(plugin) when is_atom(plugin) do
     case :ets.lookup(:plugins, plugin) do
-      [] ->
-        {:error, :no_plugin}
-
-      [{^plugin, manifest}] ->
-        {:ok, manifest}
-
-      _ ->
-        {:error, :no_plugin}
+      [] -> {:error, :no_plugin}
+      [{^plugin, manifest}] -> {:ok, manifest}
+      _ -> {:error, :no_plugin}
     end
   end
 
@@ -208,12 +195,8 @@ defmodule Singyeong.PluginManager do
     |> Enum.flat_map(fn plugin ->
       load_result = plugin.load()
       case load_result do
-        {:ok, children} when is_list(children) ->
-          children
-
-        {:ok, nil} ->
-          []
-
+        {:ok, children} when is_list(children) -> children
+        {:ok, nil} -> []
         {:error, reason} ->
           Logger.error "[PLUGIN] Failed loading plugin #{plugin}: #{reason}"
           []
@@ -248,6 +231,7 @@ defmodule Singyeong.PluginManager do
         case :ets.lookup(:loaded_so_cache, file) do
           [{file, true}] ->
             Logger.debug "[PLUGIN] Skipping native #{file}, load cached"
+
           _ ->
             Logger.debug "[PLUGIN] Attempting native extraction: #{file}"
             {:ok, {_, zip_data}} = :zip.zip_get file, handle
@@ -299,6 +283,7 @@ defmodule Singyeong.PluginManager do
       else
         Logger.warn "[PLUGIN] Not redefining already-existing module #{module_name}"
       end
+
       module_name
     end)
     # The previous step returns nil if it can't redefine a mod, so we have to
@@ -317,12 +302,10 @@ defmodule Singyeong.PluginManager do
   defp get_files(zip_list) do
     zip_list
     |> Enum.filter(fn tuple ->
-      kind =
-        tuple
-        |> Tuple.to_list
-        |> hd
-
-      kind == :zip_file
+      tuple
+      |> Tuple.to_list
+      |> hd
+      |> Kernel.==(:zip_file)
     end)
   end
 end

@@ -48,6 +48,4 @@ defmodule Singyeong.Gateway.Handler.DispatchEvent do
         Gateway.craft_response error
     end
   end
-
-  # TODO: This isn't really the right place for these S:
 end

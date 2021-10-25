@@ -4,6 +4,8 @@ defmodule Singyeong.Cluster do
   """
 
   use GenServer
+  use TypedStruct
+  alias Singyeong.Cluster.State
   alias Singyeong.Config
   alias Singyeong.Gateway.Payload
   alias Singyeong.Store
@@ -14,6 +16,18 @@ defmodule Singyeong.Cluster do
   @connect_interval 1000
   @fake_local_node :singyeong_local_node
 
+  typedstruct module: State, enforce: true do
+    @moduledoc """
+    Contains the state of the cluster, which is things like:
+    - Whether or not Raft has been set up
+    - The last-known set of nodes, to determine whether or not Raft state needs
+      to be updated
+    """
+
+    field :rafted?, boolean()
+    field :last_nodes, [Node.t()]
+  end
+
   # GENSERVER CALLBACKS #
 
   def start_link(opts) do
@@ -22,7 +36,7 @@ defmodule Singyeong.Cluster do
 
   def init(_) do
     state =
-      %{
+      %State{
         rafted?: false,
         last_nodes: %{},
       }
@@ -95,14 +109,14 @@ defmodule Singyeong.Cluster do
   end
 
   defp update_raft_state(state) do
-    needs_raft_reactivation = !state[:rafted?] or state[:last_nodes] != Node.list()
+    needs_raft_reactivation = !state.rafted? or state.last_nodes != Node.list()
 
     if needs_raft_reactivation do
       Logger.info "[CLUSTER] (Re)activating Raft zones"
       RaftFleet.activate Config.raft_zone()
     end
 
-    if needs_raft_reactivation and not state[:rafted?] do
+    if needs_raft_reactivation and not state.rafted? do
       Logger.info "[CLUSTER] Not currently rafted, attempting to activate consensus groups!"
       # Replicate consensus groups
       RaftFleet.consensus_groups()
@@ -130,8 +144,7 @@ defmodule Singyeong.Cluster do
   Run a metadata query across the entire cluster, and return a mapping of nodes
   to matching client ids.
   """
-  # TODO: Remove broadcast param
-  def query(query, _broadcast \\ false) do
+  def query(query) do
     run_clustered fn ->
       Singyeong.Store.query query
     end
@@ -157,6 +170,7 @@ defmodule Singyeong.Cluster do
           res = func.()
           {node, res}
         end
+
       Utils.fast_list_concat acc, [task]
     end)
     |> Enum.map(&Task.await/1)

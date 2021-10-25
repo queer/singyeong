@@ -22,10 +22,6 @@ defmodule Singyeong.Gateway.Handler.Identify do
     },
   }) do
     if is_binary(client_id) and is_binary(app_id) do
-      # If the client doesn't specify its own ip (eg. for routing to a specific
-      # port for HTTP), we fall back to the socket-assign ip, which is derived
-      # from peer data in the transport.
-
       case PluginManager.plugin_auth(auth, ip) do
         status when status in [:ok, :restricted] ->
           restricted = status == :restricted

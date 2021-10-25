@@ -24,14 +24,9 @@ defmodule Singyeong.Gateway.Dispatch do
 
   def can_dispatch?(socket, event) do
     cond do
-      socket.assigns[:restricted] and event == "UPDATE_METADATA" ->
-        true
-
-      socket.assigns[:restricted] ->
-        false
-
-      true ->
-        true
+      socket.assigns[:restricted] and event == "UPDATE_METADATA" -> true
+      socket.assigns[:restricted] -> false
+      true -> true
     end
   end
 
@@ -60,7 +55,7 @@ defmodule Singyeong.Gateway.Dispatch do
   end
 
   def handle_dispatch(_, %Payload{t: "QUERY_NODES", d: data}) do
-    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Cluster.query(data, true)})}
+    {:ok, Payload.create_payload(:dispatch, "QUERY_NODES", %{"nodes" => Cluster.query(data)})}
   end
 
   def handle_dispatch(_, %Payload{t: "QUEUE", d: %QueueInsert{
@@ -178,7 +173,7 @@ defmodule Singyeong.Gateway.Dispatch do
     # TODO: Relocate this type of code to MessageDispatcher?
     {possible_clients, client_count} =
       data.target
-      |> Cluster.query(broadcast?)
+      |> Cluster.query
       |> get_possible_clients
 
     MessageDispatcher.send_message socket, possible_clients, client_count, data, broadcast?, type
