@@ -48,7 +48,6 @@ defmodule Singyeong.Mixfile do
       {:nimble_parsec, "~> 1.1.0"},
       {:fuse, "~> 2.4"},
       {:httpoison, "~> 1.6"},
-      {:redix, ">= 0.0.0"},
       {:msgpax, "~> 2.2"},
       {:typed_struct, "~> 0.2.1"},
       {:rafted_value, "~> 0.11.1"},
