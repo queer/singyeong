@@ -45,7 +45,7 @@ defmodule Singyeong.Mixfile do
       {:plug_cowboy, "~> 2.1"},
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.1"},
-      {:nimble_parsec, "~> 1.1.0"},
+      {:nimble_parsec, "~> 1.2.0"},
       {:fuse, "~> 2.4"},
       {:httpoison, "~> 1.6"},
       {:msgpax, "~> 2.2"},
