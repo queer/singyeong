@@ -56,7 +56,7 @@ defmodule Singyeong.Mixfile do
       {:manifold, "~> 1.4"},
 
       {:dialyxir, "~> 1.1.0", only: [:dev], runtime: false},
-      {:credo, "~> 1.5.1", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14.0", only: :test},
 
       {:singyeong_plugin, "~> 0.1.2"},
