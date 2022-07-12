@@ -61,7 +61,7 @@ defmodule Singyeong.Mixfile do
 
       {:singyeong_plugin, "~> 0.1.2"},
       {:lethe, "~> 0.6.0"},
-      {:libcluster, github: "svrdlans/libcluster", ref: "6f57e1f"},
+      {:libcluster, "~> 3.3"},
     ]
   end
 end
