@@ -55,7 +55,7 @@ defmodule Singyeong.Mixfile do
       {:elixir_uuid, "~> 1.2"},
       {:manifold, "~> 1.4"},
 
-      {:dialyxir, "~> 1.1.0", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.2.0", only: [:dev], runtime: false},
       {:credo, "~> 1.6.2", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.14.0", only: :test},
 
