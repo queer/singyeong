@@ -30,18 +30,7 @@ defmodule Singyeong.MessageDispatcher do
   end
 
   def send_message(socket, _, 0, %Payload.Dispatch{target: %Query{droppable: false} = target, nonce: nonce}, _, nil) do
-    # No matches and not droppable, reply to initiator if possible
-    if socket != nil and is_pid(socket.transport_pid) and Process.alive?(socket.transport_pid) do
-      failure =
-        Payload.create_payload :invalid, %{
-          "error" => "no nodes match query for query #{inspect target, pretty: true}",
-          "d" => %{
-            "nonce" => nonce
-          }
-        }
-
-      send socket.transport_pid, failure
-    end
+    # No matches and not droppable, drop with an error
     {:error, :no_route}
   end
 

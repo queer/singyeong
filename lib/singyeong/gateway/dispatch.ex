@@ -114,7 +114,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:ok, []}
 
       {:error, value} ->
-        {:error, Payload.error("Unroutable payload: #{value}", payload)}
+        {:error, Payload.error(value, Payload.to_outgoing(payload))}
     end
   end
 
@@ -124,7 +124,7 @@ defmodule Singyeong.Gateway.Dispatch do
         {:ok, []}
 
       {:error, value} ->
-        {:error, Payload.error("Unroutable payload: #{value}", payload)}
+        {:error, Payload.error(value, Payload.to_outgoing(payload))}
     end
   end
 
