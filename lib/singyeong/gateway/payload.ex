@@ -168,4 +168,17 @@ defmodule Singyeong.Gateway.Payload do
   def close_with_op_and_error(op, err, extra_info \\ nil) do
     {:close, create_payload(op, %Error{error: err, extra_info: extra_info})}
   end
+
+  def to_outgoing(%__MODULE__{op: op, d: data, t: t, ts: ts}) when is_atom(op) do
+    %__MODULE__{
+      op: Gateway.opcodes_name()[op],
+      d: data,
+      t: t,
+      ts: ts,
+    }
+  end
+
+  def to_outgoing(%__MODULE__{} = payload) do
+    payload
+  end
 end
