@@ -1,9 +1,9 @@
 # This file is responsible for configuring your application
-# and its dependencies with the aid of the Mix.Config module.
+# and its dependencies with the aid of the Config module.
 #
 # This configuration file is loaded before any dependency and
 # is restricted to this project.
-use Mix.Config
+import Config
 require Logger
 
 ################################################################
@@ -20,7 +20,7 @@ config :singyeong, SingyeongWeb.Endpoint,
 
 # Configures Elixir's Logger
 config :logger, :console,
-  format: "[$time] $metadata[$level]$levelpad $message\n",
+  format: "[$time] $metadata[$level] $message\n",
   metadata: [:file, :line]
 
 config :phoenix, :format_encoders,
@@ -52,7 +52,7 @@ gossip_topology =
 
 # Erlang distribution cookie
 cookie =
-  if Mix.env() == :prod do
+  if config_env() == :prod do
     System.get_env("COOKIE") || raise """
       \n
       ### ERROR ###
@@ -134,7 +134,7 @@ config :singyeong_plugin,
   # from whatever data is available.
   payload_module: Singyeong.Gateway.Payload
 
-import_config "#{Mix.env}.exs"
+import_config "#{config_env()}.exs"
 
 # Import custom configs. This should override EVERYTHING else, and so it must
 # stay at the very bottom.

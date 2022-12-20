@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :singyeong, SingyeongWeb.Endpoint,
   http: [port: 4001],
