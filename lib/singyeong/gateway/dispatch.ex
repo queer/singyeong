@@ -108,8 +108,8 @@ defmodule Singyeong.Gateway.Dispatch do
     {:ok, []}
   end
 
-  def handle_dispatch(socket, %Payload{t: "SEND", d: data} = payload) do
-    case send_to_clients(socket, data, false) do
+  def handle_dispatch(_, %Payload{t: "SEND", d: data} = payload) do
+    case send_to_clients(data, false) do
       {:ok, _} ->
         {:ok, []}
 
@@ -118,8 +118,8 @@ defmodule Singyeong.Gateway.Dispatch do
     end
   end
 
-  def handle_dispatch(socket, %Payload{t: "BROADCAST", d: data} = payload) do
-    case send_to_clients(socket, data, true) do
+  def handle_dispatch(_, %Payload{t: "BROADCAST", d: data} = payload) do
+    case send_to_clients(data, true) do
       {:ok, _} ->
         {:ok, []}
 
@@ -169,14 +169,14 @@ defmodule Singyeong.Gateway.Dispatch do
     {Map.to_list(clients), client_count}
   end
 
-  def send_to_clients(socket, %Payload.Dispatch{} = data, broadcast?, type \\ nil) do
+  def send_to_clients(%Payload.Dispatch{} = data, broadcast?, type \\ nil) do
     # TODO: Relocate this type of code to MessageDispatcher?
     {possible_clients, client_count} =
       data.target
       |> Cluster.query
       |> get_possible_clients
 
-    MessageDispatcher.send_message socket, possible_clients, client_count, data, broadcast?, type
+    MessageDispatcher.send_message possible_clients, client_count, data, broadcast?, type
   end
 
   defp attempt_queue_dispatch(queue_name) do
@@ -247,7 +247,7 @@ defmodule Singyeong.Gateway.Dispatch do
           :ok = Queue.remove_client queue_name, {next_client.app_id, next_client.client_id}
 
           # Queues can only send to a single client, so client_count=1
-          MessageDispatcher.send_message nil, [{node, [next_client]}], 1, %Payload.Dispatch{
+          MessageDispatcher.send_message [{node, [next_client]}], 1, %Payload.Dispatch{
               target: target,
               nonce: nonce,
               payload: outgoing_payload
